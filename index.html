@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<!--
+  ARQUIVO 1 — a tela de entrada.
+
+  Estrutura + estilo. O comportamento (validar, gravar a sessão e
+  mandar o Mestre para o painel) mora no app.js, carregado no fim do
+  <body>. Todo o visual mora no style.css (mesma pasta),
+  que é o sistema de design do site inteiro — as classes usadas aqui
+  (.entrada-caixa, .botao, .campo...) são as mesmas das próximas telas,
+  e também as mesmas da mesa-virtual/ (a pasta de referência).
+
+  Para ver: dê duplo clique neste arquivo. Ele abre no navegador direto,
+  sem servidor, sem instalar nada.
+-->
+<html lang="pt-br">
+
+<head>
+  <!-- Diz ao navegador que o arquivo está em UTF-8: sem isso, acentos viram símbolos estranhos. -->
+  <meta charset="UTF-8">
+
+  <!-- Faz o site se adaptar à largura do celular em vez de mostrar a página de desktop encolhida. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Pinta a barra do navegador no celular com a cor de fundo do site. -->
+  <meta name="theme-color" content="#08090b">
+
+  <!-- O que aparece na aba do navegador. -->
+  <title>Plainus RPG</title>
+
+  <!-- Ícone da aba: o mesmo emblema (arco + pedra) que vai identificar o site inteiro. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!--
+    Fontes: Marcellus (títulos e números) e Inter (interface).
+    Se estiver sem internet, o navegador usa Georgia/Segoe UI no lugar
+    e o site continua funcionando, só perde o par exato de fontes.
+  -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!--
+    <main> é o conteúdo principal da página.
+    Poderia ser uma <div>, mas a tag semântica diz o que o bloco É,
+    e isso ajuda leitores de tela e buscadores.
+  -->
+  <main class="pagina-entrada">
+    <div class="entrada-caixa">
+
+      <!-- ============ CABEÇALHO: o único ornamento literal da tela ============ -->
+
+      <header class="entrada-marca">
+        <!--
+          Um arco gótico desenhado a traço — o "selo" do site. aria-hidden:
+          é enfeite, o leitor de tela ignora. O caminho .brilho é o mesmo
+          arco, mais grosso e desfocado atrás, para dar a luz pulsando.
+        -->
+        <svg class="arco-gotico" viewBox="0 0 74 58" aria-hidden="true">
+          <path class="brilho" d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M18 57 L18 30 Q37 10 56 30 L56 57" opacity="0.45" />
+          <path d="M28 57 L28 35 Q37 24 46 35 L46 57" opacity="0.28" />
+          <path d="M37 14 L37 57" opacity="0.22" />
+        </svg>
+
+        <h1 class="titulo">Plainus RPG</h1>
+        <p class="subtitulo">Crie uma campanha ou entre na de um amigo.</p>
+      </header>
+
+
+      <!-- ============ SUAS CAMPANHAS (só aparece se houver alguma) ============
+
+        Nasce com hidden: numa primeira visita não há nada para listar,
+        e um título "Suas campanhas" sobre uma lista vazia é ruído. O
+        app.js tira o hidden quando encontra campanhas salvas e monta
+        uma linha por campanha dentro de #listaCampanhas.
+      -->
+      <section class="campanhas-salvas" id="campanhasSalvas" hidden>
+        <h2>Suas campanhas</h2>
+        <div class="lista-campanhas" id="listaCampanhas"></div>
+      </section>
+
+
+      <!-- ============ BLOCO 1: quem é você ============ -->
+
+      <div class="campo">
+        <!--
+          O 'for' do label aponta para o 'id' do input.
+          Com isso, clicar no texto "Seu nome" já foca o campo.
+        -->
+        <label for="nome">Seu nome</label>
+        <input type="text" id="nome" placeholder="Como a mesa te chama" maxlength="30" autocomplete="nickname">
+      </div>
+
+
+      <!--
+        Os dois blocos de baixo ficam lado a lado no computador
+        e empilhados no celular (o CSS cuida disso).
+      -->
+      <div class="colunas">
+
+        <!-- ============ BLOCO 2: criar uma campanha nova ============ -->
+
+        <section class="coluna">
+          <h2>Criar campanha</h2>
+
+          <div class="campo">
+            <label for="campanha">Nome da campanha</label>
+            <input type="text" id="campanha" placeholder="Crônicas de Ravendusk" maxlength="60" autocomplete="off">
+          </div>
+
+          <!--
+            type="button" é importante: sem isso, um botão dentro de um formulário
+            tenta enviar a página e recarrega tudo.
+          -->
+          <button class="botao" type="button" id="btnCriar">Criar campanha</button>
+        </section>
+
+
+        <!-- ============ BLOCO 3: entrar em uma campanha existente ============ -->
+
+        <section class="coluna">
+          <h2>Entrar com código</h2>
+
+          <!--
+            O código tem 12 caracteres sorteados (XXXX-XXXX-XXXX), e não
+            mais 3 letras + 4 dígitos: aquele formato dava para adivinhar
+            por tentativa. maxlength 20, e não 14, para caber um código
+            colado com espaços — o app.js limpa e arruma.
+          -->
+          <div class="campo">
+            <label for="codigo">Código da campanha</label>
+            <input class="codigo-entrada" type="text" id="codigo" placeholder="K7QM-2XRP-9HVD" maxlength="20" autocomplete="off" spellcheck="false">
+          </div>
+
+          <!--
+            Dois <input type="radio"> com o MESMO 'name' formam um grupo:
+            o navegador garante que só um dos dois fique marcado.
+            O 'checked' define qual vem marcado por padrão.
+
+            O <fieldset> + <legend> agrupam as opções para leitores de tela.
+            O radio em si fica invisível; o <span> logo depois dele é o "cartão"
+            que o usuário enxerga (o CSS pinta o cartão quando o radio está marcado).
+          -->
+          <fieldset class="campo">
+            <legend class="rotulo-grupo">Você vai jogar como</legend>
+
+            <div class="escolha-papel">
+              <label class="opcao-papel">
+                <input type="radio" name="papel" value="jogador" checked>
+                <span class="opcao-papel-conteudo">
+                  <!-- Ícone "party": mesmo traço da mesa-virtual/public/js/icones.js -->
+                  <svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M12 9v5M9.5 11.5h5"/>
+                  </svg>
+                  Jogador
+                </span>
+              </label>
+
+              <label class="opcao-papel">
+                <input type="radio" name="papel" value="mestre">
+                <span class="opcao-papel-conteudo">
+                  <!-- Ícone "mestre": mesmo traço da mesa-virtual/public/js/icones.js -->
+                  <svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path d="M4 8l3.5 4L12 5l4.5 7L20 8v10H4z"/><path d="M4 18h16"/>
+                  </svg>
+                  Mestre
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <button class="botao fantasma" type="button" id="btnEntrar">Entrar na mesa</button>
+        </section>
+
+      </div>
+
+      <!--
+        Espaço reservado para mensagens de erro ("código não encontrado").
+        Nasce vazio (e o CSS o esconde enquanto estiver vazio);
+        o app.js escreve aqui.
+      -->
+      <p class="erro-entrada" id="erro" role="alert"></p>
+
+    </div>
+  </main>
+
+  <!--
+    No fim do <body>, e não no <head>: o app.js procura os botões e
+    campos assim que carrega. No <head>, eles ainda não existiriam e
+    o getElementById devolveria null. O campanhas.js vem antes porque
+    o app.js usa as funções dele (Campanhas, Sessao).
+  -->
+  <script src="campanhas.js"></script>
+  <script src="app.js"></script>
+
+</body>
+
+</html>

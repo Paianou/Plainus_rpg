@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+  MAPAS & CENAS — a planta da luta, com tokens que se arrastam.
+
+  A Visão Geral mostra uma miniatura da cena só para leitura. Aqui é
+  onde ela se mexe: arrastar quem está onde, medir distância, marcar
+  armadilhas, trocar de cena.
+
+  Os arquivos desta tela:
+    mapas.html  o esqueleto (o que você está lendo)
+    mapas.js    o desenho do mapa e o arrasto
+    dados.js    Estado.cenas e Estado.combate
+    layout.js   a moldura
+    icones.js   os ícones
+
+
+  DUAS COISAS QUE VALE ENTENDER ANTES DE LER O mapas.js
+
+  1. Tudo é contado em CÉLULAS, não em pixels. O mapa é um SVG que
+     se estica com a tela; se as posições fossem em pixels, um token
+     colocado no notebook apareceria no lugar errado no monitor. Uma
+     célula = 1,5 m, que é a escala do D&D — por isso a régua consegue
+     dizer "9 m" com sentido.
+
+  2. Arrastar precisa converter a posição do dedo/mouse (que vem em
+     pixels da tela) para coordenadas de dentro do SVG. Isso não é uma
+     conta de subtração: o SVG pode estar escalado. O jeito certo é
+     pedir ao próprio navegador a matriz de transformação, e é o que o
+     mapas.js faz em pontoNoMapa().
+
+  AVISO DE SEGURANÇA: a checagem de papel é uma placa, não uma porta.
+  A explicação completa está no topo do layout.js. Posição de inimigo
+  escondido é outro dado que o servidor não deve mandar ao jogador.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Mapas & Cenas — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="mapas">
+
+  <div class="app-mesa" id="app" hidden>
+
+    <div id="faixaDemo"></div>
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+
+        <div class="cabecalho-combate">
+          <div>
+            <div class="cena-etiquetas">
+              <span class="pilula azul" id="seloEscala">1 célula = 1,5 m</span>
+              <span class="pilula" id="seloVisibilidade">—</span>
+            </div>
+            <h1>
+              <span data-ico="mapa" data-tamanho="22"></span>
+              <span id="nomeCena">Mapas &amp; Cenas</span>
+            </h1>
+            <div class="sub" id="resumoCena">—</div>
+          </div>
+        </div>
+
+
+        <div class="colunas-mapa">
+
+          <!-- ============ O mapa ============ -->
+          <section>
+            <div class="ferramentas-mapa" id="ferramentas"></div>
+
+            <div class="quadro-mapa" id="quadro">
+              <!-- O mapas.js desenha o SVG aqui dentro. -->
+              <div class="legenda-mapa" id="legenda"></div>
+            </div>
+          </section>
+
+
+          <!-- ============ Painel lateral ============ -->
+          <aside>
+            <div class="bloco-lateral">
+              <h2><span data-ico="mapa" data-tamanho="16"></span> Cenas</h2>
+              <div class="lista-cenas" id="listaCenas"></div>
+            </div>
+
+            <div class="bloco-lateral" id="blocoToken">
+              <!-- Preenchido quando há um token selecionado. -->
+            </div>
+
+            <div class="bloco-lateral">
+              <h2><span data-ico="alerta" data-tamanho="16"></span> Marcadores</h2>
+              <div class="lista-marcadores" id="listaMarcadores"></div>
+            </div>
+          </aside>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!--
+    A JANELA DE CENA — criar uma cena nova ou editar a aberta.
+
+    <dialog> + showModal() dão de graça o fundo escurecido, o Esc
+    fechando e o foco preso dentro da janela (o mesmo da busca Ctrl+K).
+    novalidate pelo mesmo motivo da criação de campanha: a validação é
+    do mapas.js, com mensagens que dizem o que se espera.
+
+    A imagem é opcional. O mapas.js a recomprime antes de guardar (ver
+    comprimirImagem): uma foto de celular de 5 MB não cabe no
+    armazenamento do navegador, e na tela ela aparece pequena de
+    qualquer jeito.
+  -->
+  <dialog class="dialogo" id="dialogoCena" aria-labelledby="tituloDialogoCena">
+    <form id="formCena" novalidate>
+      <h2 id="tituloDialogoCena">Nova cena</h2>
+
+      <div class="formulario">
+        <div class="campo-form">
+          <label for="cenaNome">Nome</label>
+          <input type="text" id="cenaNome" maxlength="60" placeholder="Torre do Vigia" autocomplete="off">
+        </div>
+
+        <div class="campo-form">
+          <label for="cenaVisibilidade">Luz e visibilidade</label>
+          <input type="text" id="cenaVisibilidade" maxlength="60" placeholder="Penumbra — tochas a 6 m" autocomplete="off">
+        </div>
+
+        <div class="dupla-form">
+          <div class="campo-form">
+            <label for="cenaColunas">Colunas</label>
+            <input type="number" id="cenaColunas" min="5" max="60" value="20">
+          </div>
+          <div class="campo-form">
+            <label for="cenaLinhas">Linhas</label>
+            <input type="number" id="cenaLinhas" min="5" max="40" value="12">
+          </div>
+        </div>
+        <div class="campo-form">
+          <div class="ajuda" id="cenaMedida">Cada célula tem 1,5 m.</div>
+        </div>
+
+        <!-- Só ao criar: numa cena existente as paredes já são suas. -->
+        <label class="marcar-opcao" id="linhaContorno">
+          <input type="checkbox" id="cenaContorno" checked>
+          Começar com paredes em volta
+        </label>
+
+        <div class="campo-form">
+          <label for="cenaImagem">Imagem de fundo (opcional)</label>
+          <input type="file" id="cenaImagem" accept="image/*">
+          <div class="previa-imagem" id="previaImagem" hidden>
+            <img id="previaImagemFoto" alt="Prévia da imagem de fundo">
+            <div>
+              <div class="ajuda" id="previaImagemInfo"></div>
+              <button class="mini-botao" type="button" id="tirarImagem">Tirar imagem</button>
+            </div>
+          </div>
+          <div class="ajuda">
+            A grade fica por cima da imagem. Ao escolher uma, as linhas se
+            ajustam à proporção dela. Sem servidor, as imagens ocupam o
+            espaço do navegador — cabem algumas, não dezenas.
+          </div>
+        </div>
+      </div>
+
+      <p class="erro-dialogo" id="erroCena" role="alert"></p>
+
+      <div class="acoes-detalhe">
+        <button class="botao pequeno" type="submit" id="salvarCena">Criar cena</button>
+        <button class="botao fantasma pequeno" type="button" id="cancelarCena">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página desenha o mapa a partir dos dados da cena, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="bichos.js"></script>
+  <script src="regras.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="layout.js"></script>
+  <script src="mapas.js"></script>
+</body>
+
+</html>

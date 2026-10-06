@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<!--
+  CRIAR (OU EDITAR) CAMPANHA — o formulário em etapas.
+
+  Mesma família visual da entrada (index.html): o mesmo cartão, os
+  mesmos campos. Quem acabou de clicar em "Criar campanha" não deve
+  sentir que caiu em outro site.
+
+  UM FORMULÁRIO, DOIS USOS
+    criar-campanha.html            cria uma campanha nova (5 etapas)
+    criar-campanha.html?editar=1   edita a campanha aberta (4 etapas)
+
+  Editar reaproveita tudo: os mesmos campos, a mesma validação. Só
+  muda o que o JS faz no fim, e quais etapas aparecem — "Primeira
+  sessão" só existe ao criar, porque o que ela gera (sessão, ameaça,
+  segredo) depois se edita no Diário. Um campo novo acrescentado aqui
+  passa a valer nos dois usos sem trabalho extra.
+
+  As etapas estão TODAS aqui no HTML, cada uma num <section> com
+  data-passo. O criar-campanha.js só liga e desliga o hidden de cada
+  uma — o formulário inteiro fica legível num lugar só.
+
+  POR QUE UM <form>
+  Enter num campo de texto dispara o 'submit', e o submit é
+  "Continuar". (Num <textarea> o Enter continua sendo quebra de linha.)
+  novalidate desliga os balões de erro do próprio navegador: eles não
+  sabem que só a etapa visível importa. A validação é do JS.
+
+  Os arquivos desta tela:
+    criar-campanha.html  o esqueleto (o que você está lendo)
+    criar-campanha.js    as etapas, a validação, criar e salvar
+    campanhas.js         guarda a campanha e a sessão
+    dados.js             os moldes: estadoVazio() e estadoDeExemplo()
+    audio.js             só a lista de pistas (Som.PISTAS)
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Nova campanha — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <main class="pagina-entrada">
+    <form class="entrada-caixa criar-caixa" id="formCampanha" novalidate>
+
+      <header class="entrada-marca">
+        <svg class="arco-gotico" viewBox="0 0 74 58" aria-hidden="true">
+          <path class="brilho" d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M18 57 L18 30 Q37 10 56 30 L56 57" opacity="0.45" />
+          <path d="M28 57 L28 35 Q37 24 46 35 L46 57" opacity="0.28" />
+          <path d="M37 14 L37 57" opacity="0.22" />
+        </svg>
+
+        <!-- No modo edição o JS troca estes dois textos. -->
+        <h1 class="titulo" id="tituloForm">Nova campanha</h1>
+        <p class="subtitulo" id="subtituloForm">O essencial agora. Tudo pode ser mudado depois.</p>
+      </header>
+
+
+      <!--
+        O indicador de etapas. <ol> porque a ordem importa. O JS marca
+        a etapa atual com aria-current="step" e as já feitas com .feito.
+        No modo edição a etapa 4 fica hidden — e como o número vem de
+        um contador do CSS, que pula o que não é exibido, a última
+        passa a se chamar "4." sozinha.
+      -->
+      <ol class="passos" id="passos">
+        <li data-passo="1">Identidade</li>
+        <li data-passo="2">Mundo</li>
+        <li data-passo="3">Mesa</li>
+        <li data-passo="4">Sessão 1</li>
+        <li data-passo="5" id="rotuloUltimo">Começar</li>
+      </ol>
+
+
+      <!-- ============ ETAPA 1: identidade ============ -->
+      <section class="passo" data-passo="1">
+        <div class="campo">
+          <label for="nomeCampanha">Nome da campanha</label>
+          <input type="text" id="nomeCampanha" maxlength="60" placeholder="Crônicas de Ravendusk" autocomplete="off">
+        </div>
+
+        <!--
+          <datalist> sugere sem obrigar: as opções aparecem ao digitar,
+          mas dá para escrever qualquer sistema. As telas de regras do
+          site seguem o D&D 5e; o campo é para a mesa saber o que joga.
+        -->
+        <div class="campo">
+          <label for="sistema">Sistema</label>
+          <input type="text" id="sistema" list="sistemas" maxlength="40" value="D&amp;D 5e (2014)" autocomplete="off">
+          <datalist id="sistemas">
+            <option value="D&amp;D 5e (2014)"></option>
+            <option value="D&amp;D 5.5e (2024)"></option>
+            <option value="Tormenta20"></option>
+            <option value="Pathfinder 2e"></option>
+          </datalist>
+        </div>
+
+        <div class="campo">
+          <label for="mestre">Seu nome como Mestre</label>
+          <input type="text" id="mestre" maxlength="30" placeholder="Como a mesa te chama" autocomplete="nickname">
+        </div>
+      </section>
+
+
+      <!-- ============ ETAPA 2: o mundo ============ -->
+      <section class="passo" data-passo="2" hidden>
+        <div class="campo">
+          <label for="premissa">Do que se trata</label>
+          <textarea id="premissa" maxlength="600" rows="4" placeholder="Um rei morto há trinta anos está voltando, e a cidade finge não ver."></textarea>
+          <p class="ajuda-campo">A premissa: o conflito que puxa a party para a história.</p>
+        </div>
+
+        <div class="campo">
+          <label for="cenario">Onde se passa</label>
+          <textarea id="cenario" maxlength="300" rows="2" placeholder="Valkoria, cidade portuária ao pé das montanhas, cheia de criptas antigas."></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="tom">Tom e temas</label>
+          <input type="text" id="tom" maxlength="80" placeholder="Sombrio, investigação, horror leve" autocomplete="off">
+        </div>
+
+        <!--
+          Linhas e véus: a ferramenta de segurança mais comum em mesas
+          de RPG. Os dois ficam à vista no painel do Mestre.
+        -->
+        <div class="campo">
+          <label for="linhas">Linhas — o que nunca entra no jogo</label>
+          <textarea id="linhas" maxlength="400" rows="2" placeholder="Violência contra crianças. Tortura descrita."></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="veus">Véus — acontece, mas fora de cena</label>
+          <textarea id="veus" maxlength="400" rows="2" placeholder="Romance explícito: a cena corta antes."></textarea>
+          <p class="ajuda-campo">Combine os dois com os jogadores antes de começar.</p>
+        </div>
+      </section>
+
+
+      <!-- ============ ETAPA 3: a mesa ============ -->
+      <section class="passo" data-passo="3" hidden>
+        <div class="campo">
+          <label for="grupo">Nome do grupo</label>
+          <input type="text" id="grupo" maxlength="40" placeholder="Aventureiros de Ravendusk" autocomplete="off">
+          <p class="ajuda-campo">Como a party é conhecida. Pode ficar em branco até os jogadores escolherem.</p>
+        </div>
+
+        <div class="campo-dupla">
+          <div class="campo">
+            <label for="nivelInicial">Nível inicial</label>
+            <input type="number" id="nivelInicial" min="1" max="20" value="1">
+          </div>
+          <div class="campo">
+            <label for="jogadores">Jogadores</label>
+            <input type="number" id="jogadores" min="1" max="10" value="4">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="regras">Regras da casa</label>
+          <textarea id="regras" maxlength="400" rows="4" placeholder="Poções de cura bebidas como ação bônus. Crítico: dano máximo do dado + rolagem."></textarea>
+          <p class="ajuda-campo">Aparecem como "Regra ativa" no menu lateral do painel.</p>
+        </div>
+      </section>
+
+
+      <!-- ============ ETAPA 4: preparar a primeira sessão (só ao criar) ============
+
+        Tudo opcional. Cada campo daqui vira algo que já tem tela:
+          título e data ..... a Sessão 1 no Diário (e o nome na barra do topo)
+          ameaça e prazo .... uma pendência urgente — aparece no sino
+          a verdade ......... o primeiro segredo do Diário, só seu
+          ambiente .......... a pista que o áudio vai tocar
+      -->
+      <section class="passo" data-passo="4" hidden>
+        <p class="ajuda-campo intro-passo">
+          Tudo aqui é opcional. O que você preencher já aparece no
+          Diário, nos avisos e no áudio do painel.
+        </p>
+
+        <div class="campo-dupla">
+          <div class="campo">
+            <label for="tituloSessao">Título da sessão 1</label>
+            <input type="text" id="tituloSessao" maxlength="60" placeholder="Chegada a Ravendusk" autocomplete="off">
+          </div>
+          <div class="campo">
+            <label for="dataSessao">Data</label>
+            <input type="date" id="dataSessao">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="ameaca">A ameaça em curso</label>
+          <textarea id="ameaca" maxlength="300" rows="2" placeholder="O Culto vai completar o ritual na lua nova."></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="prazo">Prazo da ameaça</label>
+          <input type="text" id="prazo" maxlength="60" placeholder="Faltam 6 dias de jogo" autocomplete="off">
+          <p class="ajuda-campo">Com prazo, a ameaça vira pendência urgente e acende o sino de avisos.</p>
+        </div>
+
+        <div class="campo">
+          <label for="verdade">A verdade por trás de tudo</label>
+          <textarea id="verdade" maxlength="600" rows="3" placeholder="O líder do Culto é o irmão desaparecido de um dos heróis."></textarea>
+          <p class="ajuda-campo">Vira o primeiro segredo do Diário. Só você vê.</p>
+        </div>
+
+        <!-- As opções vêm do audio.js (Som.PISTAS), a mesma lista do painel. -->
+        <div class="campo">
+          <label for="pista">Ambiente sonoro</label>
+          <select id="pista"></select>
+        </div>
+
+        <button class="link-pular" type="button" id="btnPular">Pular esta etapa</button>
+      </section>
+
+
+      <!-- ============ ETAPA 5: resumo e confirmar ============ -->
+      <section class="passo" data-passo="5" hidden>
+        <!-- O criar-campanha.js preenche com o que foi respondido. -->
+        <dl class="resumo-campanha" id="resumoCampanha"></dl>
+
+        <!--
+          Mesmo padrão do Jogador/Mestre da entrada: dois radios com o
+          mesmo name formam um grupo, e o <span> é o cartão visível.
+          Só existe ao criar — no modo edição o JS esconde.
+        -->
+        <fieldset class="campo" id="escolhaInicio">
+          <legend class="rotulo-grupo">Como a campanha começa</legend>
+
+          <div class="escolha-papel">
+            <label class="opcao-papel">
+              <input type="radio" name="inicio" value="vazia" checked>
+              <span class="opcao-papel-conteudo">Vazia</span>
+            </label>
+            <label class="opcao-papel">
+              <input type="radio" name="inicio" value="exemplo">
+              <span class="opcao-papel-conteudo">Com o exemplo</span>
+            </label>
+          </div>
+
+          <p class="ajuda-campo">
+            Vazia: sem heróis, NPCs, cenas nem diário — você constrói tudo.
+            Com o exemplo: vem com o elenco, os mapas e o diário de
+            "A Queda de Valkoria", útil para ver cada tela funcionando.
+            As respostas acima valem nos dois casos.
+          </p>
+        </fieldset>
+      </section>
+
+
+      <p class="erro-entrada" id="erro" role="alert"></p>
+
+      <!--
+        Voltar é type="button" (não envia nada). Continuar é type="submit":
+        é ele que o Enter aciona. Na última etapa o JS troca o texto
+        para "Criar campanha" ou "Salvar alterações".
+      -->
+      <div class="passos-nav">
+        <button class="botao fantasma" type="button" id="btnVoltar">Voltar</button>
+        <button class="botao" type="submit" id="btnAvancar">Continuar</button>
+      </div>
+
+      <a class="link-cancelar" href="index.html" id="linkCancelar">Cancelar e voltar à entrada</a>
+
+    </form>
+  </main>
+
+  <noscript>
+    <p class="erro-entrada">A criação de campanha precisa de JavaScript ligado.</p>
+  </noscript>
+
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="audio.js"></script>
+  <script src="criar-campanha.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,3791 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ==========================================================
+   PLAINUS RPG — SISTEMA DE DESIGN
+   Direção: pedra fria, luz arcana. Cinza e grafite com um leve
+   tom de aço-azulado nas superfícies; azul elétrico é o ÚNICO
+   acento interativo (foco, seleção, o brilho do ornamento). Sem
+   dourado. Gótico com parcimônia: o único ornamento literal é o
+   arco (.arco-gotico) — o resto do clima vem de textura (grão de
+   filme), luz (hairlines, brilho no topo dos cards) e movimento
+   (a névoa que respira devagar).
+
+   O violeta (--violeta) sobrevive só no FUNDO da página — as duas
+   luzes que derivam atrás do cartão (seção 3). Isso foi pedido de
+   propósito: o degradê de fundo ficou bom, então ele não muda; o
+   resto da interface (cartão, botões, seleção) é que fica mais
+   neutro. Não usar --violeta fora da seção 3.
+
+   Estes tokens e classes nasceram dos mesmos da mesa-virtual/
+   (pasta de referência) — ver mesa-virtual/public/css/style.css —
+   mas aqui o acento foi reduzido a um só. Se essa mudança for boa,
+   vale revisitar a mesa-virtual/ depois para igualar as duas.
+
+   PEÇAS
+   .entrada-caixa .... o cartão principal da tela
+   .entrada-marca .... cabeçalho do cartão (arco + título + frase)
+   .campo ............ par label + input
+   .colunas / .coluna  divide o cartão em duas colunas
+   .escolha-papel .... grupo de opções marcáveis (radio) — ver index.html
+   .botao ............ botão cheio (ação principal, cinza/grafite)
+   .botao.fantasma ... botão contornado (ação secundária, azul)
+   .erro-entrada ..... faixa de erro (some sozinha se vazia)
+   .ico .............. ícone em traço, herda a cor do texto ao redor
+   ========================================================== */
+
+
+/* ---------- 1. TOKENS ---------- */
+:root {
+  /* Superfícies — cinza-grafite neutro, com só um fiapo de azul
+     (não mais o breu arroxeado da versão anterior). */
+  --breu:      #08090b;
+  --cripta:    #0c0e12;
+  --pedra:     #15171c;
+  --pedra-2:   #1b1e24;
+  --pedra-3:   #23262d;
+  --relevo:         rgba(255, 255, 255, .055);
+  --hairline:       rgba(255, 255, 255, .07);
+  --hairline-forte: rgba(255, 255, 255, .13);
+
+  /* Luz arcana — azul elétrico é o único acento interativo. */
+  --azul:          #4d8dff;
+  --azul-fundo:    rgba(77, 141, 255, .12);
+  --gelo:          #a9c4ff;
+
+  /* Violeta: só existe para as luzes de fundo da tela de entrada
+     (seção 3). Não usar em botões, seleção ou texto. */
+  --violeta: #8b6cff;
+
+  /* Texto */
+  --texto:    #e6e8f0;
+  --texto-2:  #949bb0;
+  --texto-3:  #5d6478;
+
+  --perigo: #c2413f;
+
+  /* Cores de ESTADO (não são decoração).
+     A barra de vida precisa dizer "bem / ferido / quase caindo" num
+     relance, e a convenção de mesa é verde-âmbar-vermelho. Por isso o
+     âmbar aqui não briga com a regra "sem dourado": ele é informação,
+     não enfeite, e nunca aparece em borda, título ou fundo. */
+  --vida:       #3f9e6c;
+  --vida-media: #b8873c;
+  --vida-baixa: #b5413f;
+
+  --sombra-baixa: 0 1px 2px rgba(0, 0, 0, .5);
+  --sombra:       0 12px 32px -8px rgba(0, 0, 0, .7);
+  --sombra-alta:  0 32px 64px -16px rgba(0, 0, 0, .85);
+
+  --r-p: 8px;
+  --r-m: 12px;
+  --r-g: 18px;
+
+  --transicao: 180ms cubic-bezier(.22, .61, .36, 1);
+}
+
+
+/* ---------- 2. BASE ---------- */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--texto);
+  background: var(--breu);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;   /* números com largura fixa: não dançam */
+}
+
+h1, h2, .marca { font-family: 'Marcellus', Georgia, serif; font-weight: 400; letter-spacing: .02em; }
+
+/* Grão de filme sobre tudo — tira o aspecto "vetor limpo demais" */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  opacity: .3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23r)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* O atributo hidden do HTML precisa vencer qualquer display definido
+   depois. Sem esta linha, uma regra como .tela-restrita{display:flex}
+   anula o hidden e o elemento aparece mesmo "escondido" — foi
+   exatamente o que aconteceu na primeira versão da tela do mestre. */
+[hidden] { display: none !important; }
+
+::selection { background: rgba(77, 141, 255, .32); }
+
+:focus-visible { outline: 2px solid var(--azul); outline-offset: 3px; }
+
+/* Ícones em traço — herdam a cor do texto ao redor. Nada de emoji. */
+/* As silhuetas de criatura (bichos.js). Ao contrário do .ico, que é
+   contorno, estas são formas CHEIAS: num token de 34 px um contorno
+   de 1,6 px vira borrão, e a forma sólida ainda lê. A cor vem do
+   texto ao redor, igual ao .ico. */
+.silhueta {
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentColor;
+  stroke: none;
+  flex-shrink: 0;
+}
+
+/* O retrato pequeno: lista do bestiário e ordem de iniciativa. */
+.marca-bicho {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--texto-2);
+  background: rgba(255, 255, 255, .05);
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+.item-compendio.com-retrato { grid-template-columns: 34px 40px minmax(0, 1fr) auto; }
+.item-compendio.ativo .marca-bicho { color: var(--gelo); background: var(--azul-fundo); }
+.combatente.com-retrato { grid-template-columns: 34px 30px minmax(0, 1fr) 150px auto; }
+.combatente.inimigo .marca-bicho { color: #e0827d; background: rgba(194, 65, 63, .14); }
+
+/* O retrato grande, no cabeçalho da ficha aberta. */
+.cabeca-monstro { display: flex; align-items: center; gap: 14px; }
+.retrato-bicho {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border: 1px solid rgba(77, 141, 255, .25);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+
+.ico {
+  display: inline-block;
+  vertical-align: -3px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+
+/* ---------- 3. A PÁGINA ---------- */
+.pagina-entrada {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 8%, rgba(77, 141, 255, .10), transparent 60%),
+    var(--breu);
+}
+
+/* Duas luzes que derivam bem devagar, como brasa arcana atrás do vidro.
+   É o "efeito" a mais pedido: sutil, nunca chamativo, e algo que uma
+   tela estática de IA não costuma ter. */
+.pagina-entrada::before,
+.pagina-entrada::after {
+  content: '';
+  position: absolute;
+  width: 46vw;
+  height: 46vw;
+  max-width: 560px;
+  max-height: 560px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: .55;
+  pointer-events: none;
+}
+.pagina-entrada::before {
+  top: -14%;
+  left: -10%;
+  background: radial-gradient(circle, var(--violeta), transparent 70%);
+  animation: derivar-a 18s ease-in-out infinite;
+}
+.pagina-entrada::after {
+  bottom: -18%;
+  right: -12%;
+  background: radial-gradient(circle, var(--azul), transparent 70%);
+  animation: derivar-b 22s ease-in-out infinite;
+}
+
+@keyframes derivar-a {
+  0%, 100% { transform: translate(0, 0) scale(1);     opacity: .45; }
+  50%      { transform: translate(4%, 6%) scale(1.12); opacity: .7; }
+}
+@keyframes derivar-b {
+  0%, 100% { transform: translate(0, 0) scale(1);      opacity: .4; }
+  50%      { transform: translate(-5%, -4%) scale(1.1); opacity: .65; }
+}
+
+
+/* ---------- 4. O CARTÃO ---------- */
+.entrada-caixa {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  background: linear-gradient(180deg, rgba(31, 33, 38, .92), rgba(11, 12, 15, .96));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-g);
+  box-shadow: var(--sombra-alta), inset 0 1px 0 var(--relevo);
+  backdrop-filter: blur(14px);
+  animation: subir 700ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes subir {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrada-caixa { animation: none; }
+  .pagina-entrada::before, .pagina-entrada::after { animation: none; }
+  * { transition: none !important; }
+}
+
+
+/* ---------- 5. CABEÇALHO: o único ornamento literal ---------- */
+.entrada-marca {
+  text-align: center;
+  padding: 38px 44px 8px;
+}
+
+.arco-gotico {
+  display: block;
+  width: 68px;
+  height: 52px;
+  margin: 0 auto 18px;
+  overflow: visible;
+}
+.arco-gotico path { fill: none; stroke: var(--texto-2); stroke-width: 1.1; opacity: .9; }
+.arco-gotico .brilho {
+  stroke: var(--azul);
+  stroke-width: 3.5;
+  opacity: .22;
+  filter: blur(3px);
+  animation: pulsar 5s ease-in-out infinite;
+}
+@keyframes pulsar {
+  0%, 100% { opacity: .16; }
+  50%      { opacity: .38; }
+}
+
+.titulo {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  letter-spacing: .06em;
+  color: var(--texto);
+}
+
+.subtitulo {
+  margin: 0;
+  color: var(--texto-2);
+  font-size: .95rem;
+  letter-spacing: .01em;
+}
+
+
+/* ---------- 6. CAMPOS ---------- */
+.campo { padding: 0 44px; margin-bottom: 20px; }
+
+.campo label,
+.rotulo-grupo {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  color: var(--texto-3);
+}
+
+.campo input {
+  width: 100%;
+  padding: 11px 13px;
+  font: inherit;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.campo input::placeholder { color: var(--texto-3); }
+.campo input:hover { border-color: var(--hairline-forte); }
+.campo input:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  background: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+
+/* O código da campanha: gravado em maiúsculas espaçadas, em Marcellus —
+   é a única entrada que também é uma "senha de taverna" visual. */
+.codigo-entrada {
+  font-family: 'Marcellus', serif;
+  font-size: 1.15rem;
+  text-align: center;
+  text-transform: uppercase;
+  /* .16em, e não mais .4em: o código cresceu de 8 para 14 caracteres
+     (XXXX-XXXX-XXXX) e, com o espaçamento antigo, não cabia na coluna. */
+  letter-spacing: .16em;
+  text-indent: .16em; /* compensa o espaço que o letter-spacing põe no fim */
+}
+
+
+/* ---------- 7. DUAS COLUNAS ----------
+   Um hairline separa as colunas — nunca uma borda grossa. */
+.colunas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 8px;
+  border-top: 1px solid var(--hairline);
+}
+.coluna {
+  display: flex;
+  flex-direction: column;
+  padding: 32px 44px 40px;
+}
+.coluna + .coluna { border-left: 1px solid var(--hairline); }
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 18px;
+  font-size: 1.25rem;
+  letter-spacing: .03em;
+  color: var(--texto);
+}
+/* O pingo de luz antes do título — o mesmo motivo usado no resto do
+   site para marcar "isto é um nome próprio" (ver .topo .marca da
+   mesa-virtual). Um ornamento, não um enfeite espalhado. */
+h2::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--azul);
+  box-shadow: 0 0 10px var(--azul);
+  flex-shrink: 0;
+}
+
+.coluna .campo { padding: 0; margin-bottom: 18px; }
+.coluna .campo:last-of-type { margin-bottom: 26px; }
+
+
+/* ---------- 8. ESCOLHA (Jogador / Mestre) ---------- */
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+legend { padding: 0; }
+
+.escolha-papel { display: flex; gap: 10px; }
+
+.opcao-papel {
+  flex: 1;
+  cursor: pointer;
+}
+.opcao-papel input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.opcao-papel-conteudo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 15px 10px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: .02em;
+  color: var(--texto-3);
+  background: rgba(0, 0, 0, .2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  transition: var(--transicao);
+}
+.opcao-papel:hover .opcao-papel-conteudo { border-color: var(--hairline-forte); color: var(--texto-2); }
+
+.opcao-papel input:checked + .opcao-papel-conteudo {
+  color: var(--texto);
+  border-color: rgba(77, 141, 255, .5);
+  background: var(--azul-fundo);
+  box-shadow: inset 0 0 24px rgba(77, 141, 255, .1);
+}
+.opcao-papel input:checked + .opcao-papel-conteudo .ico { color: var(--azul); }
+
+.opcao-papel input:focus-visible + .opcao-papel-conteudo {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+
+/* ---------- 9. BOTÕES ----------
+   Criar = ação principal: cheio, em grafite (o "cinza" do sistema).
+   Entrar = ação secundária: contorno em azul. Duas ações, uma única
+   cor de destaque (azul) — o grafite não "chama atenção", só o azul. */
+.botao {
+  margin-top: auto;
+  width: 100%;
+  padding: 14px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .03em;
+  color: var(--texto);
+  cursor: pointer;
+  background: linear-gradient(180deg, #3b3e46, #26282e);
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 rgba(255, 255, 255, .14);
+  transition: var(--transicao);
+}
+.botao:hover {
+  transform: translateY(-1px);
+  border-color: rgba(77, 141, 255, .4);
+  box-shadow: 0 10px 26px -8px rgba(77, 141, 255, .35), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.botao:active { transform: translateY(0); }
+
+.botao.fantasma {
+  color: var(--gelo);
+  background: rgba(77, 141, 255, .08);
+  border-color: rgba(77, 141, 255, .35);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.botao.fantasma:hover {
+  box-shadow: 0 10px 26px -10px rgba(77, 141, 255, .45), inset 0 1px 0 var(--relevo);
+}
+
+
+/* ---------- 10. ERRO ----------
+   Nasce vazio (role="alert" no HTML), e :empty o esconde.
+   Quando o JS escrever um texto nele, ele aparece sozinho. */
+.erro-entrada {
+  margin: 0 44px 28px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #f2b8b4;
+  background: rgba(194, 65, 63, .1);
+  border-left: 2px solid var(--perigo);
+  border-radius: 0 var(--r-p) var(--r-p) 0;
+}
+.erro-entrada:empty { display: none; margin: 0; padding: 0; }
+
+
+/* ---------- 11. CELULAR (tela de entrada) ---------- */
+@media (max-width: 720px) {
+  .pagina-entrada { padding: 16px; align-items: flex-start; padding-top: 40px; }
+  .entrada-marca { padding: 32px 26px 4px; }
+  .campo { padding: 0 26px; }
+  .colunas { grid-template-columns: 1fr; }
+  .coluna { padding: 28px 26px 32px; }
+  .coluna + .coluna { border-left: 0; border-top: 1px solid var(--hairline); }
+}
+
+
+/* ==========================================================
+   TELA DA MESA — o painel do Mestre (mestre.html)
+
+   Estrutura, de fora para dentro:
+
+     .app-mesa            barra do topo + corpo
+       .barra-topo        marca, sessão, áudio, busca, perfil
+       .corpo-mesa        códice (lateral) + área de trabalho
+         .codice          navegação da campanha
+         .area-trabalho   abas + as três colunas
+           .abas-mesa     filtra o miolo: Panorama / Grupo / Cena / Ferramentas
+           .colunas-mesa  heróis | cena e iniciativa | ferramentas
+
+   Esta tela é DENSA de propósito: o mestre precisa ver a mesa
+   inteira sem rolar. Por isso a escala aqui é menor que a da tela
+   de entrada (12-13px no corpo), com hairlines no lugar de bordas
+   e cartões separados por sombra baixa. Nada de superfície chapada.
+   ========================================================== */
+
+
+/* ---------- 12. ESQUELETO ---------- */
+.app-mesa {
+  display: grid;
+  /* minmax(0,1fr) na coluna: sem isso, um filho mais largo que a tela
+     (a barra do topo cheia, por exemplo) estica o grid inteiro e o
+     conteudo vaza para fora da janela em vez de encolher. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--breu);
+}
+
+.corpo-mesa {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.area-trabalho {
+  min-width: 0;
+  padding: 16px 18px 40px;
+}
+
+
+/* ---------- 13. BARRA DO TOPO ---------- */
+.barra-topo {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: linear-gradient(180deg, rgba(27, 30, 36, .97), rgba(12, 14, 18, .97));
+  border-bottom: 1px solid var(--hairline);
+  backdrop-filter: blur(10px);
+}
+
+.marca-mestre {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-right: 16px;
+  border-right: 1px solid var(--hairline);
+}
+.marca-mestre .emblema {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--azul);
+  background: var(--azul-fundo);
+  border: 1px solid rgba(77, 141, 255, .3);
+  border-radius: var(--r-p);
+}
+.marca-mestre .nome {
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 16px;
+  letter-spacing: .04em;
+  color: var(--texto);
+  line-height: 1.2;
+}
+.marca-mestre .funcao {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  color: var(--texto-3);
+}
+
+/* Seletor de sessão (um <select> disfarçado de botão) */
+.seletor-sessao {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  max-width: 320px;
+  /* Sem min-width:0 um item flex nunca fica menor que o proprio
+     conteudo — o titulo longo empurraria o botao + para fora da tela
+     em vez de cortar com reticencias. */
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.seletor-sessao:hover { border-color: var(--hairline-forte); color: var(--texto); }
+.seletor-sessao .titulo-sessao {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seletor-sessao .ico { opacity: .7; }
+
+.barra-topo .espaco { margin-left: auto; }
+
+/* Faixa do áudio ambiente */
+.faixa-audio {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+.faixa-audio .ico { color: var(--azul); }
+.faixa-audio .pista { max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Botãozinho quadrado de ícone (busca, sino, expandir) */
+.icone-botao {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.icone-botao:hover { color: var(--texto); border-color: rgba(77, 141, 255, .4); background: var(--azul-fundo); }
+.icone-botao.largo { width: auto; gap: 8px; padding: 0 12px; font-size: 11.5px; }
+.icone-botao .atalho {
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--texto-3);
+}
+/* Pontinho de "tem coisa nova" */
+.icone-botao .aviso-ponto {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--perigo);
+  box-shadow: 0 0 6px var(--perigo);
+}
+
+.perfil {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 14px;
+  border-left: 1px solid var(--hairline);
+}
+.perfil .quem { text-align: right; line-height: 1.25; }
+.perfil .quem .nome { font-size: 13px; color: var(--texto); }
+.perfil .quem .cargo {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+.perfil .retrato {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-family: 'Marcellus', serif;
+  font-size: 14px;
+  color: var(--gelo);
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid var(--hairline-forte);
+  border-radius: 50%;
+}
+
+
+/* ---------- 13b. MENU DE SESSAO ----------
+   O seletor do topo deixou de ser enfeite: abre um menu onde se
+   nomeia a sessao corrente e se comeca a proxima. Como a barra mora
+   no layout.js, este menu existe nas oito telas. */
+
+.caixa-sessao { position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* O + colado no seletor */
+.botao-nova-sessao {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.menu-sessao {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 330px;
+  max-width: calc(100vw - 32px);
+  padding: 4px;
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-alta);
+  animation: surgir-menu 160ms cubic-bezier(.16, 1, .3, 1) both;
+}
+@keyframes surgir-menu {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.secao-menu { padding: 12px 13px; }
+.secao-menu + .secao-menu { border-top: 1px solid var(--hairline); }
+
+.rotulo-menu {
+  margin-bottom: 8px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+
+/* numero estreito + titulo largo */
+.linha-campos-sessao {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.linha-campos-sessao input {
+  width: 100%;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  transition: var(--transicao);
+}
+.linha-campos-sessao input::placeholder { color: var(--texto-3); }
+.linha-campos-sessao input:hover { border-color: var(--hairline-forte); }
+.linha-campos-sessao input:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  background: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+.linha-campos-sessao input[type="number"] {
+  text-align: center;
+  font-family: 'Marcellus', serif;
+  font-size: 14px;
+}
+
+/* Lista das sessoes ja registradas */
+.lista-sessoes-menu { display: flex; flex-direction: column; max-height: 168px; overflow-y: auto; }
+.linha-sessao-menu {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--texto-2);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.linha-sessao-menu:hover { background: rgba(255, 255, 255, .05); color: var(--texto); }
+.linha-sessao-menu.corrente {
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .25);
+}
+.linha-sessao-menu .num {
+  flex-shrink: 0;
+  font-family: 'Marcellus', serif;
+  font-size: 12px;
+  color: var(--texto-3);
+}
+.linha-sessao-menu.corrente .num { color: var(--gelo); }
+.linha-sessao-menu .tit {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aviso-menu {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--texto-3);
+}
+
+
+/* ---------- 14. CÓDICE (navegação lateral) ---------- */
+.codice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 12px;
+  background: linear-gradient(180deg, var(--cripta), var(--breu));
+  border-right: 1px solid var(--hairline);
+}
+
+.codice-titulo {
+  padding: 0 10px;
+  margin-bottom: 12px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  color: var(--texto-3);
+}
+
+/* Serve tanto para <a> (páginas prontas) quanto para <button> (as que
+   ainda não existem), por isso zera decoração e borda dos dois. */
+.codice-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  color: var(--texto-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.codice-link .ico { color: var(--texto-3); transition: var(--transicao); }
+.codice-link:hover { color: var(--texto); background: rgba(255, 255, 255, .04); }
+.codice-link:hover .ico { color: var(--texto-2); }
+
+.codice-link.ativo {
+  color: var(--texto);
+  background: var(--azul-fundo);
+  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .22);
+}
+.codice-link.ativo .ico { color: var(--azul); }
+
+/* Cartãozinho do rodapé do códice */
+.regra-ativa {
+  margin-top: auto;
+  padding: 13px;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.regra-ativa .cabeca {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.regra-ativa .rotulo {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+.regra-ativa .sistema {
+  font-family: 'Marcellus', serif;
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--gelo);
+}
+.regra-ativa p { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--texto-2); }
+
+
+/* ---------- 15. ABAS ---------- */
+.abas-mesa {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.aba {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.aba .ico { color: var(--texto-3); }
+.aba:hover { color: var(--texto); border-color: var(--hairline-forte); }
+
+.aba.ativa {
+  color: var(--texto);
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .4);
+}
+.aba.ativa .ico { color: var(--azul); }
+
+.abas-mesa .espaco { margin-left: auto; }
+
+/* Etiqueta/pílula reaproveitável (contadores, estados) */
+.pilula {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--texto-2);
+  background: rgba(255, 255, 255, .06);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pilula.azul   { color: var(--gelo);  background: var(--azul-fundo); }
+.pilula.perigo { color: #f0a6a2;      background: rgba(194, 65, 63, .16); }
+.pilula.viva   { color: #8fd0ae;      background: rgba(63, 158, 108, .16); }
+
+
+/* ---------- 16. AS TRÊS COLUNAS ---------- */
+.colunas-mesa {
+  display: grid;
+  grid-template-columns: 370px minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+.coluna-mesa { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+
+/* ---------- 16b. AS ABAS DE FOCO ----------
+   As abas da Visão Geral filtram o miolo: Panorama mostra as três
+   colunas, e as outras mostram uma só. O JS acrescenta .foco quando é
+   uma só; daqui para baixo é o CSS aproveitando o espaço que sobrou. */
+
+/* Sem esta linha a coluna herdaria a PRIMEIRA faixa do grid (370px) e
+   ficaria estreita, encostada na esquerda, com o resto vazio. */
+.colunas-mesa.foco { grid-template-columns: minmax(0, 1fr); }
+
+/* Com a largura toda, as fichas deixam de ser pilha e viram grade: as
+   quatro lado a lado em vez de quatro empilhadas.
+
+   O min(100%, 330px) é o detalhe que importa. Um minmax(330px, 1fr)
+   exigiria 330px mesmo numa tela de 320px, e a página nasceria com
+   barra de rolagem horizontal; o min() autoriza a faixa a encolher
+   abaixo de 330 quando é isso que cabe. */
+.colunas-mesa.foco > .coluna-herois {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  align-items: start;
+}
+/* O cabeçalho "Grupo de heróis" é título da grade, não um item dela. */
+.colunas-mesa.foco > .coluna-herois > .titulo-coluna { grid-column: 1 / -1; }
+
+/* A cena é o contrário: a planta em SVG não melhora com 1500px de
+   largura, só fica deformada. Limitar e centralizar guarda a proporção.
+
+   É width, e não só max-width: margem automática cancela o stretch do
+   grid, então com max-width sozinho a coluna encolhia até o tamanho do
+   conteúdo (medi 444px numa faixa de 1304) em vez de ocupar os 920. */
+.colunas-mesa.foco > .coluna-cena {
+  width: min(100%, 920px);
+  margin-inline: auto;
+}
+
+/* As ferramentas já sabem se espalhar — é o mesmo que a regra de
+   1500px faz quando elas descem para a largura toda. */
+.colunas-mesa.foco > .coluna-ferramentas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  align-items: start;
+}
+
+/* Cabeçalho de coluna */
+.titulo-coluna {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.titulo-coluna h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: .03em;
+  color: var(--texto);
+}
+/* Na coluna estreita das ferramentas, o título encolhe um pouco em vez
+   de quebrar "Rolador do / mestre" em duas linhas. */
+.coluna-ferramentas .titulo-coluna h2 { font-size: .95rem; }
+.titulo-coluna h2::before { display: none; }
+.titulo-coluna h2 .ico { color: var(--azul); }
+.titulo-coluna .sub {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+
+
+/* ---------- 17. CARTÃO DE HERÓI ---------- */
+.heroi {
+  padding: 14px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+  transition: var(--transicao);
+}
+.heroi:hover { border-color: var(--hairline-forte); }
+
+.heroi-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-bottom: 12px;
+}
+
+/* Retrato: as iniciais dentro de um quadro de pedra. Quando houver
+   upload de imagem, a imagem entra aqui por cima. */
+.retrato-heroi {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  font-family: 'Marcellus', serif;
+  font-size: 15px;
+  color: var(--gelo);
+  background: linear-gradient(180deg, var(--pedra-3), #101319);
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-p);
+}
+.retrato-heroi .nivel {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--texto-2);
+  background: var(--pedra-3);
+  border: 1px solid var(--hairline-forte);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.heroi-identidade { flex: 1; min-width: 0; }
+.heroi-identidade .nome {
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 16px;
+  letter-spacing: .02em;
+  color: var(--texto);
+  line-height: 1.25;
+}
+.heroi-identidade .classe {
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+
+/* As três caixinhas de atributo */
+.estatisticas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-bottom: 12px;
+}
+.estat {
+  padding: 7px 6px;
+  text-align: center;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.estat .rotulo {
+  font-size: 8.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--texto-3);
+  line-height: 1.3;
+}
+.estat .valor {
+  font-family: 'Marcellus', serif;
+  font-size: 17px;
+  color: var(--texto);
+  line-height: 1.2;
+}
+
+/* Barra de vida */
+.linha-vida {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  color: var(--texto-3);
+}
+.linha-vida .numeros { font-family: 'Marcellus', serif; font-size: 12px; color: var(--texto-2); }
+
+.barra {
+  height: 6px;
+  background: rgba(0, 0, 0, .45);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.barra .preenchimento {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--vida);
+  transition: width 260ms cubic-bezier(.22, .61, .36, 1), background 260ms;
+}
+.barra .preenchimento.media { background: var(--vida-media); }
+.barra .preenchimento.baixa { background: var(--vida-baixa); }
+
+/* Bolinhas de recurso (espaços de magia, usos) */
+.pontos-recurso { display: flex; gap: 5px; align-items: center; }
+.pontos-recurso .ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--azul);
+  box-shadow: 0 0 7px rgba(77, 141, 255, .5);
+}
+.pontos-recurso .ponto.gasto { background: rgba(255, 255, 255, .1); box-shadow: none; }
+
+.heroi-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--hairline);
+  font-size: 10.5px;
+  color: var(--texto-3);
+}
+.heroi-rodape .detalhe { letter-spacing: .04em; }
+
+/* Botãozinho de ação dentro do card */
+.mini-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.mini-botao:hover { color: var(--texto); border-color: rgba(77, 141, 255, .4); background: var(--azul-fundo); }
+.mini-botao:active { transform: translateY(1px); }
+.mini-botao.dano:hover  { border-color: rgba(194, 65, 63, .5); background: rgba(194, 65, 63, .12); color: #f0a6a2; }
+.mini-botao.cura:hover  { border-color: rgba(63, 158, 108, .5); background: rgba(63, 158, 108, .12); color: #8fd0ae; }
+.grupo-mini { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Alinhado pelo centro porque o campo de PV é mais alto que os botões
+   e, sem isto, eles encostariam na base dele. */
+.grupo-mini { align-items: center; }
+
+/* O campo de quantidade de PV, entre o botão de dano e o de cura.
+   Numerais tabulares: 11 e 18 têm de ocupar a mesma largura, senão o
+   rodapé da ficha dança a cada dano aplicado. */
+.campo-pv {
+  width: 52px;
+  padding: 5px 6px;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.campo-pv:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .5);
+  background: var(--azul-fundo);
+}
+
+/* As setinhas nativas do input[type=number] são cinza-claro e ficam
+   berrantes num fundo escuro. Some com elas: quem quer ±1 digita. */
+.campo-pv::-webkit-outer-spin-button,
+.campo-pv::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.campo-pv { -moz-appearance: textfield; appearance: textfield; }
+
+/* O aviso de quem está no combate e fora do mapa. */
+.aviso-cena {
+  margin: 10px 0 0;
+  padding: 8px 11px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #f0a6a2;
+  background: rgba(194, 65, 63, .1);
+  border-left: 2px solid rgba(194, 65, 63, .5);
+  border-radius: 0 6px 6px 0;
+}
+
+
+/* ---------- 17b. BOTÃO PEQUENO ----------
+   O .botao padrão é largura total (nasceu para o rodapé de uma
+   coluna). Dentro do painel ele precisa caber ao lado de outros. */
+.botao.pequeno {
+  width: auto;
+  margin-top: 0;
+  padding: 10px 15px;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+
+/* ---------- 18. CENA E MAPA ---------- */
+.cena-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.cena-cabecalho .titulo-cena {
+  margin: 6px 0 0;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  letter-spacing: .02em;
+  color: var(--texto);
+}
+.cena-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* O mapa é um SVG desenhado a partir do estado (ver mestre.js).
+   Não é um mapa de verdade ainda: é a planta da cena com os tokens
+   onde eles estão. Vira imagem/grade editável na tela de Mapas. */
+.mapa {
+  position: relative;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  overflow: hidden;
+  background: #0a0c10;
+}
+/* Só o SVG do MAPA estica — o '>' é essencial aqui. Sem ele, esta
+   regra pega também os ícones dos botões sobre o mapa e eles viram
+   quadrados gigantes. */
+.mapa > svg { display: block; width: 100%; height: auto; }
+
+.mapa-faixa {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.mapa-selo {
+  padding: 5px 10px;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  color: var(--texto-2);
+  background: rgba(8, 9, 11, .82);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+.mapa-selo.perigo { color: #f0a6a2; border-color: rgba(194, 65, 63, .4); }
+
+.mapa-rodape {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+
+
+/* ---------- 19. ORDEM DE INICIATIVA ---------- */
+.iniciativa { display: flex; flex-direction: column; gap: 6px; }
+
+.linha-iniciativa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+
+.ordem-numero {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  font-family: 'Marcellus', serif;
+  font-size: 14px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+
+.linha-iniciativa .quem { flex: 1; min-width: 0; }
+.linha-iniciativa .nome { font-size: 13.5px; color: var(--texto); }
+.linha-iniciativa .estado { font-size: 11px; color: var(--texto-3); margin-top: 1px; }
+
+/* Já agiu: apaga e risca */
+.linha-iniciativa.agiu { opacity: .45; }
+.linha-iniciativa.agiu .nome { text-decoration: line-through; }
+.linha-iniciativa.agiu .ordem-numero { color: var(--texto-3); }
+
+/* É a vez: o único bloco com moldura acesa na tela */
+.linha-iniciativa.vez {
+  display: block;
+  padding: 14px;
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+  box-shadow: inset 0 1px 0 var(--relevo), 0 0 22px -8px rgba(77, 141, 255, .5);
+}
+.linha-iniciativa.vez .topo-vez {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+/* O bloco de nome ocupa o espaço que sobra; a pílula e o botão nunca
+   encolhem, senão o texto se espreme contra eles. */
+.linha-iniciativa.vez .quem { flex: 1 1 160px; }
+.linha-iniciativa.vez .pilula,
+.linha-iniciativa.vez .botao { flex-shrink: 0; }
+.linha-iniciativa.vez .ordem-numero {
+  color: var(--gelo);
+  border-color: rgba(77, 141, 255, .45);
+  background: rgba(77, 141, 255, .16);
+}
+.linha-iniciativa.vez .nome { font-family: 'Marcellus', serif; font-size: 16px; }
+
+/* Inimigo: vermelho só na marca, nunca no fundo inteiro */
+.linha-iniciativa.inimigo .ordem-numero { color: #f0a6a2; border-color: rgba(194, 65, 63, .4); }
+.linha-iniciativa.inimigo .nome { color: #f0a6a2; }
+
+.acoes-vez {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(77, 141, 255, .2);
+}
+
+.rodape-combate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+.botao.perigo {
+  color: #f6cdc9;
+  background: rgba(194, 65, 63, .16);
+  border-color: rgba(194, 65, 63, .45);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.botao.perigo:hover { background: rgba(194, 65, 63, .26); box-shadow: 0 8px 22px -10px rgba(194, 65, 63, .6); }
+
+
+/* Destaque leve de "é a vez", para a lista só de leitura da visão
+   geral. A moldura acesa de verdade fica na tela de Combate. */
+.linha-iniciativa.vez-simples {
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .35);
+}
+.linha-iniciativa.vez-simples .ordem-numero {
+  color: var(--gelo);
+  border-color: rgba(77, 141, 255, .45);
+  background: rgba(77, 141, 255, .16);
+}
+
+
+/* ---------- 19b. TELA DE COMBATE (combate.html) ---------- */
+
+.cabecalho-combate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.cabecalho-combate h1 {
+  display: flex;
+  /* flex-start, e não center: quando o título quebra em duas linhas
+     (celular), um ícone centralizado fica boiando no meio do texto. */
+  align-items: flex-start;
+  gap: 11px;
+  margin: 6px 0 4px;
+  font-size: 1.6rem;
+  letter-spacing: .03em;
+}
+.cabecalho-combate h1 .ico { color: var(--azul); stroke-width: 1.35; margin-top: 5px; }
+.cabecalho-combate .sub { font-size: 12.5px; color: var(--texto-3); }
+
+.colunas-combate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Uma linha de combatente: mais informação que a da visão geral. */
+.combatente {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 150px auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.combatente + .combatente { margin-top: 7px; }
+.combatente:hover { border-color: var(--hairline-forte); }
+
+.combatente.agiu { opacity: .5; }
+.combatente.agiu .nome-combatente { text-decoration: line-through; }
+
+.combatente.vez {
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+  box-shadow: inset 0 1px 0 var(--relevo), 0 0 22px -8px rgba(77, 141, 255, .5);
+}
+
+.combatente.inimigo .ordem-numero { color: #f0a6a2; border-color: rgba(194, 65, 63, .4); }
+.combatente.inimigo .nome-combatente { color: #f0a6a2; }
+
+/* Caiu: some a cor, fica só o aviso */
+.combatente.caido { opacity: .55; }
+.combatente.caido .nome-combatente { color: var(--texto-3); }
+
+.nome-combatente {
+  font-size: 14px;
+  color: var(--texto);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.combatente .nota {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+
+/* Bloco de vida dentro da linha */
+.vida-combatente .numeros {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--texto-3);
+}
+.vida-combatente .numeros strong {
+  font-family: 'Marcellus', serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--texto-2);
+}
+
+.acoes-combatente { display: flex; align-items: center; gap: 6px; }
+
+/* Campo numérico curtinho para dano/cura */
+.campo-numero {
+  width: 52px;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: center;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  transition: var(--transicao);
+}
+.campo-numero:hover { border-color: var(--hairline-forte); }
+.campo-numero:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+
+/* Etiqueta de condição aplicada, com o x de remover */
+.chip-condicao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px 2px 8px;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border: 1px solid rgba(77, 141, 255, .3);
+  border-radius: 999px;
+}
+.chip-condicao button {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--gelo);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: .6;
+}
+.chip-condicao button:hover { opacity: 1; background: rgba(255, 255, 255, .12); }
+
+/* Registro do combate */
+.registro { display: flex; flex-direction: column; gap: 0; }
+.registro-linha {
+  display: flex;
+  gap: 9px;
+  padding: 9px 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--texto-2);
+  border-bottom: 1px solid var(--hairline);
+}
+.registro-linha:last-child { border-bottom: 0; }
+.registro-linha .ico { flex-shrink: 0; margin-top: 2px; color: var(--texto-3); }
+.registro-linha.dano .ico  { color: #e0827d; }
+.registro-linha.cura .ico  { color: #8fd0ae; }
+.registro-linha.turno .ico { color: var(--azul); }
+
+/* Formulário de adicionar combatente */
+.form-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.form-linha.tres { grid-template-columns: minmax(0, 1fr) 62px 62px; }
+.form-linha input,
+.form-linha select {
+  width: 100%;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  transition: var(--transicao);
+}
+.form-linha input::placeholder { color: var(--texto-3); }
+.form-linha input:focus,
+.form-linha select:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+/* Mesma seta desenhada dos outros selects do site — sem ela, o
+   navegador desenha a dele, que não combina com nada. */
+.form-linha select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23949bb0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 15px;
+}
+.form-linha select option { background: var(--pedra); color: var(--texto); }
+
+
+/* ---------- 19c. COMPÊNDIO (compendio.html) ----------
+   Padrão "lista + detalhe": a lista filtra à esquerda, o detalhe
+   acompanha à direita. As próximas telas de consulta (Bestiário,
+   NPCs) vão repetir estas mesmas peças. */
+
+.busca-grande {
+  position: relative;
+  margin-bottom: 14px;
+}
+.busca-grande .ico {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-3);
+  pointer-events: none;
+}
+.busca-grande input {
+  width: 100%;
+  padding: 14px 15px 14px 44px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.busca-grande input::placeholder { color: var(--texto-3); }
+.busca-grande input:hover { border-color: var(--hairline-forte); }
+.busca-grande input:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  background: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+/* O x de limpar só aparece quando há texto (o JS controla). */
+.busca-grande .limpar {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--texto-3);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.busca-grande .limpar:hover { color: var(--texto); background: rgba(255, 255, 255, .08); }
+
+.filtros-compendio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.grupo-filtro { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.grupo-filtro .rotulo-filtro {
+  margin-right: 2px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+
+/* Botãozinho de filtro — o mesmo visual das etiquetas de condição. */
+.filtro {
+  padding: 5px 11px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.filtro:hover { color: var(--texto); border-color: var(--hairline-forte); }
+.filtro.ativo {
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+}
+
+.colunas-compendio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* ----- A lista ----- */
+.lista-compendio { display: flex; flex-direction: column; gap: 6px; }
+
+.item-compendio {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 11px 13px;
+  font: inherit;
+  text-align: left;
+  color: var(--texto-2);
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.item-compendio:hover { border-color: var(--hairline-forte); color: var(--texto); }
+.item-compendio.ativo {
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+  color: var(--texto);
+}
+
+/* O quadradinho do nível: "T" para truque, o número para o resto. */
+.selo-nivel {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  font-family: 'Marcellus', serif;
+  font-size: 13px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.item-compendio.ativo .selo-nivel {
+  color: var(--gelo);
+  border-color: rgba(77, 141, 255, .45);
+  background: rgba(77, 141, 255, .16);
+}
+
+.item-compendio .nome-item {
+  font-family: 'Marcellus', serif;
+  font-size: 15px;
+  color: var(--texto);
+  line-height: 1.25;
+}
+.item-compendio .linha-meta {
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+.marcas-item { display: flex; align-items: center; gap: 5px; }
+
+/* ----- O detalhe ----- */
+.detalhe-compendio {
+  position: sticky;
+  top: 76px;                 /* abaixo da barra do topo */
+  padding: 20px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra), inset 0 1px 0 var(--relevo);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
+.detalhe-compendio .titulo-detalhe {
+  margin: 0 0 4px;
+  font-family: 'Marcellus', serif;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--texto);
+}
+.detalhe-compendio .subtitulo-detalhe {
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--texto-3);
+  margin-bottom: 16px;
+}
+
+/* Tempo / alcance / componentes / duração */
+.meta-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 0;
+  margin-bottom: 14px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+.meta-grade .rotulo {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+  margin-bottom: 3px;
+}
+.meta-grade .valor { font-size: 12.5px; line-height: 1.45; color: var(--texto-2); }
+
+.corpo-detalhe {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--texto-2);
+}
+.corpo-detalhe p { margin: 0 0 12px; }
+.corpo-detalhe p:last-child { margin-bottom: 0; }
+
+/* "Em níveis superiores" */
+.bloco-superior {
+  margin-top: 14px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border-left: 2px solid var(--azul);
+  border-radius: 0 6px 6px 0;
+}
+.bloco-superior strong { color: var(--gelo); font-weight: 600; }
+
+.acoes-detalhe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* Tabela simples, para equipamento */
+.tabela-propriedades { display: flex; flex-direction: column; }
+.tabela-propriedades .linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--hairline);
+}
+.tabela-propriedades .linha:last-child { border-bottom: 0; }
+.tabela-propriedades .chave { color: var(--texto-3); }
+.tabela-propriedades .valor { color: var(--texto-2); text-align: right; }
+
+
+/* ---------- 19d. FICHA DE MONSTRO (bestiario.html) ----------
+   Segue a ordem do livro: defesas, deslocamento, atributos, o que
+   aguenta, e por fim o que faz. Reaproveita .detalhe-compendio como
+   moldura — só o miolo é diferente. */
+
+.cabeca-monstro { margin-bottom: 14px; }
+.cabeca-monstro .titulo-detalhe { margin-bottom: 2px; }
+
+/* As três linhas de defesa, com o número em destaque. */
+.defesas-monstro {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 13px 0;
+  margin-bottom: 14px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+.defesa {
+  text-align: center;
+}
+.defesa .rotulo {
+  font-size: 8.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--texto-3);
+}
+.defesa .valor {
+  font-family: 'Marcellus', serif;
+  font-size: 19px;
+  color: var(--texto);
+  line-height: 1.25;
+}
+.defesa .detalhe { font-size: 10.5px; color: var(--texto-3); }
+
+/* FOR DES CON INT SAB CAR */
+.atributos-monstro {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.atributo {
+  padding: 8px 2px;
+  text-align: center;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.atributo .sigla {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--texto-3);
+}
+.atributo .valor {
+  font-family: 'Marcellus', serif;
+  font-size: 15px;
+  color: var(--texto);
+  line-height: 1.3;
+}
+.atributo .mod { font-size: 10.5px; color: var(--gelo); }
+
+/* Linhas de "Resistências: ...", "Sentidos: ..." */
+.linhas-monstro { margin-bottom: 14px; }
+.linha-monstro {
+  display: flex;
+  gap: 7px;
+  padding: 5px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--texto-2);
+  border-bottom: 1px solid var(--hairline);
+}
+.linha-monstro:last-child { border-bottom: 0; }
+.linha-monstro .chave {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--texto-3);
+}
+
+/* Traços e ações */
+.grupo-acoes { margin-top: 16px; }
+.grupo-acoes .titulo-grupo {
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  font-family: 'Marcellus', serif;
+  font-size: 14px;
+  letter-spacing: .04em;
+  color: var(--gelo);
+  border-bottom: 1px solid rgba(77, 141, 255, .3);
+}
+.bloco-acao {
+  margin-bottom: 11px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+.bloco-acao:last-child { margin-bottom: 0; }
+.bloco-acao .nome-acao {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+/* Etiqueta de ND, na lista e no detalhe */
+.selo-nd {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  font-family: 'Marcellus', serif;
+  font-size: 12px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.item-compendio.ativo .selo-nd {
+  color: var(--gelo);
+  border-color: rgba(77, 141, 255, .45);
+  background: rgba(77, 141, 255, .16);
+}
+
+
+/* ---------- 19e. NPCs & FACÇÕES (npcs.html) ----------
+   Primeira tela onde se ESCREVE, e não só se lê. Daí as peças novas:
+   formulário, campo de texto longo e o bloco de segredo. */
+
+/* Etiquetas de atitude e de estado. Verde/cinza/vermelho aqui são
+   informação (de que lado ele está), como a barra de vida — não
+   decoração. */
+.pilula.aliado { color: #8fd0ae; background: rgba(63, 158, 108, .16); }
+.pilula.hostil { color: #f0a6a2; background: rgba(194, 65, 63, .16); }
+.pilula.morto  { color: var(--texto-3); background: rgba(255, 255, 255, .05); }
+
+/* O retrato com as iniciais, na lista */
+.inicial-npc {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-family: 'Marcellus', serif;
+  font-size: 14px;
+  color: var(--gelo);
+  background: linear-gradient(180deg, var(--pedra-3), #101319);
+  border: 1px solid var(--hairline-forte);
+  border-radius: 50%;
+}
+.item-compendio.ativo .inicial-npc { border-color: rgba(77, 141, 255, .45); }
+/* Quem morreu perde a cor no retrato */
+.item-compendio.inativo .inicial-npc { color: var(--texto-3); }
+.item-compendio.inativo .nome-item { color: var(--texto-2); text-decoration: line-through; }
+
+/* Blocos do detalhe: "O que quer", "Aparência", "Anotações" */
+.bloco-npc { margin-bottom: 14px; }
+.bloco-npc .rotulo {
+  margin-bottom: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+.bloco-npc .texto {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+
+/* O segredo. Vermelho e com olho cortado, porque é a informação que
+   nunca pode vazar para o jogador. */
+.bloco-segredo {
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: rgba(194, 65, 63, .09);
+  border-left: 2px solid var(--perigo);
+  border-radius: 0 6px 6px 0;
+}
+.bloco-segredo .cabeca {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: #f0a6a2;
+}
+.bloco-segredo .texto {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+
+/* ----- Formulário ----- */
+.formulario { display: flex; flex-direction: column; gap: 12px; }
+
+.campo-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+.campo-form input,
+.campo-form select,
+.campo-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  transition: var(--transicao);
+}
+.campo-form input::placeholder,
+.campo-form textarea::placeholder { color: var(--texto-3); }
+.campo-form input:hover,
+.campo-form select:hover,
+.campo-form textarea:hover { border-color: var(--hairline-forte); }
+.campo-form input:focus,
+.campo-form select:focus,
+.campo-form textarea:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  background: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+.campo-form textarea {
+  min-height: 74px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.campo-form select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23949bb0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 15px;
+}
+.campo-form select option { background: var(--pedra); color: var(--texto); }
+
+/* O campo do segredo pede uma borda que lembre o que ele é. */
+.campo-form.segredo textarea {
+  border-color: rgba(194, 65, 63, .35);
+  background: rgba(194, 65, 63, .06);
+}
+.campo-form.segredo textarea:focus {
+  border-color: rgba(194, 65, 63, .6);
+  box-shadow: 0 0 0 3px rgba(194, 65, 63, .12);
+}
+.campo-form .ajuda {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--texto-3);
+}
+
+.dupla-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ----- Facção ----- */
+.membros-faccao { display: flex; flex-direction: column; gap: 2px; }
+.membro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 4px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--texto-2);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.membro:last-child { border-bottom: 0; }
+.membro:hover { color: var(--texto); }
+.membro .papel { margin-left: auto; font-size: 11px; color: var(--texto-3); }
+
+
+/* ---------- 19f. MAPAS & CENAS (mapas.html) ---------- */
+
+.colunas-mapa {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Barra de ferramentas acima do mapa */
+.ferramentas-mapa {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ferramentas-mapa .separador-vertical {
+  width: 1px;
+  height: 22px;
+  background: var(--hairline-forte);
+  margin: 0 2px;
+}
+
+/* A moldura do mapa */
+.quadro-mapa {
+  position: relative;
+  background: #0a0c10;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  box-shadow: var(--sombra), inset 0 1px 0 var(--relevo);
+}
+.quadro-mapa > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Impede o navegador de "rolar a página" quando se arrasta um
+     token no celular — sem isto, arrastar vira scroll. */
+  touch-action: none;
+}
+
+/* Os tokens. O cursor conta a história: mão aberta, mão fechada. */
+.token-mapa { cursor: grab; }
+.token-mapa:active { cursor: grabbing; }
+.token-mapa.selecionado .aro { stroke-width: 3; }
+.quadro-mapa.medindo > svg { cursor: crosshair; }
+.quadro-mapa.marcando > svg { cursor: copy; }
+
+.legenda-mapa {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* Painel lateral */
+.bloco-lateral {
+  padding: 15px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.bloco-lateral + .bloco-lateral { margin-top: 14px; }
+.bloco-lateral h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  font-size: .98rem;
+  letter-spacing: .03em;
+  color: var(--texto);
+}
+.bloco-lateral h2::before { display: none; }
+.bloco-lateral h2 .ico { color: var(--azul); }
+
+/* Lista de cenas */
+.lista-cenas { display: flex; flex-direction: column; gap: 6px; }
+.item-cena {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 11px;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.item-cena:hover { color: var(--texto); border-color: var(--hairline-forte); }
+.item-cena.ativa {
+  color: var(--texto);
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+}
+.item-cena .ico { color: var(--texto-3); }
+.item-cena.ativa .ico { color: var(--azul); }
+.item-cena .contagem { margin-left: auto; font-size: 11px; color: var(--texto-3); }
+
+/* Ficha do token selecionado */
+.ficha-token .nome {
+  font-family: 'Marcellus', serif;
+  font-size: 1.1rem;
+  color: var(--texto);
+  line-height: 1.25;
+}
+.ficha-token .posicao {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+.ficha-token .barra { margin-top: 10px; }
+
+/* Régua */
+.leitura-regua {
+  padding: 11px 13px;
+  text-align: center;
+  background: rgba(77, 141, 255, .1);
+  border: 1px solid rgba(77, 141, 255, .3);
+  border-radius: var(--r-p);
+}
+.leitura-regua .distancia {
+  font-family: 'Marcellus', serif;
+  font-size: 1.5rem;
+  color: var(--gelo);
+  line-height: 1.2;
+}
+.leitura-regua .detalhe { font-size: 11px; color: var(--texto-3); }
+
+/* Lista de marcadores */
+.lista-marcadores { display: flex; flex-direction: column; gap: 8px; }
+.item-marcador {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.item-marcador.perigo { border-color: rgba(194, 65, 63, .3); background: rgba(194, 65, 63, .07); }
+.item-marcador .ico { flex-shrink: 0; margin-top: 2px; color: var(--texto-3); }
+.item-marcador.perigo .ico { color: #e0827d; }
+.item-marcador .texto { flex: 1; min-width: 0; }
+.item-marcador .tirar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--texto-3);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.item-marcador .tirar:hover { color: var(--texto); background: rgba(255, 255, 255, .1); }
+
+
+/* ---------- 19g. TABELAS & GERADORES (tabelas.html) ----------
+   Reaproveita a armacao lista + detalhe. O que e proprio daqui:
+   a linha sorteada precisa SALTAR aos olhos no meio de vinte outras. */
+
+.grupo-tabelas + .grupo-tabelas { margin-top: 16px; }
+.titulo-grupo-tabela {
+  margin-bottom: 8px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+
+/* O selo do dado, no lugar do selo de nivel */
+.selo-dado {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  font-family: 'Marcellus', serif;
+  font-size: 12.5px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.item-compendio.ativo .selo-dado {
+  color: var(--gelo);
+  border-color: rgba(77, 141, 255, .45);
+  background: rgba(77, 141, 255, .16);
+}
+
+/* O resultado grande */
+.resultado-tabela {
+  padding: 16px;
+  margin-bottom: 16px;
+  background: rgba(77, 141, 255, .1);
+  border: 1px solid rgba(77, 141, 255, .3);
+  border-radius: var(--r-p);
+  animation: surgir-resultado 260ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.resultado-tabela .cabeca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+.resultado-tabela .numero {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  font-family: 'Marcellus', serif;
+  font-size: 14px;
+  color: var(--gelo);
+  background: rgba(77, 141, 255, .22);
+  border: 1px solid rgba(77, 141, 255, .45);
+  border-radius: 6px;
+}
+.resultado-tabela .rotulo {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+.resultado-tabela .texto {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--texto);
+}
+@keyframes surgir-resultado {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* As linhas da tabela */
+.linhas-tabela { display: flex; flex-direction: column; }
+.linha-tabela {
+  display: flex;
+  gap: 12px;
+  padding: 9px 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--texto-2);
+  border-bottom: 1px solid var(--hairline);
+  transition: var(--transicao);
+}
+.linha-tabela:last-child { border-bottom: 0; }
+.linha-tabela .face {
+  flex-shrink: 0;
+  width: 24px;
+  font-family: 'Marcellus', serif;
+  font-size: 13px;
+  text-align: right;
+  color: var(--texto-3);
+}
+/* A que acabou de sair */
+.linha-tabela.sorteada {
+  color: var(--texto);
+  background: rgba(77, 141, 255, .12);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .3);
+}
+.linha-tabela.sorteada .face { color: var(--gelo); }
+
+/* Historico */
+.historico-tabela { display: flex; flex-direction: column; gap: 0; }
+.linha-historico {
+  display: flex;
+  gap: 10px;
+  padding: 8px 2px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--texto-3);
+  border-bottom: 1px solid var(--hairline);
+}
+.linha-historico:last-child { border-bottom: 0; }
+.linha-historico .de { flex-shrink: 0; color: var(--texto-2); }
+
+
+/* ---------- 19h. DIARIO & SEGREDOS (diario.html) ----------
+   Tres conteudos na mesma tela: sessoes (linha do tempo), segredos
+   (ocultos ou revelados) e pendencias (abertas ou resolvidas). */
+
+/* ----- Linha do tempo ----- */
+.linha-tempo { position: relative; padding-left: 26px; }
+/* O fio que liga as sessoes */
+.linha-tempo::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--hairline-forte);
+}
+
+.entrada-diario {
+  position: relative;
+  width: 100%;
+  padding: 13px 14px;
+  margin-bottom: 8px;
+  font: inherit;
+  text-align: left;
+  color: var(--texto-2);
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.entrada-diario:hover { border-color: var(--hairline-forte); color: var(--texto); }
+.entrada-diario.ativa {
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+  color: var(--texto);
+}
+/* O ponto sobre o fio */
+.entrada-diario::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 19px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pedra-3);
+  border: 1px solid var(--hairline-forte);
+}
+.entrada-diario.ativa::before {
+  background: var(--azul);
+  border-color: var(--azul);
+  box-shadow: 0 0 8px var(--azul);
+}
+.entrada-diario .cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.entrada-diario .numero-sessao {
+  font-family: 'Marcellus', serif;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+.entrada-diario .titulo-sessao {
+  font-family: 'Marcellus', serif;
+  font-size: 15px;
+  color: var(--texto);
+  line-height: 1.25;
+}
+.entrada-diario .previa {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--texto-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ----- Segredos ----- */
+.item-segredo {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  padding: 12px 13px;
+  margin-bottom: 8px;
+  font: inherit;
+  text-align: left;
+  color: var(--texto-2);
+  background: rgba(194, 65, 63, .07);
+  border: 1px solid rgba(194, 65, 63, .25);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.item-segredo:hover { border-color: rgba(194, 65, 63, .45); color: var(--texto); }
+.item-segredo.ativa { background: rgba(194, 65, 63, .13); border-color: rgba(194, 65, 63, .5); }
+/* Revelado deixa de ser perigo e vira historia */
+.item-segredo.revelado {
+  background: rgba(0, 0, 0, .25);
+  border-color: var(--hairline);
+}
+.item-segredo.revelado:hover { border-color: var(--hairline-forte); }
+.item-segredo .ico { flex-shrink: 0; margin-top: 2px; color: #e0827d; }
+.item-segredo.revelado .ico { color: var(--texto-3); }
+.item-segredo .corpo { flex: 1; min-width: 0; }
+.item-segredo .titulo-segredo { font-size: 13.5px; color: var(--texto); line-height: 1.35; }
+.item-segredo.revelado .titulo-segredo { color: var(--texto-2); }
+.item-segredo .ligado { margin-top: 2px; font-size: 11px; color: var(--texto-3); }
+
+/* ----- Pendencias ----- */
+.item-pendencia {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.item-pendencia.urgente { border-color: rgba(194, 65, 63, .35); background: rgba(194, 65, 63, .07); }
+.item-pendencia.resolvida { opacity: .5; }
+.item-pendencia.resolvida .texto-pendencia { text-decoration: line-through; }
+
+/* A caixinha de marcar */
+.marcador-feito {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  padding: 0;
+  color: var(--texto-3);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--hairline-forte);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.marcador-feito:hover { border-color: rgba(77, 141, 255, .5); color: var(--gelo); }
+.item-pendencia.resolvida .marcador-feito {
+  color: #8fd0ae;
+  border-color: rgba(63, 158, 108, .5);
+  background: rgba(63, 158, 108, .14);
+}
+.item-pendencia .corpo { flex: 1; min-width: 0; }
+.texto-pendencia { font-size: 13px; line-height: 1.5; color: var(--texto-2); }
+.item-pendencia .prazo {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--texto-3);
+}
+.item-pendencia.urgente .prazo { color: #e0827d; }
+.item-pendencia .tirar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--texto-3);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.item-pendencia .tirar:hover { color: var(--texto); background: rgba(255, 255, 255, .1); }
+
+/* Bloco de notas do mestre dentro da ficha da sessao */
+.bloco-notas {
+  margin: 14px 0;
+  padding: 13px 15px;
+  background: rgba(194, 65, 63, .08);
+  border-left: 2px solid var(--perigo);
+  border-radius: 0 6px 6px 0;
+}
+.bloco-notas .cabeca {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: #f0a6a2;
+}
+.bloco-notas .texto { font-size: 13px; line-height: 1.65; color: var(--texto-2); }
+
+
+/* ---------- 20. ROLADOR DE DADOS ---------- */
+.modos-rolagem { display: flex; gap: 4px; }
+.modo {
+  padding: 4px 9px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--texto-3);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.modo:hover { color: var(--texto-2); }
+.modo.ativo {
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+}
+
+.grade-dados {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.dado {
+  padding: 9px 4px;
+  font: inherit;
+  text-align: center;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.dado .face {
+  font-family: 'Marcellus', serif;
+  font-size: 16px;
+  color: var(--texto);
+  line-height: 1.2;
+}
+.dado .uso {
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--texto-3);
+}
+.dado:hover {
+  border-color: rgba(77, 141, 255, .45);
+  background: var(--azul-fundo);
+  transform: translateY(-1px);
+}
+.dado:active { transform: translateY(0); }
+.dado.principal {
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+}
+.dado.principal .face { color: var(--gelo); }
+
+/* Resultado da última rolagem */
+.resultado {
+  padding: 12px;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.resultado .rotulo {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+  margin-bottom: 6px;
+}
+.resultado .topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.resultado .formula { font-size: 12.5px; color: var(--texto-2); line-height: 1.4; }
+.resultado .total {
+  font-family: 'Marcellus', serif;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--texto);
+}
+.resultado .total.critico { color: #8fd0ae; }
+.resultado .total.falha   { color: #f0a6a2; }
+.resultado .selo-critico {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  text-align: right;
+}
+.resultado .selo-critico.critico { color: #8fd0ae; }
+.resultado .selo-critico.falha   { color: #f0a6a2; }
+
+/* Histórico curto */
+.historico {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.historico .linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+.historico .linha .valor { color: var(--texto-2); white-space: nowrap; }
+
+
+/* ---------- 21. COMPÊNDIO RÁPIDO ---------- */
+.bloco-compendio {
+  padding: 12px;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.bloco-compendio + .bloco-compendio { margin-top: 10px; }
+
+.bloco-compendio .cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.bloco-compendio .cabeca .titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  color: var(--texto-2);
+}
+.bloco-compendio .cabeca .ico { color: var(--texto-3); }
+
+.npc-gerado .nome {
+  font-family: 'Marcellus', serif;
+  font-size: 15px;
+  color: var(--gelo);
+  line-height: 1.3;
+}
+.npc-gerado .traco {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--texto-2);
+  line-height: 1.5;
+}
+.npc-gerado .segredo {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--hairline-forte);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--texto-3);
+}
+.npc-gerado .segredo strong { color: #f0a6a2; font-weight: 600; }
+
+.etiquetas-condicao { display: flex; flex-wrap: wrap; gap: 6px; }
+.etiqueta-condicao {
+  padding: 4px 9px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.etiqueta-condicao:hover { color: var(--texto); border-color: var(--hairline-forte); }
+.etiqueta-condicao.ativa {
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-color: rgba(77, 141, 255, .45);
+}
+
+.texto-regra {
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .3);
+  border-left: 2px solid var(--azul);
+  border-radius: 0 6px 6px 0;
+}
+.texto-regra strong { color: var(--gelo); font-weight: 600; }
+
+.saque { font-size: 11.5px; line-height: 1.6; color: var(--texto-2); }
+
+/* Controle de volume */
+.controle-audio { display: flex; align-items: center; gap: 10px; }
+.controle-audio input[type="range"] {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  background: rgba(0, 0, 0, .5);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.controle-audio input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--azul);
+  box-shadow: 0 0 8px rgba(77, 141, 255, .6);
+  cursor: pointer;
+}
+.controle-audio .ico { color: var(--texto-3); }
+
+.linha-pista {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+/* A lista de pistas usa a mesma cara (e a mesma seta desenhada) dos
+   selects de formulário, para não aparecer o select cru do sistema. */
+.linha-pista select {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 30px 7px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .32) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23949bb0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center / 15px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  appearance: none;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.linha-pista select:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+.linha-pista select option { background: var(--pedra); color: var(--texto); }
+
+
+/* ---------- 22. SEÇÃO EM CONSTRUÇÃO ----------
+   O que as outras entradas do códice mostram por enquanto. */
+.em-construcao {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 64px 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, .18);
+  border: 1px dashed var(--hairline-forte);
+  border-radius: var(--r-m);
+}
+.em-construcao .ico { color: var(--texto-3); opacity: .5; }
+.em-construcao h2 { margin: 0; font-size: 1.2rem; color: var(--texto-2); }
+.em-construcao h2::before { display: none; }
+.em-construcao p { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.6; color: var(--texto-3); }
+
+
+/* ---------- 23. FAIXA DE AVISO / RECADO ---------- */
+.faixa-aviso {
+  padding: 9px 22px;
+  font-size: 12px;
+  letter-spacing: .02em;
+  text-align: center;
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-bottom: 1px solid rgba(77, 141, 255, .22);
+}
+
+/* Recado flutuante no canto — aparece e some sozinho. */
+.recados {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.recado-flutuante {
+  max-width: 340px;
+  padding: 11px 15px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--gelo);
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid rgba(77, 141, 255, .35);
+  border-radius: var(--r-p);
+  box-shadow: var(--sombra);
+  animation: entrar-recado 220ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.recado-flutuante.erro { color: #f2b8b4; border-color: rgba(194, 65, 63, .45); }
+@keyframes entrar-recado {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+
+/* ---------- 24. ACESSO RESTRITO ----------
+   Ver o comentário no topo de mestre.js: isto é conveniência,
+   NÃO é segurança. */
+.tela-restrita {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.tela-restrita .cartao {
+  max-width: 420px;
+  text-align: center;
+  padding: 34px 30px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra), inset 0 1px 0 var(--relevo);
+}
+.tela-restrita .ico-grande {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 16px;
+  color: var(--texto-3);
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tela-restrita h1 { margin: 0 0 10px; font-size: 1.4rem; }
+.tela-restrita p { margin: 0 0 22px; font-size: 13.5px; color: var(--texto-2); line-height: 1.6; }
+
+
+/* ---------- 25. CARTÃO GENÉRICO ---------- */
+.cartao {
+  padding: 16px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.cartao > h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 14px;
+  font-size: 1rem;
+  letter-spacing: .03em;
+  color: var(--texto);
+}
+.cartao > h2::before { display: none; }
+.cartao > h2 .ico { color: var(--azul); }
+.cartao .dica {
+  margin: -8px 0 12px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--texto-3);
+}
+
+
+/* ---------- 25-B. BUSCA GLOBAL (Ctrl+K) E AVISOS ----------
+   Os dois usam a mesma "pele" do menu de sessão: pedra em gradiente,
+   hairline forte e sombra alta. Parecem da mesma família porque são. */
+
+.busca-global {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(560px, calc(100dvh - 120px));
+  margin: 12vh auto auto;          /* mais perto do topo que do centro: o olho já está lá */
+  padding: 0;
+  color: var(--texto);
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-alta), inset 0 1px 0 var(--relevo);
+  overflow: hidden;
+}
+.busca-global[open] {
+  display: flex;
+  flex-direction: column;
+  animation: surgir-menu 160ms cubic-bezier(.16, 1, .3, 1) both;
+}
+/* ::backdrop é o fundo que o showModal() cria atrás da caixa. */
+.busca-global::backdrop {
+  background: rgba(4, 5, 7, .62);
+  backdrop-filter: blur(3px);
+}
+
+.busca-campo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.busca-campo .ico { color: var(--azul); flex-shrink: 0; }
+.busca-campo input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--texto);
+  background: none;
+  border: 0;
+  outline: none;
+}
+.busca-campo input::placeholder { color: var(--texto-3); }
+
+.busca-global kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 2px 6px;
+  font: 600 10px/1.4 'Inter', system-ui, sans-serif;
+  text-align: center;
+  color: var(--texto-2);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--hairline-forte);
+  border-radius: 4px;
+}
+
+.busca-lista {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+.busca-grupo {
+  padding: 12px 10px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--texto-3);
+}
+.busca-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 10px;
+  border-radius: var(--r-p);
+  cursor: pointer;
+}
+.busca-item:hover { background: rgba(255, 255, 255, .035); }
+.busca-item.ativo {
+  background: var(--azul-fundo);
+  box-shadow: inset 2px 0 0 var(--azul);
+}
+.busca-titulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.busca-detalhe {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--texto-3);
+}
+.busca-vazio {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--texto-3);
+}
+
+.busca-rodape {
+  display: flex;
+  gap: 16px;
+  padding: 10px 16px;
+  font-size: 11px;
+  color: var(--texto-3);
+  border-top: 1px solid var(--hairline);
+}
+.busca-rodape kbd { margin-right: 3px; }
+
+
+/* O painel de avisos: pendurado sob o sino (top/right vêm do JS). */
+.painel-avisos {
+  position: fixed;
+  z-index: 60;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 90px);
+  overflow-y: auto;
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-alta), inset 0 1px 0 var(--relevo);
+  animation: surgir-menu 160ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.avisos-cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.avisos-cabeca .titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--texto);
+}
+.avisos-vazio {
+  padding: 22px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--texto-3);
+}
+.avisos-lista { padding: 6px; }
+
+.aviso-item {
+  display: flex;
+  gap: 11px;
+  padding: 10px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--r-p);
+}
+.aviso-item:hover,
+.aviso-item:focus-visible { background: rgba(255, 255, 255, .04); outline: none; }
+
+/* A marca à esquerda diz a gravidade pela cor — perigo, atenção, info. */
+.aviso-marca {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+.aviso-item.perigo  .aviso-marca { background: var(--perigo);  box-shadow: 0 0 6px var(--perigo); }
+.aviso-item.atencao .aviso-marca { background: var(--violeta); box-shadow: 0 0 6px var(--violeta); }
+.aviso-item.info    .aviso-marca { background: var(--azul);    box-shadow: 0 0 6px var(--azul); }
+
+.aviso-textos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.aviso-titulo { font-size: 12.5px; line-height: 1.4; color: var(--texto); }
+.aviso-detalhe { font-size: 11px; line-height: 1.45; color: var(--texto-3); }
+
+.avisos-recentes {
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--hairline);
+}
+.aviso-registro {
+  padding: 4px 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--texto-2);
+}
+
+/* O cartão do herói pedido pela busca brilha um instante. */
+.heroi.destaque { animation: destacar 1.6s ease-out; }
+@keyframes destacar {
+  0%, 30% { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(77, 141, 255, .25), var(--sombra-baixa); }
+  100%    { border-color: var(--hairline); }
+}
+
+@media (max-width: 760px) {
+  .busca-global { margin-top: 16px; }
+  .busca-rodape { display: none; }       /* setas e Enter não existem no celular */
+}
+
+
+/* ---------- 26. TELAS MENORES ---------- */
+@media (max-width: 1500px) {
+  .colunas-mesa { grid-template-columns: 340px minmax(0, 1fr); }
+  /* A coluna de ferramentas desce para a largura toda. */
+  .coluna-ferramentas {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+}
+
+@media (max-width: 1100px) {
+  /* A barra do topo, esticada, pede quase 1200px. Sem quebrar linha
+     ela vira o item mais largo da página e empurra TODO o resto —
+     por isso ela quebra aqui, e não só no celular. */
+  .barra-topo { flex-wrap: wrap; }
+  .barra-topo .espaco { display: none; }
+  /* Quem quebra a linha agora e a CAIXA (seletor + botao +), nao o
+     seletor sozinho: se o order ficasse no filho, o + escaparia para
+     antes do seletor, porque eles estao em containers diferentes. */
+  .caixa-sessao { flex: 1 1 260px; order: 5; }
+  .seletor-sessao { flex: 1; max-width: none; }
+  .faixa-audio { flex: 1 1 220px; justify-content: center; }
+  .perfil { margin-left: auto; }
+
+  /* minmax(0,1fr), e não 1fr: uma coluna 1fr nunca fica menor que o
+     conteúdo dela, então um cartão largo empurra a página inteira e
+     nasce barra de rolagem horizontal. O minmax(0,...) autoriza a
+     coluna a encolher e o conteúdo a se ajustar. */
+  .corpo-mesa { grid-template-columns: minmax(0, 1fr); }
+  .codice {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .codice-titulo { width: 100%; margin-bottom: 4px; }
+  .codice-link { font-size: 12px; padding: 7px 10px; }
+  .regra-ativa { margin-top: 0; width: 100%; }
+
+  .colunas-mesa { grid-template-columns: minmax(0, 1fr); }
+  .coluna-ferramentas { grid-column: auto; }
+  .colunas-combate { grid-template-columns: minmax(0, 1fr); }
+
+  /* O detalhe do compêndio desce para baixo da lista e deixa de ser
+     grudado no topo — num layout de uma coluna, sticky só atrapalha. */
+  .colunas-compendio { grid-template-columns: minmax(0, 1fr); }
+  .detalhe-compendio { position: static; max-height: none; }
+
+  .colunas-mapa { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A linha de combatente é uma grade de 4 colunas no desktop. Em tela
+   estreita ela vira duas faixas: identidade em cima, vida e ações
+   embaixo — nada de espremer quatro blocos em 400px. */
+@media (max-width: 900px) {
+  .combatente {
+    grid-template-columns: 34px minmax(0, 1fr);
+    row-gap: 12px;
+  }
+  .combatente .vida-combatente,
+  .combatente .acoes-combatente { grid-column: 2; }
+  .combatente .acoes-combatente { flex-wrap: wrap; }
+}
+
+@media (max-width: 760px) {
+  .barra-topo { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  .barra-topo .espaco { display: none; }
+  .marca-mestre { flex: 1; border-right: 0; padding-right: 0; }
+  /* "Ctrl+K" não serve num celular: fica só a lupa, e aí a primeira
+     linha da barra comporta marca + botões + avatar. */
+  .icone-botao.largo .atalho { display: none; }
+  .icone-botao.largo { width: 34px; padding: 0; }
+  .caixa-sessao { order: 5; width: 100%; }
+  .seletor-sessao { flex: 1; max-width: none; }
+  .faixa-audio { order: 6; width: 100%; justify-content: center; }
+  .faixa-audio .pista { max-width: none; }
+  .perfil { margin-left: auto; padding-left: 0; border-left: 0; }
+  .perfil .quem { display: none; }
+
+  .area-trabalho { padding: 14px 14px 40px; }
+  .estatisticas { grid-template-columns: repeat(3, 1fr); }
+  .recados { left: 14px; right: 14px; bottom: 14px; }
+  .recado-flutuante { max-width: none; }
+}
+
+
+/* ---------- 27. CAMPANHAS: ENTRADA, CRIAÇÃO E "SOBRE" ----------
+   Três peças nasceram juntas, com a ideia de campanha guardada:
+
+     .campanhas-salvas ... a lista "Suas campanhas" da entrada
+     .criar-caixa ........ a criação em etapas (criar-campanha.html)
+     .sobre-campanha ..... o cartão recolhível da Visão Geral
+
+   As duas primeiras moram no cartão da entrada e herdam tudo dele
+   (.entrada-caixa, .campo, .botao). Aqui só entra o que é novo. */
+
+/* O estado vazio das listas. Várias telas já usavam .vazio sem que a
+   classe tivesse regra — o texto aparecia cru. Algumas tiram a borda
+   com style inline, e continuam valendo por cima desta. */
+.vazio {
+  padding: 22px 16px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: center;
+  color: var(--texto-3);
+  border: 1px dashed var(--hairline-forte);
+  border-radius: var(--r-m);
+}
+.vazio .ico { display: block; margin: 0 auto 8px; color: var(--texto-3); }
+
+/* Campos de várias linhas e listas na mesma pele dos inputs (seção 6). */
+.campo textarea,
+.campo select {
+  width: 100%;
+  padding: 11px 13px;
+  font: inherit;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.campo textarea { resize: vertical; min-height: 64px; line-height: 1.55; }
+.campo textarea::placeholder { color: var(--texto-3); }
+.campo textarea:hover { border-color: var(--hairline-forte); }
+.campo textarea:focus {
+  outline: none;
+  border-color: rgba(77, 141, 255, .55);
+  background: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 0 3px rgba(77, 141, 255, .13);
+}
+
+/* Campo marcado como errado pelo JS (aria-invalid). A cor é a de
+   perigo, a mesma da faixa de erro logo abaixo. */
+.campo [aria-invalid="true"] { border-color: rgba(194, 65, 63, .7); }
+
+.ajuda-campo {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--texto-3);
+}
+
+/* Dois campos curtos lado a lado (nível e jogadores). */
+.campo-dupla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 0 44px;
+}
+.campo-dupla .campo { padding: 0; }
+
+
+/* ----- Suas campanhas (index.html) ----- */
+.campanhas-salvas {
+  margin: 26px 44px 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--hairline);
+}
+.campanhas-salvas h2 { font-size: 1.1rem; margin-bottom: 12px; }
+
+.lista-campanhas { display: flex; flex-direction: column; gap: 8px; }
+
+.campanha-salva {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.campanha-info { flex: 1; min-width: 0; }
+.campanha-nome {
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 1.02rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.campanha-meta { font-size: 12px; color: var(--texto-3); }
+
+/* O .botao da entrada ocupa a largura toda; aqui o botão divide a
+   linha com o nome da campanha, então é outro, mais curto. */
+.botao-compacto {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gelo);
+  cursor: pointer;
+  background: rgba(77, 141, 255, .08);
+  border: 1px solid rgba(77, 141, 255, .35);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.botao-compacto:hover { background: rgba(77, 141, 255, .16); }
+.botao-compacto.discreto {
+  color: var(--texto-3);
+  background: transparent;
+  border-color: var(--hairline);
+}
+.botao-compacto.discreto:hover {
+  color: #f2b8b4;
+  border-color: rgba(194, 65, 63, .5);
+  background: rgba(194, 65, 63, .08);
+}
+
+
+/* ----- A criação em etapas (criar-campanha.html) ----- */
+.criar-caixa { max-width: 620px; }
+
+/* O indicador: quatro rótulos com um traço em cima. O traço acende
+   em azul na etapa atual e fica cinza-claro nas já feitas. O número
+   vem de um contador do CSS, não do HTML. */
+/* grid-auto-flow: column faz uma coluna por etapa VISÍVEL: são 5 ao
+   criar e 4 ao editar (a etapa escondida sai do grid). */
+.passos {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+  margin: 26px 44px 26px;
+  padding: 0;
+  list-style: none;
+  counter-reset: passo;
+}
+.passos li {
+  padding-top: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+  border-top: 2px solid var(--hairline);
+  counter-increment: passo;
+}
+.passos li::before { content: counter(passo) ". "; }
+.passos li.feito { color: var(--texto-2); border-top-color: var(--hairline-forte); }
+.passos li[aria-current="step"] { color: var(--gelo); border-top-color: var(--azul); }
+
+/* Os dois botões dividem a linha. O .botao já tem width:100%, e o
+   grid é que decide a largura de cada metade. */
+.passos-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 6px 44px 18px;
+}
+/* Na primeira etapa o Voltar some (hidden), e o Continuar ocupa a linha. */
+.passos-nav .botao[hidden] + .botao { grid-column: 1 / -1; }
+
+.link-cancelar {
+  display: block;
+  padding: 0 44px 32px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--texto-3);
+}
+.link-cancelar:hover { color: var(--texto-2); }
+
+/* O resumo da etapa 4: rótulo pequeno em cima, resposta embaixo. */
+.resumo-campanha {
+  margin: 0 44px 22px;
+  padding: 16px 18px;
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.resumo-campanha dt {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+.resumo-campanha dd {
+  margin: 2px 0 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-line;          /* respeita as quebras de linha digitadas */
+}
+.resumo-campanha dd:last-child { margin-bottom: 0; }
+
+
+/* ----- Sobre a campanha (mestre.html) ----- */
+.sobre-campanha {
+  margin-bottom: 16px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.sobre-campanha summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.sobre-campanha summary::-webkit-details-marker { display: none; }
+.sobre-campanha summary .titulo { font-family: 'Marcellus', Georgia, serif; font-size: 1rem; }
+.sobre-campanha summary .titulo .ico { color: var(--azul); margin-right: 4px; }
+.sobre-campanha summary .sub { font-size: 12px; color: var(--texto-3); }
+/* A seta que gira: o único sinal de que o cartão abre. */
+.sobre-campanha summary::after {
+  content: "";
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--texto-3);
+  border-bottom: 1.5px solid var(--texto-3);
+  transform: rotate(45deg) translateY(-3px);
+  transition: var(--transicao);
+}
+.sobre-campanha[open] summary::after { transform: rotate(-135deg) translateY(-1px); }
+
+/* Cada par rótulo + texto mora numa <div> (o HTML permite <div>
+   dentro de <dl> exatamente para isso). Sem ela, o grid trataria
+   rótulo e texto como células soltas e os separaria em colunas. */
+.sobre-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 4px 28px;
+  margin: 0;
+  padding: 4px 16px 6px;
+}
+.sobre-grade dt {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+.sobre-grade dd {
+  margin: 2px 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--texto-2);
+  white-space: pre-line;
+}
+.sobre-campanha .dica { margin: 0; padding: 0 16px 14px; font-size: 12px; color: var(--texto-3); }
+.sobre-acoes { padding: 0 16px 14px; }
+.sobre-acoes .mini-botao { text-decoration: none; }
+
+/* A frase de abertura da etapa opcional, e o "Pular" logo abaixo dos
+   campos — texto com cara de link, para não competir com Continuar. */
+.intro-passo { margin: -6px 44px 20px; }
+.link-pular {
+  display: block;
+  margin: -4px 44px 14px auto;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--gelo);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link-pular:hover { color: var(--texto); }
+
+/* O calendário nativo do <input type="date"> vem claro por padrão;
+   color-scheme pede a versão escura ao navegador. */
+.campo input[type="date"] { color-scheme: dark; }
+
+
+/* ---------- 28. CRIAR MAPAS E MONSTROS ----------
+   A janela de cena (mapas.html) e o formulário de monstro
+   (bestiario.html). Os campos em si reaproveitam .formulario e
+   .campo-form, da tela de NPCs — só entra aqui o que é novo. */
+
+/* A ferramenta Parede: a mira de "pintar". */
+.quadro-mapa.pintando > svg { cursor: cell; }
+
+/* Os botões abaixo da lista de cenas. */
+.botoes-cena { margin-top: 10px; flex-wrap: wrap; }
+.mini-botao.perigo-leve:hover { color: #f2b8b4; border-color: rgba(194, 65, 63, .5); background: rgba(194, 65, 63, .1); }
+
+/* A janela. Mesma pele da busca Ctrl+K (seção 25-B). */
+.dialogo {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 22px 22px 18px;
+  color: var(--texto);
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-alta), inset 0 1px 0 var(--relevo);
+  overflow-y: auto;
+}
+.dialogo[open] { animation: surgir-menu 160ms cubic-bezier(.16, 1, .3, 1) both; }
+.dialogo::backdrop { background: rgba(4, 5, 7, .62); backdrop-filter: blur(3px); }
+.dialogo h2 { font-size: 1.15rem; margin: 0 0 16px; }
+.dialogo .acoes-detalhe { margin-top: 16px; }
+
+.erro-dialogo { margin: 12px 0 0; font-size: 12.5px; color: #f2b8b4; }
+.erro-dialogo:empty { display: none; }
+
+/* Caixa de marcar com o texto ao lado, clicável inteira. */
+.marcar-opcao {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--texto-2);
+  cursor: pointer;
+}
+.marcar-opcao input { width: 16px; height: 16px; accent-color: var(--azul); }
+
+/* O botão de arquivo nativo, vestido com as cores da casa. */
+.campo-form input[type="file"] { padding: 8px; font-size: 12px; color: var(--texto-2); }
+.campo-form input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--gelo);
+  cursor: pointer;
+  background: rgba(77, 141, 255, .08);
+  border: 1px solid rgba(77, 141, 255, .35);
+  border-radius: 6px;
+}
+
+.previa-imagem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.previa-imagem img {
+  width: 96px;
+  height: 64px;
+  object-fit: cover;
+  border: 1px solid var(--hairline-forte);
+  border-radius: 6px;
+}
+.previa-imagem .ajuda { margin-bottom: 6px; }
+
+
+/* ----- O formulário de monstro ----- */
+
+/* Os títulos de grupo ("Atributos", "Traços") dentro do formulário —
+   a mesma voz dos de .grupo-acoes da ficha. */
+.formulario .titulo-grupo {
+  margin: 6px 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+
+/* Seis caixinhas em linha, como na ficha impressa. */
+.atributos-form {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.atributos-form .campo-form label { text-align: center; }
+.atributos-form input { text-align: center; padding-left: 4px; padding-right: 4px; }
+
+.lista-blocos-form { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.bloco-form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  background: rgba(0, 0, 0, .2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.bloco-form-campos { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bloco-form-campos input,
+.bloco-form-campos textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.bloco-form-campos input { font-weight: 600; }
+.bloco-form-campos textarea { min-height: 58px; resize: vertical; line-height: 1.5; }
+.bloco-form-campos input:focus,
+.bloco-form-campos textarea:focus { outline: none; border-color: rgba(77, 141, 255, .55); }
+.bloco-form .tirar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--texto-3);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+.bloco-form .tirar:hover { color: #f2b8b4; background: rgba(194, 65, 63, .12); }
+
+@media (max-width: 720px) {
+  .atributos-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Dica solta, fora de .cartao (ordem de iniciativa vazia, etc.). */
+.coluna-mesa .dica { margin: 4px 0 8px; font-size: 12px; color: var(--texto-3); }
+
+
+@media (max-width: 720px) {
+  .campanhas-salvas,
+  .resumo-campanha,
+  .passos { margin-left: 26px; margin-right: 26px; }
+  .campo-dupla,
+  .passos-nav,
+  .link-cancelar { padding-left: 26px; padding-right: 26px; }
+  .intro-passo { margin-left: 26px; margin-right: 26px; }
+  .link-pular { margin-right: 26px; }
+  .passos { gap: 6px; }
+  .passos li { font-size: 9px; letter-spacing: .02em; }
+  .campanha-salva { flex-wrap: wrap; }
+  .campanha-info { flex-basis: 100%; }
+}

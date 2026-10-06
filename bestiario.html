@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<!--
+  BESTIÁRIO & AMEAÇAS — as fichas dos monstros.
+
+  Mesmo formato do Compêndio: busca em cima, lista à esquerda, ficha à
+  direita. Quem aprendeu a usar uma tela já sabe usar a outra — é o
+  ganho de repetir o mesmo formato em vez de inventar um por tela.
+
+  O que esta tem de diferente: o botão "Somar ao combate". Você acha o
+  monstro, lê a ficha e joga ele na iniciativa sem sair da página. A
+  ordem de iniciativa fica em Estado.combate (dados.js), que a tela de
+  Combate também lê — por isso o monstro já aparece lá.
+
+  Os arquivos desta tela:
+    bestiario.html  o esqueleto (o que você está lendo)
+    bestiario.js    a busca, os filtros e a ficha
+    regras.js       o catálogo (BESTIARIO) — o mesmo que o combate usa
+    dados.js        o Estado da mesa (a ordem de iniciativa)
+    layout.js       a moldura
+    icones.js       os ícones
+
+  AVISO DE SEGURANÇA: a checagem de papel é uma placa, não uma porta.
+  A explicação completa está no topo do layout.js. Vale lembrar que a
+  ficha de um monstro é justamente o tipo de coisa que NÃO pode ser
+  mandada ao navegador do jogador quando houver servidor.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Bestiário & Ameaças — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="bestiario">
+
+  <div class="app-mesa" id="app" hidden>
+
+    <div id="faixaDemo"></div>
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+
+        <div class="cabecalho-combate">
+          <div>
+            <div class="cena-etiquetas">
+              <span class="pilula azul" id="seloTotal">—</span>
+            </div>
+            <h1>
+              <span data-ico="bestiario" data-tamanho="22"></span>
+              Bestiário &amp; Ameaças
+            </h1>
+            <div class="sub">Fichas completas, prontas para entrar na iniciativa.</div>
+          </div>
+
+          <!-- Mesmo lugar do "Novo NPC" na tela de NPCs. O formulário
+               abre no painel da direita (bestiario.js, montarFormulario). -->
+          <div class="linha-botoes">
+            <button class="botao pequeno" type="button" data-acao="novo">
+              <span data-ico="mais" data-tamanho="14"></span> Novo monstro
+            </button>
+          </div>
+        </div>
+
+
+        <div class="busca-grande">
+          <span data-ico="busca" data-tamanho="18"></span>
+          <input type="text" id="busca" autocomplete="off" spellcheck="false"
+                 placeholder="Procure por nome, tipo ou pelo que ele faz: paralisar, regeneração, voo…"
+                 aria-label="Procurar no bestiário" autofocus>
+          <button class="limpar" type="button" id="limparBusca" aria-label="Limpar busca" hidden>×</button>
+        </div>
+
+
+        <div class="filtros-compendio">
+          <div class="grupo-filtro" id="filtroTipo"></div>
+          <div class="grupo-filtro" id="filtroDesafio"></div>
+        </div>
+
+
+        <div class="colunas-compendio">
+          <section>
+            <div class="titulo-coluna">
+              <h2><span data-ico="tabelas" data-tamanho="17"></span> Criaturas</h2>
+              <span class="sub" id="contagem">—</span>
+            </div>
+            <div class="lista-compendio" id="lista"></div>
+          </section>
+
+          <aside>
+            <div class="detalhe-compendio" id="detalhe"></div>
+          </aside>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página monta as fichas a partir do catálogo, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="bichos.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="regras.js"></script>
+  <script src="layout.js"></script>
+  <script src="bestiario.js"></script>
+</body>
+
+</html>

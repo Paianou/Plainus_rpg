@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<!--
+  DIÁRIO & SEGREDOS — a memória da campanha.
+
+  A última tela do códice, e a que mais depende de disciplina: é aqui
+  que fica o que aconteceu, o que ainda não foi revelado e o que você
+  não pode esquecer de puxar na próxima sessão.
+
+  Três conteúdos convivem:
+    Sessões     uma entrada por sessão, com um resumo que a party
+                pode ler e notas que são só suas.
+    Segredos    verdades da campanha, cada uma oculta ou revelada.
+    Pendências  o que ficou em aberto; as com prazo vêm primeiro.
+
+  Os arquivos desta tela:
+    diario.html  o esqueleto (o que você está lendo)
+    diario.js    as três listas e o formulário
+    dados.js     Estado.diario, Estado.segredos, Estado.pendencias
+    layout.js    a moldura
+    icones.js    os ícones
+
+
+  SOBRE SEGREDO, PELA ÚLTIMA VEZ
+  Esta tela é o depósito do que a mesa não pode ver. Vale repetir o
+  que está no topo do layout.js: quando houver servidor, nada disto
+  pode ser enviado ao navegador de um jogador. Esconder com CSS ou
+  com um `if` no JavaScript não protege nada — o que chega ao
+  navegador, o jogador lê. O servidor filtra antes de mandar.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Diário & Segredos — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="diario">
+
+  <div class="app-mesa" id="app" hidden>
+
+    <div id="faixaDemo"></div>
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+
+        <div class="cabecalho-combate">
+          <div>
+            <div class="cena-etiquetas">
+              <span class="pilula azul" id="seloTotal">&mdash;</span>
+              <span class="pilula perigo" id="seloSegredos">&mdash;</span>
+            </div>
+            <h1>
+              <span data-ico="diario" data-tamanho="22"></span>
+              Diário &amp; Segredos
+            </h1>
+            <div class="sub" id="resumoDiario">&mdash;</div>
+          </div>
+
+          <div class="linha-botoes">
+            <button class="botao pequeno" type="button" data-acao="nova-sessao">
+              <span data-ico="mais" data-tamanho="14"></span> Nova sessão
+            </button>
+          </div>
+        </div>
+
+
+        <div class="busca-grande">
+          <span data-ico="busca" data-tamanho="18"></span>
+          <input type="text" id="busca" autocomplete="off" spellcheck="false"
+                 placeholder="Procure em sessões, segredos e pendências…"
+                 aria-label="Procurar no diário">
+          <button class="limpar" type="button" id="limparBusca" aria-label="Limpar busca" hidden>&times;</button>
+        </div>
+
+
+        <div class="filtros-compendio">
+          <div class="grupo-filtro" id="filtroAba"></div>
+          <div class="grupo-filtro" id="filtroEstado"></div>
+        </div>
+
+
+        <div class="colunas-compendio">
+          <section>
+            <div class="titulo-coluna">
+              <h2><span data-ico="diario" data-tamanho="17"></span> <span id="tituloLista">Sessões</span></h2>
+              <span class="sub" id="contagem">&mdash;</span>
+            </div>
+            <div id="lista"></div>
+          </section>
+
+          <aside>
+            <div class="detalhe-compendio" id="detalhe"></div>
+          </aside>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página monta o diário a partir dos dados da campanha, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="regras.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="layout.js"></script>
+  <script src="diario.js"></script>
+</body>
+
+</html>

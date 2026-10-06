@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--
+  VISÃO GERAL — o painel de abertura do Mestre.
+
+  Repare no tamanho deste arquivo. A barra do topo, o códice lateral e
+  a tela de "acesso restrito" NÃO estão aqui: moram no layout.js, que
+  toda página interna carrega. Assim, quando mexermos na barra, mexemos
+  em um lugar só, e não em oito.
+
+  Os arquivos desta tela:
+    mestre.html  o esqueleto (o que você está lendo)
+    mestre.js    monta o miolo a partir do Estado
+    dados.js     o Estado da mesa (compartilhado com as outras telas)
+    layout.js    a moldura + a checagem de papel
+    icones.js    os ícones em traço
+
+  O data-secao no <body> é o que faz o códice acender a linha certa.
+
+  AVISO DE SEGURANÇA: a checagem de papel é uma placa, não uma porta.
+  A explicação completa está no topo do layout.js.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Visão Geral — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="painel">
+
+  <!-- Nasce escondido: se o JS falhar, ninguém vê o painel. -->
+  <div class="app-mesa" id="app" hidden>
+
+    <div id="faixaDemo"></div>
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+        <div class="abas-mesa" id="abas"></div>
+        <div id="conteudo"></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página monta o painel a partir dos dados da mesa, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="bichos.js"></script>
+  <script src="regras.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="layout.js"></script>
+  <script src="mestre.js"></script>
+</body>
+
+</html>

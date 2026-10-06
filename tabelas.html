@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<!--
+  TABELAS & GERADORES — o que se rola quando a mesa pergunta algo
+  que você não previu.
+
+  "O que tem no bolso dele?" "Quem está na taverna?" "O que dá errado
+  agora?" São perguntas que aparecem no meio da sessão, e a resposta
+  precisa vir em dois segundos. Por isso esta tela é a mais simples de
+  todas: escolher, rolar, ler.
+
+  Os arquivos desta tela:
+    tabelas.html  o esqueleto (o que você está lendo)
+    tabelas.js    a rolagem e as tabelas próprias
+    regras.js     TABELAS — as que já vêm prontas
+    dados.js      Estado.tabelasMinhas e o histórico
+    layout.js     a moldura
+    icones.js     os ícones
+
+  A divisão de sempre: tabela pronta é referência (regras.js), tabela
+  que você escreve é sua (Estado, salvo).
+
+  AVISO DE SEGURANÇA: a checagem de papel é uma placa, não uma porta.
+  A explicação completa está no topo do layout.js.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Tabelas & Geradores — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="tabelas">
+
+  <div class="app-mesa" id="app" hidden>
+
+    <div id="faixaDemo"></div>
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+
+        <div class="cabecalho-combate">
+          <div>
+            <div class="cena-etiquetas">
+              <span class="pilula azul" id="seloTotal">—</span>
+            </div>
+            <h1>
+              <span data-ico="tabelas" data-tamanho="22"></span>
+              Tabelas &amp; Geradores
+            </h1>
+            <div class="sub">Escolha, role, leia. Para quando a mesa pergunta o que você não previu.</div>
+          </div>
+
+          <div class="linha-botoes">
+            <button class="botao pequeno" type="button" data-acao="nova">
+              <span data-ico="mais" data-tamanho="14"></span> Nova tabela
+            </button>
+          </div>
+        </div>
+
+
+        <div class="busca-grande">
+          <span data-ico="busca" data-tamanho="18"></span>
+          <input type="text" id="busca" autocomplete="off" spellcheck="false"
+                 placeholder="Procure por nome da tabela ou pelo que tem dentro dela…"
+                 aria-label="Procurar nas tabelas">
+          <button class="limpar" type="button" id="limparBusca" aria-label="Limpar busca" hidden>&times;</button>
+        </div>
+
+
+        <div class="colunas-compendio">
+          <section>
+            <div class="titulo-coluna">
+              <h2><span data-ico="tabelas" data-tamanho="17"></span> Tabelas</h2>
+              <span class="sub" id="contagem">—</span>
+            </div>
+            <div id="lista"></div>
+          </section>
+
+          <aside>
+            <div class="detalhe-compendio" id="detalhe"></div>
+          </aside>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página rola as tabelas no navegador, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="regras.js"></script>
+  <script src="layout.js"></script>
+  <script src="tabelas.js"></script>
+</body>
+
+</html>

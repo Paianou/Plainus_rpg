@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!--
+  COMBATE & INICIATIVA — a tela que roda durante a luta.
+
+  A visão geral (mestre.html) MOSTRA a ordem de iniciativa; esta aqui
+  é onde ela se MEXE: dano, cura, condições, entrar e sair do combate,
+  avançar turno e rodada.
+
+  Os arquivos desta tela:
+    combate.html  o esqueleto (o que você está lendo)
+    combate.js    o comportamento
+    dados.js      o Estado da mesa (compartilhado com a visão geral)
+    layout.js     a moldura (barra do topo, códice, recados)
+    icones.js     os ícones em traço
+
+  O data-secao="combate" no <body> é o que faz o códice acender a
+  linha "Combate & Iniciativa" sozinho.
+
+  Note que o PV dos heróis mora em Estado.herois (a ficha), não aqui.
+  O combatente que é herói carrega um heroiId e as duas coisas andam
+  juntas — por isso tirar 10 PV aqui aparece na visão geral também.
+
+  AVISO DE SEGURANÇA: a checagem de papel é uma placa, não uma porta.
+  A explicação completa está no topo do layout.js.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Combate & Iniciativa — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="combate">
+
+  <div class="app-mesa" id="app" hidden>
+
+    <div id="faixaDemo"></div>
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+
+        <!-- Cabeçalho: quem está lutando e os controles da rodada.
+             Os textos com id são preenchidos pelo combate.js. -->
+        <div class="cabecalho-combate">
+          <div>
+            <div class="cena-etiquetas">
+              <span class="pilula perigo" id="seloEncontro">—</span>
+              <span class="pilula azul" id="seloRodada">—</span>
+            </div>
+            <h1>
+              <span data-ico="combate" data-tamanho="22"></span>
+              <span id="tituloEncontro">Combate</span>
+            </h1>
+            <div class="sub" id="resumoCombate">—</div>
+          </div>
+
+          <div class="linha-botoes" id="controlesCombate"></div>
+        </div>
+
+
+        <div class="colunas-combate">
+
+          <!-- ============ Coluna 1: a ordem ============ -->
+          <section>
+            <div class="titulo-coluna">
+              <h2><span data-ico="ampulheta" data-tamanho="17"></span> Ordem de iniciativa</h2>
+              <span class="sub" id="contagemCombate">—</span>
+            </div>
+
+            <!-- O combate.js preenche. Nasce vazio de propósito. -->
+            <div id="listaCombatentes"></div>
+          </section>
+
+
+          <!-- ============ Coluna 2: entrar no combate + registro ============ -->
+          <aside class="coluna-mesa">
+
+            <div class="cartao">
+              <h2><span data-ico="mais" data-tamanho="17"></span> Entrar no combate</h2>
+              <p class="dica">Escolha um monstro do catálogo ou digite um nome avulso. A iniciativa é rolada na hora.</p>
+
+              <div class="form-linha">
+                <select id="escolhaMonstro" aria-label="Monstro do catálogo"></select>
+                <button class="mini-botao" type="button" data-acao="add-monstro">Somar</button>
+              </div>
+
+              <div class="form-linha tres">
+                <input type="text" id="nomeAvulso" placeholder="Nome avulso" maxlength="40" autocomplete="off">
+                <input type="number" id="pvAvulso" placeholder="PV" min="1" max="999" aria-label="Pontos de vida">
+                <input type="number" id="caAvulso" placeholder="CA" min="1" max="40" aria-label="Classe de armadura">
+              </div>
+
+              <div class="linha-botoes">
+                <button class="mini-botao" type="button" data-acao="add-avulso">Adicionar avulso</button>
+                <button class="mini-botao" type="button" data-acao="add-party">Trazer a party</button>
+              </div>
+            </div>
+
+            <div class="cartao">
+              <h2><span data-ico="diario" data-tamanho="17"></span> Registro</h2>
+              <div class="registro" id="registroCombate"></div>
+            </div>
+
+          </aside>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página monta o combate a partir dos dados da mesa, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="bichos.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="regras.js"></script>
+  <script src="layout.js"></script>
+  <script src="combate.js"></script>
+</body>
+
+</html>
