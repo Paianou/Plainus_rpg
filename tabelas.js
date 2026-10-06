@@ -543,6 +543,9 @@ const Rolador = {
 Layout.iniciar(function () {
   Rolador.iniciar();
 
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { if (Rolador.modo === 'leitura') Rolador.render(); };
+
   /* Pedido da busca (ver Layout.aoPedir). */
   Layout.aoPedir(function (tipo, id) {
     if (tipo !== 'tabela') return;

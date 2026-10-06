@@ -869,6 +869,9 @@ const Bestiario = {
 Layout.iniciar(function () {
   Bestiario.iniciar();
 
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { if (Bestiario.modo === 'leitura') { Bestiario.montarFiltros(); Bestiario.render(); } };
+
   /* Pedido da busca (ver Layout.aoPedir). Zera os filtros para o
      monstro aberto também aparecer na lista ao lado. */
   Layout.aoPedir(function (tipo, nome) {

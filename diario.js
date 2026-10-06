@@ -771,6 +771,9 @@ function semAcentoDiario(texto) {
 Layout.iniciar(function () {
   Diario.iniciar();
 
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { if (Diario.modo === 'leitura') Diario.render(); };
+
   /* O menu de sessão da barra do topo escreve na mesma lista que esta
      tela mostra. Quando ele mexe, avisa por este evento e a tela se
      redesenha — sem isso, você criaria a sessão 13 pela barra e a

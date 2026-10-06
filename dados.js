@@ -499,6 +499,10 @@ function estadoVazio() {
       linhas: '', veus: '',
       nivelInicial: 1, jogadores: 4,
       regra: '',                 /* as regras da casa — o códice mostra */
+      /* Como os jogadores criam o personagem. Lido pela ficha do
+         jogador sempre através de regrasPersonagem(), que completa o
+         que faltar — campanhas antigas não têm este campo. */
+      regrasPersonagem: { atributos: 'compra', pv: 'media', talentos: true, multiclasse: false },
       sessao: 1, capitulo: 'I', nivelMedio: 1
     },
     mestre: { nome: '' },
@@ -526,6 +530,20 @@ function estadoVazio() {
     rolagensTabela: [],
     avisosVistos: []
   };
+}
+
+
+/* As regras de criação de personagem da campanha, sempre completas.
+   O carregar() junta o salvo por cima do molde só no primeiro nível
+   (Estado.campanha inteiro vem do salvo), então uma campanha criada
+   antes desta regra existir não tem o objeto — e quem lê não deve
+   ter de lembrar disso. */
+function regrasPersonagem(estado) {
+  const campanha = (estado || Estado).campanha || {};
+  return Object.assign(
+    { atributos: 'compra', pv: 'media', talentos: true, multiclasse: false },
+    campanha.regrasPersonagem
+  );
 }
 
 
@@ -645,6 +663,33 @@ const Memoria = {
 };
 
 Memoria.carregar();
+
+
+/* ===================================================================
+   QUANDO OUTRA ABA MUDA A CAMPANHA
+
+   Sem servidor, Mestre e jogador dividem o mesmo localStorage — quase
+   sempre em abas diferentes. O perigo: o jogador cria o personagem na
+   aba dele; o Mestre, com o painel aberto, clica em qualquer coisa; o
+   painel grava o Estado que tem NA MEMÓRIA, que não conhece o
+   personagem novo — e o apaga.
+
+   O navegador avisa as OUTRAS abas quando o localStorage muda: é o
+   evento 'storage' (a aba que gravou não recebe). Ao ouvir que a
+   campanha aberta mudou, recarregamos o Estado e avisamos
+   'plainus:externo', para a tela que quiser se redesenhar.
+
+   Com o servidor, este papel passa para o Socket.IO: é ele que vai
+   empurrar o estado novo para cada navegador.
+   =================================================================== */
+window.addEventListener('storage', function (evento) {
+  const sessao = Sessao.ler();
+  if (!sessao || evento.key !== PREFIXO_CAMPANHA + sessao.campanhaId) return;
+
+  Memoria.carregar();
+  document.dispatchEvent(new CustomEvent('plainus:externo'));
+  document.dispatchEvent(new CustomEvent('plainus:mudou'));
+});
 
 
 /* ===================================================================

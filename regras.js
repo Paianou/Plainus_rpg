@@ -554,6 +554,65 @@ const NDS = ['0', '1/8', '1/4', '1/2'].concat(
 const TAMANHOS = ['Miúdo', 'Pequeno', 'Médio', 'Grande', 'Enorme', 'Imenso'];
 
 
+/* ===================================================================
+   CRIAÇÃO DE PERSONAGEM (Livro do Jogador)
+
+   O que a ficha do jogador precisa para CALCULAR — não para escolher
+   por ele. Raça e classe ficam como texto livre na ficha; aqui só
+   mora o que vira conta.
+   =================================================================== */
+
+/* Os seis atributos, na ordem da ficha. */
+const ATRIBUTOS_FICHA = [
+  ['for', 'Força'], ['des', 'Destreza'], ['con', 'Constituição'],
+  ['int', 'Inteligência'], ['sab', 'Sabedoria'], ['car', 'Carisma']
+];
+
+/* As 18 perícias e o atributo de cada uma. O bônus de uma perícia é
+   o modificador desse atributo, mais a proficiência se o personagem
+   for treinado nela. */
+const PERICIAS = [
+  ['Acrobacia', 'des'], ['Adestrar Animais', 'sab'], ['Arcanismo', 'int'],
+  ['Atletismo', 'for'], ['Atuação', 'car'], ['Enganação', 'car'],
+  ['Furtividade', 'des'], ['História', 'int'], ['Intimidação', 'car'],
+  ['Intuição', 'sab'], ['Investigação', 'int'], ['Medicina', 'sab'],
+  ['Natureza', 'int'], ['Percepção', 'sab'], ['Persuasão', 'car'],
+  ['Prestidigitação', 'des'], ['Religião', 'int'], ['Sobrevivência', 'sab']
+];
+
+/* Compra de pontos: 27 pontos, cada valor de 8 a 15 custa isto. */
+const CUSTO_COMPRA = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+const PONTOS_COMPRA = 27;
+
+/* Conjunto padrão: estes seis valores, distribuídos como quiser. */
+const CONJUNTO_PADRAO = [15, 14, 13, 12, 10, 8];
+
+/* O dado de vida de cada classe do Livro do Jogador. Serve para
+   SUGERIR o dado quando o jogador escreve a classe; a ficha deixa
+   trocar (uma classe de outro livro não está aqui). */
+const DADO_POR_CLASSE = {
+  'Bárbaro': 12,
+  'Guerreiro': 10, 'Paladino': 10, 'Patrulheiro': 10,
+  'Bardo': 8, 'Bruxo': 8, 'Clérigo': 8, 'Druida': 8, 'Ladino': 8, 'Monge': 8,
+  'Feiticeiro': 6, 'Mago': 6
+};
+
+/* As regras que o Mestre escolhe ao criar a campanha (etapa
+   "Personagens"). Rótulos aqui para o formulário de campanha e a
+   ficha do jogador falarem igual. */
+const METODOS_ATRIBUTOS = {
+  compra:  'Compra de pontos (27)',
+  padrao:  'Conjunto padrão (15, 14, 13, 12, 10, 8)',
+  rolagem: 'Rolagem (4d6, descarta o menor)',
+  livre:   'Livre (o Mestre confere)'
+};
+
+const METODOS_PV = {
+  media:  'Média fixa por nível',
+  rolado: 'Rolado a cada nível'
+};
+
+
 /* ---------- Equipamento ----------
    Copiado de mesa-virtual/public/js/dados-jogo.js. */
 

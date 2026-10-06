@@ -603,4 +603,7 @@ const Combate = {
 /* A moldura decide se esta pessoa pode ver a tela; só então montamos. */
 Layout.iniciar(function () {
   Combate.iniciar();
+
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { Combate.render(); };
 });

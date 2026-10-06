@@ -469,6 +469,9 @@ const Compendio = {
 Layout.iniciar(function () {
   Compendio.iniciar();
 
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { Compendio.render(); };
+
   /* Pedido da busca (ver Layout.aoPedir): mostra o tipo certo, sem
      filtro nenhum — abrir() procura dentro do que está filtrado, então
      um filtro de nível esconderia a magia pedida. */

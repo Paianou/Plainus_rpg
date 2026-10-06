@@ -149,8 +149,24 @@ const Layout = {
       Avisos.atualizar();
     });
 
+    /* Outra aba mudou a campanha (um jogador criou o personagem, por
+       exemplo) e o dados.js já recarregou o Estado. A barra se refaz
+       aqui; o miolo, cada tela sabe redesenhar o seu — ela põe essa
+       função em Layout.redesenhar. Tela sem redesenhar fica como está
+       até a próxima navegação, mas já com o Estado certo na memória. */
+    const self = this;
+    document.addEventListener('plainus:externo', function () {
+      self.montarTopo();
+      Icone.aplicar();
+      if (typeof self.redesenhar === 'function') self.redesenhar();
+      self.recado('A campanha foi atualizada em outra aba.');
+    });
+
     if (typeof aoPronto === 'function') aoPronto();
   },
+
+  /* Preenchida por cada tela (ver 'plainus:externo' acima). */
+  redesenhar: null,
 
 
   /* O navegador só deixa tocar som depois de um gesto. O primeiro
@@ -204,8 +220,11 @@ const Layout = {
       texto.textContent = 'Você ainda não entrou na mesa. Crie uma campanha, ou entre com o código marcando "Mestre", para abrir este painel.';
     }
 
-    const voltar = criar('a.botao.fantasma', papel ? 'Voltar para a entrada' : 'Ir para a entrada');
-    voltar.href = 'index.html';
+    /* Jogador que caiu numa tela do Mestre: o caminho certo é o painel
+       dele, não a entrada. */
+    const ehJogador = papel === 'jogador' && !motivo;
+    const voltar = criar('a.botao.fantasma', ehJogador ? 'Ir para o seu painel' : (papel ? 'Voltar para a entrada' : 'Ir para a entrada'));
+    voltar.href = ehJogador ? 'jogador.html' : 'index.html';
     voltar.style.cssText = 'display:block;text-decoration:none;text-align:center';
 
     const tela = criar('div.tela-restrita',

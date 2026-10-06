@@ -10,8 +10,8 @@
                         criação em etapas (criar-campanha.html), onde
                         o resto é preenchido.
      Entrar com código  procura a campanha pelo código. Mestre vai
-                        para o painel; jogador fica aqui por enquanto,
-                        porque o painel do jogador é o próximo passo.
+                        para o painel dele (mestre.html); jogador, para
+                        o dele (jogador.html), onde cria ou abre a ficha.
 
    Guardar campanhas e sessão é trabalho do campanhas.js — este
    arquivo só decide para onde a pessoa vai.
@@ -233,22 +233,34 @@ const Entrada = {
 
     const sessao = papel === 'mestre'
       ? { papel: 'mestre', campanhaId: campanha.id }
-      : { papel: 'jogador', campanhaId: campanha.id, nome: nome };
+      : { papel: 'jogador', campanhaId: campanha.id, nome: nome, jogadorId: this.jogadorIdPara(campanha.id, nome) };
 
     if (!Sessao.gravar(sessao)) {
       this.mostrarErroArmazenamento();
       return;
     }
 
-    if (papel === 'mestre') {
-      location.href = 'mestre.html';
-      return;
-    }
+    location.href = papel === 'mestre' ? 'mestre.html' : 'jogador.html';
+  },
 
-    /* Jogador: a sessão fica guardada (e o painel do Mestre vai
-       recusá-lo, que é o certo), mas o painel dele ainda não existe. */
-    this.mostrarErro('Você entrou em "' + campanha.nome + '" como jogador, ' + nome
-      + '. O painel do jogador é o próximo passo — por enquanto, só o do Mestre existe.');
+
+  /* Quem é este jogador nesta campanha?
+
+     Se já existe um personagem cujo jogador tem este nome, é ele
+     voltando: recebe o mesmo id e cai na ficha que já tinha. Senão,
+     ganha um id novo e vai criar a ficha.
+
+     Reconhecer pelo NOME é uma placa, não uma porta: quem digitar o
+     nome de outro jogador entra no lugar dele (problema 2 do
+     CLAUDE.md). Sem servidor não há como provar quem é quem; com ele,
+     o reconhecimento passa a ser por um token assinado. */
+  jogadorIdPara: function (campanhaId, nome) {
+    const estado = Campanhas.lerEstado(campanhaId);
+    const alvo = nome.toLowerCase();
+    const meu = ((estado && estado.herois) || []).find(function (h) {
+      return h.dono && (h.jogador || '').toLowerCase() === alvo;
+    });
+    return meu ? meu.dono : Campanhas.novoId().replace(/^c/, 'j');
   },
 
 

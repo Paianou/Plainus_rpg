@@ -702,6 +702,9 @@ function semAcentoSimples(texto) {
 Layout.iniciar(function () {
   Elenco.iniciar();
 
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { if (Elenco.modo === 'leitura') { Elenco.montarFiltros(); Elenco.render(); } };
+
   /* Pedido da busca ou dos avisos (ver Layout.aoPedir). Os filtros são
      zerados porque um filtro ativo poderia esconder justamente o item
      pedido — e o mestre veria a ficha sem vê-la na lista. */

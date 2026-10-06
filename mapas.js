@@ -1296,6 +1296,9 @@ function ligarPainel() {
 /* A moldura decide se esta pessoa pode ver a tela; só então montamos. */
 Layout.iniciar(function () {
   Mapa.iniciar();
+
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { if (!Mapa.arrasto && !Mapa.pintura && !Mapa.janela) Mapa.render(); };
   ligarPainel();
 
   /* Pedido da busca (ver Layout.aoPedir). O some() confere se a cena

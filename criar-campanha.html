@@ -7,8 +7,8 @@
   sentir que caiu em outro site.
 
   UM FORMULÁRIO, DOIS USOS
-    criar-campanha.html            cria uma campanha nova (5 etapas)
-    criar-campanha.html?editar=1   edita a campanha aberta (4 etapas)
+    criar-campanha.html            cria uma campanha nova (6 etapas)
+    criar-campanha.html?editar=1   edita a campanha aberta (5 etapas)
 
   Editar reaproveita tudo: os mesmos campos, a mesma validação. Só
   muda o que o JS faz no fim, e quais etapas aparecem — "Primeira
@@ -70,16 +70,17 @@
       <!--
         O indicador de etapas. <ol> porque a ordem importa. O JS marca
         a etapa atual com aria-current="step" e as já feitas com .feito.
-        No modo edição a etapa 4 fica hidden — e como o número vem de
-        um contador do CSS, que pula o que não é exibido, a última
-        passa a se chamar "4." sozinha.
+        No modo edição a etapa 5 (Sessão 1) fica hidden — e como o
+        número vem de um contador do CSS, que pula o que não é exibido,
+        a última passa a se chamar "5." sozinha.
       -->
       <ol class="passos" id="passos">
         <li data-passo="1">Identidade</li>
         <li data-passo="2">Mundo</li>
         <li data-passo="3">Mesa</li>
-        <li data-passo="4">Sessão 1</li>
-        <li data-passo="5" id="rotuloUltimo">Começar</li>
+        <li data-passo="4">Personagens</li>
+        <li data-passo="5">Sessão 1</li>
+        <li data-passo="6" id="rotuloUltimo">Começar</li>
       </ol>
 
 
@@ -175,7 +176,43 @@
       </section>
 
 
-      <!-- ============ ETAPA 4: preparar a primeira sessão (só ao criar) ============
+      <!-- ============ ETAPA 4: como os jogadores criam o personagem ============
+
+        A ficha do jogador (jogador.html) lê estas escolhas e aplica:
+        só oferece a compra de pontos se for o método, calcula o PV pela
+        média ou deixa rolar, mostra ou esconde talentos e segunda classe.
+        As opções dos <select> vêm do regras.js (METODOS_ATRIBUTOS e
+        METODOS_PV) — o criar-campanha.js preenche.
+      -->
+      <section class="passo" data-passo="4" hidden>
+        <div class="campo">
+          <label for="metodoAtributos">Atributos</label>
+          <select id="metodoAtributos"></select>
+        </div>
+
+        <div class="campo">
+          <label for="metodoPv">Pontos de vida ao subir de nível</label>
+          <select id="metodoPv"></select>
+        </div>
+
+        <div class="campo">
+          <label class="marcar-opcao">
+            <input type="checkbox" id="talentos" checked>
+            Talentos permitidos
+          </label>
+        </div>
+
+        <div class="campo">
+          <label class="marcar-opcao">
+            <input type="checkbox" id="multiclasse">
+            Multiclasse permitida
+          </label>
+          <p class="ajuda-campo">Dá para mudar depois, em "Editar campanha". Fichas já criadas não são refeitas.</p>
+        </div>
+      </section>
+
+
+      <!-- ============ ETAPA 5: preparar a primeira sessão (só ao criar) ============
 
         Tudo opcional. Cada campo daqui vira algo que já tem tela:
           título e data ..... a Sessão 1 no Diário (e o nome na barra do topo)
@@ -183,7 +220,7 @@
           a verdade ......... o primeiro segredo do Diário, só seu
           ambiente .......... a pista que o áudio vai tocar
       -->
-      <section class="passo" data-passo="4" hidden>
+      <section class="passo" data-passo="5" hidden>
         <p class="ajuda-campo intro-passo">
           Tudo aqui é opcional. O que você preencher já aparece no
           Diário, nos avisos e no áudio do painel.
@@ -227,8 +264,8 @@
       </section>
 
 
-      <!-- ============ ETAPA 5: resumo e confirmar ============ -->
-      <section class="passo" data-passo="5" hidden>
+      <!-- ============ ETAPA 6: resumo e confirmar ============ -->
+      <section class="passo" data-passo="6" hidden>
         <!-- O criar-campanha.js preenche com o que foi respondido. -->
         <dl class="resumo-campanha" id="resumoCampanha"></dl>
 
@@ -284,6 +321,7 @@
 
   <script src="campanhas.js"></script>
   <script src="dados.js"></script>
+  <script src="regras.js"></script>
   <script src="audio.js"></script>
   <script src="criar-campanha.js"></script>
 </body>

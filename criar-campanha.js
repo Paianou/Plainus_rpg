@@ -2,15 +2,15 @@
    criar-campanha.js — o formulário em etapas, para criar ou editar
 
    DOIS MODOS, UM FORMULÁRIO
-     criar   (criar-campanha.html)           etapas 1, 2, 3, 4, 5
-     editar  (criar-campanha.html?editar=1)  etapas 1, 2, 3, 5
+     criar   (criar-campanha.html)           etapas 1, 2, 3, 4, 5, 6
+     editar  (criar-campanha.html?editar=1)  etapas 1, 2, 3, 4, 6
 
    `ordem` guarda quais etapas existem no modo atual, e `indice` diz em
    qual delas estamos. Continuar valida SÓ a etapa atual e avança;
    Voltar recua sem validar (ninguém deve ser travado por um campo que
    ainda vai corrigir). Nada é gravado até o último clique.
 
-   A etapa 4 (primeira sessão) só existe ao criar: o que ela gera —
+   A etapa 5 (primeira sessão) só existe ao criar: o que ela gera —
    uma sessão no Diário, uma pendência, um segredo — passa a ter vida
    própria lá, e é lá que se edita depois.
 
@@ -47,12 +47,19 @@ const CAMPOS = [
   { id: 'jogadores',    rotulo: 'Jogadores',         passo: 3, numero: true, min: 1, maxNumero: 10 },
   { id: 'regras',       rotulo: 'Regras da casa',    passo: 3, max: 400 },
 
-  { id: 'tituloSessao', rotulo: 'Sessão 1',          passo: 4, max: 60 },
-  { id: 'dataSessao',   rotulo: 'Data',              passo: 4, data: true },
-  { id: 'ameaca',       rotulo: 'Ameaça',            passo: 4, max: 300 },
-  { id: 'prazo',        rotulo: 'Prazo',             passo: 4, max: 60 },
-  { id: 'verdade',      rotulo: 'A verdade',         passo: 4, max: 600 },
-  { id: 'pista',        rotulo: 'Ambiente sonoro',   passo: 4, lista: true }
+  /* `opcoes`: um <select> cujas opções vêm do regras.js — o valor
+     tem de ser uma das chaves. `marcar`: uma caixa de marcar. */
+  { id: 'metodoAtributos', rotulo: 'Atributos',      passo: 4, opcoes: METODOS_ATRIBUTOS },
+  { id: 'metodoPv',     rotulo: 'PV por nível',      passo: 4, opcoes: METODOS_PV },
+  { id: 'talentos',     rotulo: 'Talentos',          passo: 4, marcar: true },
+  { id: 'multiclasse',  rotulo: 'Multiclasse',       passo: 4, marcar: true },
+
+  { id: 'tituloSessao', rotulo: 'Sessão 1',          passo: 5, max: 60 },
+  { id: 'dataSessao',   rotulo: 'Data',              passo: 5, data: true },
+  { id: 'ameaca',       rotulo: 'Ameaça',            passo: 5, max: 300 },
+  { id: 'prazo',        rotulo: 'Prazo',             passo: 5, max: 60 },
+  { id: 'verdade',      rotulo: 'A verdade',         passo: 5, max: 600 },
+  { id: 'pista',        rotulo: 'Ambiente sonoro',   passo: 5, lista: true }
 ];
 
 /* Mensagens do "está vazio" — escritas por campo porque "Preencha o
@@ -74,13 +81,14 @@ const PISTA_PADRAO = 'Cripta dos Ancestrais (loop)';
 const Criacao = {
 
   modo: 'criar',              /* 'criar' | 'editar' */
-  ordem: [1, 2, 3, 4, 5],     /* as etapas que existem neste modo */
+  ordem: [1, 2, 3, 4, 5, 6],  /* as etapas que existem neste modo */
   indice: 0,                  /* posição em `ordem` */
   idEditando: null,
 
 
   iniciar: function () {
     this.preencherPistas();
+    this.preencherOpcoes();
 
     const editar = new URLSearchParams(location.search).get('editar') === '1';
     if (editar) {
@@ -113,6 +121,22 @@ const Criacao = {
     escolha.value = PISTA_PADRAO;
   },
 
+  /* Os <select> com `opcoes` na tabela CAMPOS (regras de personagem):
+     chave → valor guardado, texto → o que aparece na lista. A primeira
+     opção de cada objeto é o padrão. */
+  preencherOpcoes: function () {
+    CAMPOS.forEach(function (campo) {
+      if (!campo.opcoes) return;
+      const escolha = document.getElementById(campo.id);
+      Object.keys(campo.opcoes).forEach(function (chave) {
+        const opcao = document.createElement('option');
+        opcao.value = chave;
+        opcao.textContent = campo.opcoes[chave];
+        escolha.appendChild(opcao);
+      });
+    });
+  },
+
   /* O nome da campanha e o do mestre já foram digitados na entrada:
      pedir de novo seria atrito. */
   preencherRascunho: function () {
@@ -139,13 +163,13 @@ const Criacao = {
     }
 
     this.modo = 'editar';
-    this.ordem = [1, 2, 3, 5];
+    this.ordem = [1, 2, 3, 4, 6];
     this.idEditando = sessao.campanhaId;
 
     document.title = 'Editar campanha — Plainus RPG';
     document.getElementById('tituloForm').textContent = 'Editar campanha';
     document.getElementById('subtituloForm').textContent = estado.campanha.nome;
-    document.querySelector('#passos li[data-passo="4"]').hidden = true;
+    document.querySelector('#passos li[data-passo="5"]').hidden = true;
     document.getElementById('rotuloUltimo').textContent = 'Salvar';
     document.getElementById('escolhaInicio').hidden = true;
 
@@ -171,6 +195,14 @@ const Criacao = {
         document.getElementById(id).value = valores[id];
       }
     });
+
+    /* As regras de personagem: regrasPersonagem() (dados.js) completa
+       o que uma campanha antiga não tiver. */
+    const regras = regrasPersonagem(estado);
+    document.getElementById('metodoAtributos').value = regras.atributos;
+    document.getElementById('metodoPv').value = regras.pv;
+    document.getElementById('talentos').checked = !!regras.talentos;
+    document.getElementById('multiclasse').checked = !!regras.multiclasse;
 
     return true;
   },
@@ -239,7 +271,9 @@ const Criacao = {
   respostas: function () {
     const r = {};
     CAMPOS.forEach(function (campo) {
-      const valor = document.getElementById(campo.id).value.trim();
+      const elemento = document.getElementById(campo.id);
+      if (campo.marcar) { r[campo.id] = elemento.checked; return; }
+      const valor = elemento.value.trim();
       r[campo.id] = campo.numero ? parseInt(valor, 10) : valor;
     });
     return r;
@@ -256,6 +290,18 @@ const Criacao = {
 
       const elemento = document.getElementById(campo.id);
       const valor = elemento.value.trim();
+
+      /* Caixa de marcar: ou está marcada, ou não — nada a conferir. */
+      if (campo.marcar) continue;
+
+      /* Lista do regras.js: o valor tem de ser uma das chaves. */
+      if (campo.opcoes) {
+        if (!Object.prototype.hasOwnProperty.call(campo.opcoes, valor)) {
+          this.mostrarErro(campo.rotulo + ': escolha uma opção da lista.', elemento);
+          return false;
+        }
+        continue;
+      }
 
       if (campo.numero) {
         const n = Number(valor);
@@ -297,7 +343,7 @@ const Criacao = {
     }
 
     /* Um prazo sozinho não diz nada: prazo DE QUÊ? */
-    if (passo === 4) {
+    if (passo === 5) {
       const ameaca = document.getElementById('ameaca');
       if (document.getElementById('prazo').value.trim() && !ameaca.value.trim()) {
         this.mostrarErro('Diga qual é a ameaça que tem esse prazo.', ameaca);
@@ -345,6 +391,8 @@ const Criacao = {
       let valor = r[campo.id];
       if (valor === '' || valor === null || Number.isNaN(valor)) return;
       if (campo.data) valor = valor.split('-').reverse().join('/');   /* 2026-10-10 → 10/10/2026 */
+      if (campo.marcar) valor = valor ? 'Permitido' : 'Não permitido';
+      if (campo.opcoes) valor = campo.opcoes[valor];                  /* a chave vira o texto */
 
       const termo = document.createElement('dt');
       termo.textContent = campo.rotulo;
@@ -372,7 +420,14 @@ const Criacao = {
       linhas: r.linhas,
       veus: r.veus,
       nivelInicial: r.nivelInicial,
-      jogadores: r.jogadores
+      jogadores: r.jogadores,
+      /* Lidas pela ficha do jogador (jogador.js). */
+      regrasPersonagem: {
+        atributos: r.metodoAtributos,
+        pv: r.metodoPv,
+        talentos: r.talentos,
+        multiclasse: r.multiclasse
+      }
     });
     delete estado.campanha.limites;          /* migrado para 'linhas' */
 
@@ -382,7 +437,7 @@ const Criacao = {
   },
 
 
-  /* A etapa 4. Cada resposta vira algo que já tem tela — por isso as
+  /* A etapa 5. Cada resposta vira algo que já tem tela — por isso as
      estruturas aqui são as mesmas que o Diário e o avisos.js leem. */
   prepararPrimeiraSessao: function (estado, r) {
     const agora = Date.now();

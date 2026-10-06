@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!--
+  PAINEL DO JOGADOR — a ficha e (nas próximas etapas) a mesa vista
+  pelo lado de quem joga.
+
+  Por que uma moldura PRÓPRIA, e não a do layout.js: aquela barra é do
+  Mestre (menu de sessão, convite, áudio, o códice com as oito telas
+  dele). O jogador tem outra conversa com a mesa — e mostrar a ele os
+  botões do Mestre, mesmo desligados, seria convite para fuçar. Do
+  layout.js só aproveitamos os ajudantes (criar, criarBotao, o recado).
+
+  Os arquivos desta tela:
+    jogador.html  o esqueleto (o que você está lendo)
+    jogador.js    a moldura, a visão do jogador e a ficha
+    ficha.js      as contas da ficha (CA, perícias, PV...)
+    regras.js     perícias, armaduras, compra de pontos
+    dados.js      o Estado e regrasPersonagem()
+    campanhas.js  sessão e campanha guardadas
+
+  AVISO DE SEGURANÇA: como no painel do Mestre, a checagem de papel
+  é uma placa, não uma porta. A explicação está no topo do jogador.js.
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Painel do jogador — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Nasce escondido: se o JS falhar ou a sessão não for de jogador, nada aparece. -->
+  <div class="app-jogador" id="app" hidden>
+    <div class="faixa-aviso">Sem servidor ainda — o painel lê a campanha guardada neste navegador.</div>
+    <header class="barra-topo" id="barraJogador"></header>
+
+    <main class="area-jogador">
+      <div class="colunas-jogador">
+        <section id="principal"></section>
+        <aside id="lateral"></aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>O painel monta a sua ficha a partir da campanha, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="dados.js"></script>
+  <script src="regras.js"></script>
+  <!-- O layout.js entra pelos ajudantes (criar, criarBotao, recado,
+       dado). Layout.iniciar(), que monta a moldura do MESTRE, nunca é
+       chamado nesta página. -->
+  <script src="layout.js"></script>
+  <script src="ficha.js"></script>
+  <script src="jogador.js"></script>
+</body>
+
+</html>

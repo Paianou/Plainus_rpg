@@ -235,7 +235,7 @@ const Painel = {
        que é o próximo passo do projeto. */
     if (!Estado.herois.length) {
       coluna.appendChild(criar('div.vazio',
-        'Nenhum herói ainda. Os personagens vão chegar pelos jogadores, quando o painel do jogador existir.'));
+        'Nenhum herói ainda. Passe o código de convite (botão ao lado do sino): cada jogador entra com ele e cria a própria ficha.'));
     }
 
     return coluna;
@@ -255,7 +255,9 @@ const Painel = {
         criar('div.nome', heroi.nome),
         criar('div.classe', heroi.classe)
       ]),
-      criar('span.pilula' + (heroi.estadoPerigo ? '.perigo' : '.azul'), heroi.estado)
+      /* Personagem criado por jogador ainda não tem estado ("Furtivo",
+         "Abençoado"...): sem texto, sem pílula. */
+      heroi.estado && criar('span.pilula' + (heroi.estadoPerigo ? '.perigo' : '.azul'), heroi.estado)
     ]));
 
     cartao.appendChild(criar('div.estatisticas', [
@@ -1072,6 +1074,9 @@ const Painel = {
 /* A moldura decide se esta pessoa pode ver a tela; só então montamos. */
 Layout.iniciar(function () {
   Painel.iniciar();
+
+  /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  Layout.redesenhar = function () { Painel.render(); };
 
   /* Pedido da busca ou dos avisos (ver Layout.aoPedir): rola até o
      cartão do herói e o faz brilhar um instante, para o olho achar. */
