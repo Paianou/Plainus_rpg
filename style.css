@@ -3963,3 +3963,149 @@ legend { padding: 0; }
   .campanha-salva { flex-wrap: wrap; }
   .campanha-info { flex-basis: 100%; }
 }
+
+
+/* ---------- 30. A MESA PELO JOGADOR (abas, rolador, ficha clicável) ----------
+   A aba Mesa e a aba Diário do painel do jogador, e o cartão de dados.
+   As barras de vida, pílulas, chips de condição e o número de
+   iniciativa são os mesmos do painel do Mestre — só a arrumação muda. */
+
+.abas-jogador { margin-bottom: 16px; }
+.aba.ativa { color: var(--texto); border-color: rgba(77, 141, 255, .45); background: var(--azul-fundo); }
+.aba.ativa .ico { color: var(--azul); }
+
+/* --- A ficha que rola: botões que não parecem botões até o mouse passar --- */
+button.numero-ficha,
+.teste-atributo,
+.atributo-ficha .salva,
+button.pericia {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+button.numero-ficha:hover,
+.teste-atributo:hover,
+.atributo-ficha .salva:hover,
+button.pericia:hover { border-color: rgba(77, 141, 255, .45); background: var(--azul-fundo); }
+
+.teste-atributo {
+  display: block;
+  width: 100%;
+  padding: 0 0 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.atributo-ficha .salva {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  border-top-color: var(--hairline);
+  border-radius: 0 0 6px 6px;
+}
+
+button.pericia {
+  width: 100%;
+  padding: 5px 6px;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+/* O "font: inherit" lá em cima tira a fonte de botão do navegador —
+   e, junto, o tamanho que estes itens tinham quando eram <div>. Aqui
+   ele volta. */
+button.pericia { font-size: 13px; }
+.atributo-ficha .salva { font-size: 11px; font-weight: 400; color: var(--texto-3); }
+.atributo-ficha .salva.treinada { color: var(--texto); }
+
+/* --- Aba Mesa --- */
+.sua-vez {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 1.1rem;
+  color: var(--texto);
+  background: linear-gradient(90deg, rgba(77, 141, 255, .22), rgba(77, 141, 255, .05));
+  border: 1px solid rgba(77, 141, 255, .5);
+  border-radius: var(--r-m);
+  box-shadow: 0 0 24px -6px rgba(77, 141, 255, .5);
+}
+.sua-vez .ico { color: var(--azul); }
+
+/* Mais específico que .cartao .dica, que puxa a dica 8px para cima
+   (feito para ficar colada num título) e a esconderia sob a planta. */
+.cartao .dica.legenda-mapa-jogador { margin: 8px 0 0; }
+
+.cabeca-combate-jogador { margin: -6px 0 12px; font-size: 12px; color: var(--texto-3); }
+.iniciativa-jogador { display: flex; flex-direction: column; gap: 6px; }
+.linha-jogador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.linha-jogador .quem { flex: 1; min-width: 0; }
+.linha-jogador .nome { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13.5px; }
+.linha-jogador.vez { border-color: rgba(77, 141, 255, .55); background: var(--azul-fundo); }
+.linha-jogador.meu .ordem-numero { color: var(--gelo); border-color: rgba(77, 141, 255, .45); }
+.linha-jogador.agiu { opacity: .55; }
+.linha-jogador.inimigo .ordem-numero { color: #e0827d; }
+.linha-jogador.caido .nome { text-decoration: line-through; color: var(--texto-3); }
+
+.vida-jogador { display: flex; flex-direction: column; gap: 4px; min-width: 110px; }
+.vida-jogador .numeros { font-size: 11px; color: var(--texto-2); }
+.companheiro-corpo { flex: 1; min-width: 0; }
+.companheiro-corpo .vida-jogador { margin-top: 6px; }
+.companheiro.caido .nome { color: #f2b8b4; }
+.companheiro.morto { opacity: .6; }
+.condicoes-jogador { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+/* --- Aba Diário --- */
+.sessao-jogador + .sessao-jogador { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.cabeca-sessao-jogador { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.cabeca-sessao-jogador .numero-sessao { font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--texto-3); }
+.cabeca-sessao-jogador .titulo { font-family: 'Marcellus', Georgia, serif; font-size: 1.02rem; }
+.sessao-jogador p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--texto-2); white-space: pre-line; }
+
+/* --- O rolador --- */
+.grade-dados-jogador { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.grade-dados-jogador .dado { font-family: 'Marcellus', Georgia, serif; font-size: 15px; color: var(--texto); }
+.rolador-jogador .titulo-grupo { margin: 14px 0 8px; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
+.rolador-jogador .dica { margin: 10px 0 0; }
+
+.registro-rolagens { display: flex; flex-direction: column; gap: 6px; }
+.rolagem-mesa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.rolagem-mesa > div:first-child { flex: 1; min-width: 0; }
+.rolagem-mesa .quem { font-size: 12.5px; color: var(--texto); }
+.rolagem-mesa .formula { font-size: 11px; color: var(--texto-3); }
+.rolagem-mesa .total { font-family: 'Marcellus', Georgia, serif; font-size: 1.25rem; color: var(--texto); }
+.rolagem-mesa.critico { border-color: rgba(77, 141, 255, .5); }
+.rolagem-mesa.critico .total { color: var(--gelo); }
+.rolagem-mesa.falha { border-color: rgba(194, 65, 63, .5); }
+.rolagem-mesa.falha .total { color: #f2b8b4; }
+
+/* O rolador fica estreito na coluna lateral: os 7 dados quebram em 4. */
+.colunas-jogador > aside .grade-dados-jogador { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+@media (max-width: 720px) {
+  .linha-jogador { flex-wrap: wrap; }
+  .linha-jogador .vida-jogador { flex-basis: 100%; }
+}

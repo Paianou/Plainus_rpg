@@ -528,6 +528,7 @@ function estadoVazio() {
     tabelasMinhas: [],
     monstrosMeus: [],
     rolagensTabela: [],
+    rolagensMesa: [],            /* as rolagens dos jogadores (visao.js) */
     avisosVistos: []
   };
 }

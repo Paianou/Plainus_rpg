@@ -200,7 +200,7 @@ const Layout = {
      .html, pelo mesmo motivo da barra do topo: uma cópia só.
 
      papel === null quer dizer "ainda não entrou na mesa". O papel vem
-     do localStorage, que qualquer um edita — por isso entra por
+     da sessão (sessionStorage), que qualquer um edita — por isso entra por
      criar() (textContent), nunca colado em HTML. */
   mostrarRestrito: function (papel, motivo) {
     const olho = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

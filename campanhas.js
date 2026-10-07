@@ -16,9 +16,20 @@
 
    O QUE FICA GUARDADO
 
-     plainus:sessao            quem está usando agora
-                                 { papel: 'mestre', campanhaId }
-                                 { papel: 'jogador', campanhaId, nome }
+     plainus:sessao            quem está usando ESTA ABA
+     (sessionStorage)            { papel: 'mestre', campanhaId }
+                                 { papel: 'jogador', campanhaId, nome, jogadorId }
+
+     A sessão fica no sessionStorage, que é POR ABA. Antes ela ficava
+     no localStorage, que é um só para o navegador inteiro — e aí um
+     jogador entrando numa aba trocava a sessão do Mestre aberto na
+     outra, que passava a não gravar mais nada, em silêncio. Por aba,
+     cada aba é uma pessoa: o Mestre numa, a Ana noutra, o Bruno noutra.
+     O preço: fechar a aba encerra a sessão (o Mestre volta pelo
+     "Continuar" da entrada; o jogador, pelo código).
+
+     As campanhas, abaixo, ficam no localStorage, que todas as abas
+     dividem: é assim que o Mestre e os jogadores veem a mesma mesa.
 
      plainus:campanhas         o ÍNDICE: uma lista curta, uma linha por
                                campanha (nome, sistema, mestre, código,
@@ -56,11 +67,14 @@ const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
    espaço cheio, ou um valor que alguém editou à mão no DevTools e não
    é mais JSON. Nenhuma dessas situações pode derrubar a página. */
 
+/* `qual` escolhe o depósito: localStorage (o padrão, as campanhas) ou
+   sessionStorage (a sessão, que é por aba). Os dois têm a mesma
+   interface, então uma função serve aos dois. */
 const Armazem = {
 
-  ler: function (chave) {
+  ler: function (chave, qual) {
     try {
-      const bruto = localStorage.getItem(chave);
+      const bruto = (qual || localStorage).getItem(chave);
       return bruto ? JSON.parse(bruto) : null;
     } catch (erro) {
       return null;
@@ -68,19 +82,25 @@ const Armazem = {
   },
 
   /* Devolve false se não conseguiu — quem chamou decide como avisar. */
-  gravar: function (chave, valor) {
+  gravar: function (chave, valor, qual) {
     try {
-      localStorage.setItem(chave, JSON.stringify(valor));
+      (qual || localStorage).setItem(chave, JSON.stringify(valor));
       return true;
     } catch (erro) {
       return false;
     }
   },
 
-  apagar: function (chave) {
-    try { localStorage.removeItem(chave); } catch (erro) { /* nada a fazer */ }
+  apagar: function (chave, qual) {
+    try { (qual || localStorage).removeItem(chave); } catch (erro) { /* nada a fazer */ }
   }
 };
+
+/* O sessionStorage pode nem existir (bloqueado em alguns navegadores
+   em modo restrito): pegar a referência já pode lançar erro. */
+function depositoDaSessao() {
+  try { return window.sessionStorage; } catch (erro) { return null; }
+}
 
 
 /* ===================================================================
@@ -92,7 +112,9 @@ const Sessao = {
   /* Só aceita o formato esperado. O que vem do localStorage é texto
      que qualquer um edita, então é tratado como entrada de usuário. */
   ler: function () {
-    const dados = Armazem.ler(CHAVE_SESSAO);
+    const deposito = depositoDaSessao();
+    if (!deposito) return null;
+    const dados = Armazem.ler(CHAVE_SESSAO, deposito);
     if (!dados || typeof dados !== 'object') return null;
     if (dados.papel !== 'mestre' && dados.papel !== 'jogador') return null;
     if (typeof dados.campanhaId !== 'string') return null;
@@ -100,11 +122,13 @@ const Sessao = {
   },
 
   gravar: function (sessao) {
-    return Armazem.gravar(CHAVE_SESSAO, sessao);
+    const deposito = depositoDaSessao();
+    return deposito ? Armazem.gravar(CHAVE_SESSAO, sessao, deposito) : false;
   },
 
   limpar: function () {
-    Armazem.apagar(CHAVE_SESSAO);
+    const deposito = depositoDaSessao();
+    if (deposito) Armazem.apagar(CHAVE_SESSAO, deposito);
   }
 };
 

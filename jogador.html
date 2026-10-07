@@ -10,9 +10,12 @@
   layout.js só aproveitamos os ajudantes (criar, criarBotao, o recado).
 
   Os arquivos desta tela:
-    jogador.html  o esqueleto (o que você está lendo)
-    jogador.js    a moldura, a visão do jogador e a ficha
-    ficha.js      as contas da ficha (CA, perícias, PV...)
+    jogador.html      o esqueleto (o que você está lendo)
+    jogador.js        a moldura, as abas e a ficha
+    jogador-mesa.js   as abas Mesa e Diário, e o rolador
+    visao.js          o que o jogador vê e pode fazer (o futuro servidor)
+    planta.js         a planta da cena, a mesma da Visão Geral
+    ficha.js          as contas da ficha (CA, perícias, PV...)
     regras.js     perícias, armaduras, compra de pontos
     dados.js      o Estado e regrasPersonagem()
     campanhas.js  sessão e campanha guardadas
@@ -68,7 +71,11 @@
        dado). Layout.iniciar(), que monta a moldura do MESTRE, nunca é
        chamado nesta página. -->
   <script src="layout.js"></script>
+  <script src="bichos.js"></script>        <!-- silhuetas dos inimigos na planta -->
+  <script src="planta.js"></script>        <!-- a planta da cena (aba Mesa) -->
   <script src="ficha.js"></script>
+  <script src="visao.js"></script>         <!-- o que o jogador vê e pode fazer -->
+  <script src="jogador-mesa.js"></script>  <!-- abas Mesa e Diário, rolador -->
   <script src="jogador.js"></script>
 </body>
 

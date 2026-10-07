@@ -22,7 +22,7 @@
    ===================================================================
    É a mesma "placa, não porta" do topo do layout.js. Sem servidor,
    tudo roda no navegador de quem está usando — qualquer um pode abrir
-   o DevTools e escrever papel: 'mestre' no localStorage. Isto aqui
+   o DevTools e escrever papel: 'mestre' na sessão (sessionStorage). Isto aqui
    impede o jogador de cair no painel sem querer; não impede quem quer
    entrar.
 
@@ -30,7 +30,7 @@
      - Mestre é quem CRIOU a sala, e o servidor lembra disso;
      - quem entrar marcando "Mestre" precisa da senha da campanha;
      - o servidor devolve um token assinado, e é o token — não o que
-       está escrito no localStorage — que prova quem você é.
+       está escrito no navegador — que prova quem você é.
    (Problemas 1 e 2 da lista de segurança do CLAUDE.md.)
    =================================================================== */
 

@@ -1,130 +1,22 @@
 /* ===================================================================
-   jogador.js — o painel do jogador
+   jogador.js — o painel do jogador: a moldura e a ficha
 
-   Três peças, nesta ordem de leitura:
+   O que o jogador VÊ e o que ele pode FAZER não mora aqui: está no
+   visao.js (visaoDoJogador, enviarMeuHeroi, enviarRolagem), que é o
+   desenho do servidor. Esta tela só desenha o que a visão devolve e
+   só grava pelas ações de lá — nunca lê nem escreve o Estado direto.
 
-   1. visaoDoJogador()  O QUE o jogador pode ver. A tela só desenha o
-                        que sai dela — nunca lê o Estado direto.
-   2. enviarMeuHeroi()  O QUE o jogador pode mudar: a própria ficha, e
-                        nada mais. É uma AÇÃO ("salve este personagem"),
-                        não "salve a campanha inteira".
-   3. Jogador           a tela: moldura, ficha (ver / criar / editar).
-
-
-   ===================================================================
-   POR QUE AS PEÇAS 1 E 2 EXISTEM, SE TUDO RODA NO MESMO NAVEGADOR
-   ===================================================================
-   Hoje elas são uma placa: um jogador esperto abre o DevTools e lê o
-   Estado inteiro, segredos incluídos. Mas elas já têm o FORMATO certo.
-   Quando o servidor existir:
-
-     visaoDoJogador()  passa a rodar NO SERVIDOR, antes de mandar os
-                       dados. O que ela tira não chega ao navegador do
-                       jogador — aí, sim, é porta.
-     enviarMeuHeroi()  vira uma mensagem ao servidor, que confere se o
-                       personagem é mesmo de quem mandou.
-
-   E esta tela não precisa mudar nada: ela já só conhece o que essas
-   duas funções deixam. (Problema 5 da lista de segurança, "dado de
-   mestre não é escondido, é não enviado", começa a ser resolvido aqui.)
+   Três abas:
+     Ficha    a ficha do personagem (ver / criar / editar) — aqui
+     Mesa     a cena e a ordem de iniciativa — jogador-mesa.js
+     Diário   resumos, segredos revelados, pessoas — jogador-mesa.js
+   E o rolador, na coluna lateral (jogador-mesa.js).
 
 
    QUEM É O JOGADOR
    A sessão guarda um jogadorId, criado na entrada. Sem servidor ele é
    autodeclarado — é o problema 2 do CLAUDE.md, e só um token assinado
    pelo servidor resolve de vez.
-   =================================================================== */
-
-
-/* ===================================================================
-   1. O QUE O JOGADOR VÊ
-
-   Lista BRANCA: copia campo por campo o que é público. Uma lista negra
-   ("tudo menos os segredos") vazaria o primeiro campo secreto que
-   alguém criasse e esquecesse de acrescentar nela.
-   =================================================================== */
-
-function visaoDoJogador(estado, jogadorId) {
-  const c = estado.campanha;
-  const herois = estado.herois || [];
-  const meu = herois.find(function (h) { return h.dono === jogadorId; });
-
-  return {
-    campanha: {
-      nome: c.nome, sistema: c.sistema, sessao: c.sessao,
-      premissa: c.premissa, cenario: c.cenario, tom: c.tom,
-      /* Linhas e véus são justamente para os jogadores verem. */
-      linhas: c.linhas || c.limites, veus: c.veus,
-      nivelInicial: c.nivelInicial, regra: c.regra
-    },
-    mestre: estado.mestre.nome,
-    grupo: estado.grupo ? estado.grupo.nome : '',
-    regras: regrasPersonagem(estado),
-
-    /* A própria ficha vem inteira — é dele. Cópia, para a tela não
-       mexer no Estado por engano. */
-    meuHeroi: meu ? JSON.parse(JSON.stringify(meu)) : null,
-
-    /* Dos companheiros, só o que se vê de fora. */
-    party: herois.filter(function (h) { return h !== meu; }).map(function (h) {
-      return { nome: h.nome, classe: h.classe, nivel: h.nivel, jogador: h.jogador || '' };
-    })
-  };
-}
-
-
-/* ===================================================================
-   2. A ÚNICA COISA QUE O JOGADOR GRAVA: O PRÓPRIO PERSONAGEM
-
-   Lê a campanha FRESCA do armazenamento (não a da memória, que pode
-   estar velha), troca só este personagem e grava. Se o Mestre mudou
-   outra coisa nesse meio-tempo, a mudança dele sobrevive.
-
-   O PV ATUAL não vem da ficha: quem tira e dá PV na mesa é o Mestre,
-   no combate. A ficha só muda o máximo — e o atual é preso a ele.
-   =================================================================== */
-
-function enviarMeuHeroi(sessao, heroi) {
-  const estado = Campanhas.lerEstado(sessao.campanhaId);
-  if (!estado) return 'Esta campanha não está mais guardada neste navegador.';
-
-  estado.herois = estado.herois || [];
-  const posicao = estado.herois.findIndex(function (h) { return h.id === heroi.id; });
-
-  if (posicao === -1) {
-    heroi.pv = heroi.pvMax;
-    estado.herois.push(heroi);
-  } else {
-    const antigo = estado.herois[posicao];
-    if (antigo.dono !== sessao.jogadorId) return 'Esse personagem não é seu.';
-
-    /* Estava com a vida cheia? Continua cheio com o máximo novo (subir
-       de nível não deixa ninguém ferido). Estava ferido? O atual fica
-       como estava — curar é com o Mestre. */
-    heroi.pv = antigo.pv >= antigo.pvMax ? heroi.pvMax : Math.min(antigo.pv, heroi.pvMax);
-    estado.herois[posicao] = Object.assign({}, antigo, heroi);
-
-    /* Se ele estiver no combate, a CA e o PV máximo de lá acompanham. */
-    (estado.combate.combatentes || []).forEach(function (c) {
-      if (c.heroiId !== heroi.id) return;
-      c.nome = heroi.nome;
-      c.ca = heroi.ca;
-      c.pvMax = heroi.pvMax;
-      c.pv = Math.min(c.pv, heroi.pvMax);
-    });
-  }
-
-  if (!Campanhas.salvarEstado(sessao.campanhaId, estado)) {
-    return 'O navegador não deixou guardar a ficha.';
-  }
-
-  Memoria.carregar();         /* a memória desta aba passa a ser a gravada */
-  return null;
-}
-
-
-/* ===================================================================
-   3. A TELA
    =================================================================== */
 
 /* Limites de cada campo de texto da ficha. */
@@ -142,6 +34,7 @@ const Jogador = {
   sessao: null,
   visao: null,
   modo: 'ver',            /* 'ver' | 'editar' — sem personagem, é sempre 'criar' */
+  aba: 'ficha',           /* 'ficha' | 'mesa' | 'diario' — estado de VISTA, não vai para o Estado */
   rascunho: null,         /* { nome, ficha } enquanto o formulário está aberto */
   dadoTocado: {},         /* o jogador escolheu o dado à mão? então não sugerimos mais */
 
@@ -193,15 +86,49 @@ const Jogador = {
     const area = document.getElementById('principal');
     area.textContent = '';
 
+    /* Criando ou editando a ficha, o formulário ocupa a tela inteira e
+       as abas somem: sair dele no meio perderia o que foi digitado. */
     if (!this.visao.meuHeroi) {
-      /* Sem personagem: a tela inteira é criar um. */
       if (!this.rascunho) this.rascunho = this.rascunhoNovo();
       this.montarFormulario(area, true);
-    } else if (this.modo === 'editar') {
-      this.montarFormulario(area, false);
-    } else {
-      this.montarFicha(area, this.visao.meuHeroi);
+      return;
     }
+    if (this.modo === 'editar') {
+      this.montarFormulario(area, false);
+      return;
+    }
+
+    area.appendChild(this.montarAbas());
+    if (this.aba === 'mesa') MesaJogador.montarMesa(area, this.visao);
+    else if (this.aba === 'diario') MesaJogador.montarDiario(area, this.visao);
+    else this.montarFicha(area, this.visao.meuHeroi);
+  },
+
+
+  /* As abas do jogador. A da Mesa avisa, de fora, que há combate — e
+     acende quando é a vez dele, para ele não precisar ficar olhando. */
+  montarAbas: function () {
+    const self = this;
+    const combate = this.visao.combate;
+    const minhaVez = !!(combate && combate.ativo && combate.combatentes.some(function (c) { return c.vez && c.meu; }));
+
+    const abas = criar('div.abas-mesa.abas-jogador');
+    [['ficha', 'escudo', 'Ficha'], ['mesa', 'mapa', 'Mesa'], ['diario', 'diario', 'Diário']].forEach(function (trio) {
+      const ativa = self.aba === trio[0];
+      const botao = criar('button.aba' + (ativa ? '.ativa' : ''));
+      botao.type = 'button';
+      botao.dataset.acao = 'aba';
+      botao.dataset.aba = trio[0];
+      botao.setAttribute('aria-pressed', ativa ? 'true' : 'false');
+      botao.appendChild(Icone.svg(trio[1], 15));
+      botao.appendChild(criar('span', trio[2]));
+
+      if (trio[0] === 'mesa' && minhaVez) botao.appendChild(criar('span.pilula.azul', 'Sua vez'));
+      else if (trio[0] === 'mesa' && combate && combate.ativo) botao.appendChild(criar('span.pilula.perigo', 'Combate'));
+
+      abas.appendChild(botao);
+    });
+    return abas;
   },
 
 
@@ -282,16 +209,33 @@ const Jogador = {
       area.appendChild(regras);
     }
 
+    /* O rolador vem antes da party: na sessão, é o que mais se usa. */
+    if (v.meuHeroi && this.modo !== 'editar') RoladorJogador.montar(area, v);
+
     const party = criar('div.cartao', [criarComIcone('h2', 'npcs', v.grupo || 'A party', 16)]);
     if (!v.party.length) {
       party.appendChild(criar('p.dica', 'Ninguém mais criou personagem ainda.'));
     } else {
       v.party.forEach(function (h) {
-        party.appendChild(criar('div.companheiro', [
+        /* A vida dos aliados é pública na mesa: é o que decide quem
+           precisa de cura. A barra usa as mesmas faixas do Mestre. */
+        const proporcao = h.pvMax ? Math.max(0, h.pv / h.pvMax) : 0;
+        const faixa = proporcao > .6 ? '' : (proporcao > .3 ? '.media' : '.baixa');
+        const preenchimento = criar('div.preenchimento' + faixa);
+        preenchimento.style.width = (proporcao * 100) + '%';
+
+        party.appendChild(criar('div.companheiro' + (h.pv <= 0 ? '.caido' : ''), [
           criar('span.inicial-npc', h.nome.charAt(0)),
-          criar('div', [
+          criar('div.companheiro-corpo', [
             criar('div.nome', h.nome),
-            criar('div.sub', [h.classe, 'Nível ' + h.nivel, h.jogador].filter(Boolean).join(' · '))
+            criar('div.sub', [h.classe, 'Nível ' + h.nivel, h.jogador].filter(Boolean).join(' · ')),
+            criar('div.vida-jogador', [
+              criar('span.numeros', h.pv <= 0 ? 'Caído — 0 PV' : h.pv + ' / ' + h.pvMax + ' PV'),
+              criar('div.barra', preenchimento)
+            ]),
+            h.condicoes.length
+              ? criar('div.condicoes-jogador', h.condicoes.map(function (c) { return criar('span.chip-condicao', c); }))
+              : null
           ])
         ]));
       });
@@ -320,41 +264,57 @@ const Jogador = {
       criarBotao('botao.fantasma.pequeno', 'editar', 'editar', 'Editar ficha')
     ]));
 
-    /* A faixa de números que se consulta a sessão inteira. */
+    /* A faixa de números que se consulta a sessão inteira. A
+       iniciativa é um botão: clicar rola d20 + o bônus. */
+    const iniciativa = this.botaoTeste('button.numero-ficha', 'Iniciativa', Ficha.iniciativa(f), [
+      criar('div.rotulo', 'Iniciativa'),
+      criar('div.valor', comSinal(Ficha.iniciativa(f)))
+    ]);
     area.appendChild(criar('div.faixa-ficha', [
       this.numero('CA', Ficha.ca(f)),
       this.numero('PV', heroi.pv + ' / ' + heroi.pvMax),
-      this.numero('Iniciativa', comSinal(Ficha.iniciativa(f))),
+      iniciativa,
       this.numero('Deslocamento', f.deslocamento || '9 m'),
       this.numero('Proficiência', comSinal(Ficha.proficiencia(f))),
       this.numero('Percepção passiva', Ficha.percepcaoPassiva(f))
     ]));
 
-    /* Atributos, com a salvaguarda embaixo de cada um. */
+    /* Atributos. Cada caixa tem DOIS botões: o de cima rola o teste do
+       atributo, o de baixo a salvaguarda. Botão dentro de botão não
+       existe em HTML — por isso a caixa é uma <div> com dois botões
+       irmãos, e não um botão grande. */
+    const self = this;
     const atributos = criar('div.atributos-ficha');
     ATRIBUTOS_FICHA.forEach(function (par) {
       const treinada = (f.salvaguardas || []).indexOf(par[0]) !== -1;
       atributos.appendChild(criar('div.atributo-ficha', [
-        criar('div.sigla', par[1]),
-        criar('div.valor', String(Ficha.valor(f, par[0]))),
-        criar('div.mod', comSinal(Ficha.mod(f, par[0]))),
-        criar('div.salva' + (treinada ? '.treinada' : ''), 'Salv. ' + comSinal(Ficha.salvaguarda(f, par[0])))
+        self.botaoTeste('button.teste-atributo', 'Teste de ' + par[1], Ficha.mod(f, par[0]), [
+          criar('div.sigla', par[1]),
+          criar('div.valor', String(Ficha.valor(f, par[0]))),
+          criar('div.mod', comSinal(Ficha.mod(f, par[0])))
+        ]),
+        self.botaoTeste('button.salva' + (treinada ? '.treinada' : ''), 'Salvaguarda de ' + par[1],
+          Ficha.salvaguarda(f, par[0]), 'Salv. ' + comSinal(Ficha.salvaguarda(f, par[0])))
       ]));
     });
     area.appendChild(atributos);
 
-    /* Perícias: a bolinha cheia é "treinado". */
+    /* Perícias: a bolinha cheia é "treinado". Cada linha rola. */
     const pericias = criar('div.pericias-ficha');
     PERICIAS.forEach(function (par) {
       const treinada = (f.pericias || []).indexOf(par[0]) !== -1;
-      pericias.appendChild(criar('div.pericia' + (treinada ? '.treinada' : ''), [
+      pericias.appendChild(self.botaoTeste('button.pericia' + (treinada ? '.treinada' : ''), par[0], Ficha.pericia(f, par[0]), [
         criar('span.marca'),
         criar('span.nome', par[0]),
         criar('span.atrib', par[1].toUpperCase()),
         criar('span.bonus', comSinal(Ficha.pericia(f, par[0])))
       ]));
     });
-    area.appendChild(criar('div.cartao', [criarComIcone('h2', 'ajustes', 'Perícias', 16), pericias]));
+    area.appendChild(criar('div.cartao', [
+      criarComIcone('h2', 'ajustes', 'Perícias', 16),
+      criar('p.dica', 'Clique para rolar o teste. Vantagem e desvantagem: no cartão Dados, ao lado.'),
+      pericias
+    ]));
 
     /* Defesa e o resto, só o que foi preenchido. */
     const defesa = [f.armadura || 'Sem armadura', f.escudo ? 'escudo' : '', Number(f.caExtra) ? 'outros ' + comSinal(Number(f.caExtra)) : '']
@@ -378,6 +338,19 @@ const Jogador = {
 
   numero: function (rotulo, valor) {
     return criar('div.numero-ficha', [criar('div.rotulo', rotulo), criar('div.valor', String(valor))]);
+  },
+
+  /* Um pedaço da ficha que rola ao ser clicado. O bônus vai no
+     data-bonus, calculado agora pelo ficha.js — e a ficha é redesenhada
+     a cada mudança, então o número nunca fica velho. */
+  botaoTeste: function (seletor, texto, bonus, conteudo) {
+    const botao = criar(seletor, conteudo);
+    botao.type = 'button';
+    botao.dataset.acao = 'rolar-teste';
+    botao.dataset.texto = texto;
+    botao.dataset.bonus = bonus;
+    botao.title = 'Rolar ' + texto + ' (d20 ' + comSinal(bonus) + ')';
+    return botao;
   },
 
 
@@ -872,6 +845,33 @@ const Jogador = {
 
         case 'editar':
           self.editar();
+          break;
+
+        /* A aba é estado de vista: troca e redesenha, sem gravar nada.
+           O foco volta para a aba, como na Visão Geral do Mestre. */
+        case 'aba': {
+          self.aba = alvo.dataset.aba;
+          self.render();
+          const ativa = document.querySelector('.abas-jogador .aba.ativa');
+          if (ativa) ativa.focus();
+          break;
+        }
+
+        /* Rolagens (jogador-mesa.js). O bônus foi calculado pela ficha
+           na hora de desenhar; aqui só é lido de volta e conferido. */
+        case 'rolar-teste': {
+          const bonus = parseInt(alvo.dataset.bonus, 10);
+          RoladorJogador.rolarTeste(alvo.dataset.texto, Number.isFinite(bonus) ? bonus : 0);
+          break;
+        }
+
+        case 'rolar-dado':
+          RoladorJogador.rolarDado(Number(alvo.dataset.faces));
+          break;
+
+        case 'modo-rolagem':
+          RoladorJogador.modo = alvo.dataset.modo;
+          self.render();
           break;
 
         case 'cancelar':
