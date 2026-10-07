@@ -9,6 +9,8 @@
                        que sai desta função — nunca lê o Estado direto.
      enviarMeuHeroi()  salvar a PRÓPRIA ficha.
      enviarRolagem()   registrar uma rolagem no registro da mesa.
+     enviarConcentracao()  marcar/desmarcar "Concentrando" no próprio
+                       combatente.
 
    Hoje roda no navegador, então é uma placa: quem abre o DevTools lê
    o Estado inteiro. Quando o servidor chegar, este arquivo muda de
@@ -217,6 +219,32 @@ function enviarMeuHeroi(sessao, heroi) {
   }
 
   Memoria.carregar();         /* a memória desta aba passa a ser a gravada */
+  return null;
+}
+
+
+/* Começar ou parar de manter uma magia de concentração. A ficha guarda
+   QUAL magia (é do jogador); a condição "Concentrando" vai para o
+   combatente dele, se estiver no combate — é ela que o Mestre e o sino
+   de avisos enxergam (lembrete do teste de Constituição ao sofrer
+   dano). Só mexe no combatente do PRÓPRIO personagem. */
+function enviarConcentracao(sessao, concentrando) {
+  const estado = Campanhas.lerEstado(sessao.campanhaId);
+  if (!estado) return 'Esta campanha não está mais guardada neste navegador.';
+
+  const meu = (estado.herois || []).find(function (h) { return h.dono === sessao.jogadorId; });
+  if (!meu) return 'Você ainda não tem personagem nesta campanha.';
+
+  (estado.combate.combatentes || []).forEach(function (c) {
+    if (c.heroiId !== meu.id) return;
+    c.condicoes = (c.condicoes || []).filter(function (x) { return x !== 'Concentrando'; });
+    if (concentrando) c.condicoes.push('Concentrando');
+  });
+
+  if (!Campanhas.salvarEstado(sessao.campanhaId, estado)) {
+    return 'O navegador não deixou guardar.';
+  }
+  Memoria.carregar();
   return null;
 }
 

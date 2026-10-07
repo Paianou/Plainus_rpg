@@ -4109,3 +4109,148 @@ button.pericia { font-size: 13px; }
   .linha-jogador { flex-wrap: wrap; }
   .linha-jogador .vida-jogador { flex-basis: 100%; }
 }
+
+
+/* ---------- 31. ATAQUES, MAGIAS E RECURSOS (jogador-uso.js) ---------- */
+
+/* --- Na ficha --- */
+.linha-uso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 9px 0;
+}
+.linha-uso + .linha-uso { border-top: 1px solid var(--hairline); }
+.nome-uso { font-size: 14px; color: var(--texto); }
+.botoes-uso { display: flex; flex-wrap: wrap; gap: 6px; }
+.botao-uso { padding: 6px 11px; font-size: 12px; color: var(--texto); }
+.botao-uso.critico-pendente { color: var(--gelo); border-color: rgba(77, 141, 255, .6); box-shadow: 0 0 12px -2px rgba(77, 141, 255, .55); }
+
+.concentrando {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--texto);
+  background: rgba(77, 141, 255, .1);
+  border: 1px solid rgba(77, 141, 255, .4);
+  border-radius: var(--r-p);
+}
+.concentrando > span { flex: 1; }
+.concentrando > .ico { color: var(--azul); }
+
+/* Bolinhas: espaços de magia e usos de recurso. Cheia = disponível. */
+.espacos-uso { margin: 12px 0 6px; }
+.linha-bolinhas { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.linha-bolinhas .nome-uso { flex: 1; min-width: 0; }
+.rotulo-bolinhas { min-width: 26px; font-family: 'Marcellus', Georgia, serif; color: var(--texto-2); }
+.bolinhas { display: flex; flex-wrap: wrap; gap: 6px; }
+.bolinha {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--azul);
+  border: 1px solid var(--azul);
+  border-radius: 50%;
+  box-shadow: 0 0 7px rgba(77, 141, 255, .5);
+  transition: var(--transicao);
+}
+.bolinha.gasta { background: transparent; border-color: var(--texto-3); box-shadow: none; }
+.bolinha:hover { transform: scale(1.15); }
+.linha-bolinhas .sobra { margin-left: auto; font-size: 11px; color: var(--texto-3); white-space: nowrap; }
+
+.linha-magia { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; }
+.linha-magia + .linha-magia { border-top: 1px solid var(--hairline); }
+.magia-uso { flex: 1; min-width: 0; }
+.magia-uso summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.magia-uso summary::-webkit-details-marker { display: none; }
+.nivel-magia {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 12px;
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-radius: 5px;
+}
+.meta-magia { margin: 8px 0 4px; font-size: 11.5px; color: var(--texto-3); }
+.magia-uso p { margin: 4px 0 0; font-size: 13px; line-height: 1.6; color: var(--texto-2); }
+
+.botoes-descanso { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+
+/* --- No formulário --- */
+.linha-form-uso {
+  display: grid;
+  grid-template-columns: 1.6fr 1.6fr .7fr .8fr 1fr .6fr auto auto 24px;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  background: rgba(0, 0, 0, .2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.linha-form-uso.recurso { grid-template-columns: 2fr .7fr 1.6fr 24px; }
+.linha-form-uso input,
+.linha-form-uso select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.linha-form-uso input[type="checkbox"] { width: auto; accent-color: var(--azul); }
+.linha-form-uso select option { background: var(--pedra); }
+.prof-uso { font-size: 11.5px; white-space: nowrap; }
+.calc-ataque { font-size: 12px; color: var(--gelo); white-space: nowrap; }
+.linha-form-uso .tirar {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 16px;
+  color: var(--texto-3);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+.linha-form-uso .tirar:hover { color: #f2b8b4; background: rgba(194, 65, 63, .12); }
+
+.secao-ficha .titulo-grupo { margin: 6px 0 8px; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--texto-3); }
+.espacos-form { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.espaco-form { display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Marcellus', Georgia, serif; font-size: 12px; color: var(--texto-2); }
+.espaco-form input {
+  width: 100%;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.magias-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; max-height: 320px; overflow-y: auto; padding-right: 6px; }
+.magias-form .pericia-form.da-classe .nome { color: var(--texto); }
+.magias-form .pericia-form:not(.da-classe) { opacity: .7; }
+
+@media (max-width: 980px) {
+  .linha-form-uso { grid-template-columns: 1fr 1fr 1fr; }
+  .linha-form-uso [data-parte="nome"], .linha-form-uso [data-parte="arma"] { grid-column: span 3; }
+  .linha-form-uso.recurso { grid-template-columns: 1fr 70px 24px; }
+  .linha-form-uso.recurso [data-parte="recarga"] { grid-column: 1 / 3; }
+}
+@media (max-width: 720px) {
+  .espacos-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .magias-form { grid-template-columns: minmax(0, 1fr); }
+}

@@ -299,6 +299,9 @@ const Jogador = {
     });
     area.appendChild(atributos);
 
+    /* Ataques, magias, recursos e descansos (jogador-uso.js). */
+    UsoFicha.montar(area, heroi);
+
     /* Perícias: a bolinha cheia é "treinado". Cada linha rola. */
     const pericias = criar('div.pericias-ficha');
     PERICIAS.forEach(function (par) {
@@ -383,7 +386,9 @@ const Jogador = {
         salvaguardas: [], pericias: [],
         armadura: '', escudo: false, caExtra: 0, deslocamento: '9 m',
         pvRolado: null,
-        idiomas: 'Comum', equipamento: '', talentos: '', personalidade: '', historia: ''
+        idiomas: 'Comum', equipamento: '', talentos: '', personalidade: '', historia: '',
+        /* ataques, magia e recursos (jogador-uso.js) */
+        ataques: [], atributoMagia: '', espacos: {}, espacosGastos: {}, magias: [], concentrando: '', recursos: []
       }
     };
   },
@@ -523,6 +528,9 @@ const Jogador = {
     }
     form.appendChild(def);
 
+    /* --- Ataques, magia e recursos (jogador-uso.js) --- */
+    UsoFicha.montarForm(form, f);
+
     /* --- O resto --- */
     const mais = criar('fieldset.secao-ficha', [criar('legend', 'O resto da ficha')]);
     mais.appendChild(this.campo('idiomas', 'Idiomas', f.idiomas, 'Comum, Élfico'));
@@ -657,6 +665,8 @@ const Jogador = {
       .map(function (c) { return c.dataset.salva; });
     f.pericias = Array.prototype.filter.call(form.querySelectorAll('[data-pericia]'), function (c) { return c.checked; })
       .map(function (c) { return c.dataset.pericia; });
+
+    UsoFicha.lerForm(form, f);
   },
 
   /* Reescreve todos os números com data-calc a partir do rascunho. */
@@ -682,6 +692,7 @@ const Jogador = {
     poe('iniciativa', comSinal(Ficha.iniciativa(f)));
     poe('prof', comSinal(Ficha.proficiencia(f)));
     poe('pp', String(Ficha.percepcaoPassiva(f)));
+    UsoFicha.atualizar(f);
 
     /* O contador da compra de pontos fica vermelho ao passar de 27. */
     const contador = document.querySelector('.contador-pontos strong');
@@ -776,7 +787,11 @@ const Jogador = {
       if (pvRolado === null) return falha('Role ou escreva o PV máximo.', 'f-pvRolado');
     }
 
-    const ficha = Object.assign({}, f, {
+    /* Ataques, magia e recursos: conferidos e convertidos lá. */
+    const uso = UsoFicha.validar(f);
+    if (uso.erro) return falha(uso.erro);
+
+    const ficha = Object.assign({}, f, uso.limpo, {
       nivel: nivel, dadoVida: dado,
       classe2: f.classe2 || '', nivel2: f.classe2 ? nivel2 : 0, dadoVida2: f.classe2 ? dado2 : 8,
       base: base, bonus: bonus,
@@ -803,11 +818,17 @@ const Jogador = {
     const heroi = this.validar(criando);
     if (!heroi) return;
 
+    const mantinha = !criando && this.visao.meuHeroi.ficha.concentrando;
+
     const problema = enviarMeuHeroi(this.sessao, heroi);
     if (problema) {
       Layout.recado(problema, true);
       return;
     }
+
+    /* Tirou da ficha a magia que mantinha: a concentração acaba, e a
+       condição no combate sai junto. */
+    if (mantinha && !heroi.ficha.concentrando) enviarConcentracao(this.sessao, false);
 
     this.modo = 'ver';
     this.rascunho = null;
@@ -821,7 +842,7 @@ const Jogador = {
   editar: function () {
     const meu = this.visao.meuHeroi;
     if (!meu) return;
-    this.rascunho = { id: meu.id, nome: meu.nome, ficha: JSON.parse(JSON.stringify(meu.ficha)) };
+    this.rascunho = { id: meu.id, nome: meu.nome, ficha: UsoFicha.completar(JSON.parse(JSON.stringify(meu.ficha))) };
     this.dadoTocado = { dadoVida: true, dadoVida2: true };   /* já foi escolhido antes */
     this.modo = 'editar';
     this.render();
@@ -871,6 +892,34 @@ const Jogador = {
 
         case 'modo-rolagem':
           RoladorJogador.modo = alvo.dataset.modo;
+          self.render();
+          break;
+
+        /* Ataques, magias, recursos, descansos (jogador-uso.js). */
+        case 'atacar':                UsoFicha.atacar(Number(alvo.dataset.indice)); break;
+        case 'dano':                  UsoFicha.dano(Number(alvo.dataset.indice)); break;
+        case 'ataque-magico':         UsoFicha.ataqueMagico(); break;
+        case 'conjurar':              UsoFicha.conjurar(alvo.dataset.nome); break;
+        case 'encerrar-concentracao': UsoFicha.encerrarConcentracao(); break;
+        case 'bolinha':               UsoFicha.bolinha(alvo.dataset.tipo, alvo.dataset.chave, alvo.dataset.gasta === '1'); break;
+        case 'descanso-curto':        UsoFicha.descanso('curto'); break;
+        case 'descanso-longo':        UsoFicha.descanso('longo'); break;
+
+        /* Linhas de ataque e de recurso no formulário: relê o que foi
+           digitado ANTES de redesenhar, senão o redesenho apagaria. */
+        case 'mais-linha': {
+          self.lerFormulario();
+          const lista = self.rascunho.ficha[alvo.dataset.lista];
+          lista.push(alvo.dataset.lista === 'ataques'
+            ? { nome: '', atributo: 'for', proficiente: true, dano: '', tipo: '', bonus: 0 }
+            : { nome: '', total: 1, recarga: 'longo', gastos: 0 });
+          self.render();
+          break;
+        }
+
+        case 'tirar-linha':
+          self.lerFormulario();
+          self.rascunho.ficha[alvo.dataset.lista].splice(Number(alvo.dataset.indice), 1);
           self.render();
           break;
 
@@ -924,6 +973,16 @@ const Jogador = {
     /* <select> e caixas de marcar avisam por 'change'. */
     document.getElementById('principal').addEventListener('change', function (evento) {
       if (!self.rascunho) return;
+
+      /* "Escolher da lista de armas": preenche a linha e redesenha. */
+      if (evento.target.dataset.parte === 'arma' && evento.target.value) {
+        const linha = evento.target.closest('[data-ataque]');
+        self.lerFormulario();
+        UsoFicha.aplicarArma(self.rascunho.ficha, Number(linha.dataset.ataque), evento.target.value);
+        self.render();
+        return;
+      }
+
       const id = evento.target.id;
       if (id === 'f-dadoVida' || id === 'f-dadoVida2') self.dadoTocado[id.slice(2)] = true;
       self.lerFormulario();

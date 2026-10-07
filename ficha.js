@@ -35,6 +35,15 @@
      pvRolado                               PV máximo, só no método "rolado"
      idiomas, equipamento, talentos, personalidade, historia
 
+     ataques: [{ nome, atributo, proficiente, dano, tipo, bonus }]
+     atributoMagia, espacos, espacosGastos, magias, concentrando
+     recursos: [{ nome, total, gastos, recarga: 'curto' | 'longo' }]
+
+   Os "gastos" (espaços, recursos) e a concentração mudam DURANTE a
+   sessão, com um clique na ficha; o resto muda no "Editar ficha".
+   Fichas criadas antes destes campos não os têm — quem lê usa
+   `|| []` e `|| {}`.
+
    Precisa do regras.js carregado antes (PERICIAS, ARMADURAS, etc.).
    =================================================================== */
 
@@ -225,6 +234,94 @@ const Ficha = {
     if (!alvo) return null;
     const achada = Object.keys(DADO_POR_CLASSE).find(function (nome) { return raiz(nome) === alvo; });
     return achada ? DADO_POR_CLASSE[achada] : null;
+  },
+
+
+  /* ---------- Ataques ----------
+     Um ataque na ficha: { nome, atributo, proficiente, dano, tipo, bonus }
+       atributo     'for' ou 'des' (ou o de conjuração, num ataque mágico)
+       dano         o dado, como no livro: '1d8', '2d6'
+       bonus        arma mágica +1, +2... soma no acerto E no dano */
+
+  bonusAtaque: function (f, ataque) {
+    return this.mod(f, ataque.atributo) + (ataque.proficiente ? this.proficiencia(f) : 0) + (Number(ataque.bonus) || 0);
+  },
+
+  /* O que se soma aos dados de dano: o atributo e o bônus mágico. */
+  bonusDano: function (f, ataque) {
+    return this.mod(f, ataque.atributo) + (Number(ataque.bonus) || 0);
+  },
+
+  /* "1d8 + 3 cortante", para mostrar na ficha. */
+  textoDano: function (f, ataque) {
+    const extra = this.bonusDano(f, ataque);
+    return ataque.dano + (extra ? (extra > 0 ? ' + ' : ' − ') + Math.abs(extra) : '') + (ataque.tipo ? ' ' + ataque.tipo : '');
+  },
+
+  /* Que atributo uma arma da lista ARMAS usa. Acuidade deixa escolher
+     o melhor entre Força e Destreza; arma de munição (arco, besta) é
+     sempre Destreza; o resto, Força. */
+  atributoDaArma: function (f, arma) {
+    const propriedades = semAcento(arma.propriedades || '');
+    if (propriedades.indexOf('municao') !== -1) return 'des';
+    if (propriedades.indexOf('acuidade') !== -1) return this.mod(f, 'des') > this.mod(f, 'for') ? 'des' : 'for';
+    return 'for';
+  },
+
+  /* Rola uma expressão de dano: '2d6', '1d8'. No crítico, a regra do
+     livro: dobra a QUANTIDADE de dados, não o total — e o bônus fixo
+     entra uma vez só. Devolve { total, formula } ou null se o texto
+     não for uma expressão de dados. */
+  rolarDano: function (f, ataque, critico) {
+    const partes = /^(\d{1,2})d(\d{1,3})$/.exec(String(ataque.dano).replace(/\s+/g, ''));
+    if (!partes) return null;
+
+    const quantos = Number(partes[1]) * (critico ? 2 : 1);
+    const faces = Number(partes[2]);
+    const dados = [];
+    for (let i = 0; i < quantos; i++) dados.push(Layout.dado(faces));
+
+    const extra = this.bonusDano(f, ataque);
+    const soma = dados.reduce(function (a, b) { return a + b; }, 0);
+    return {
+      total: Math.max(0, soma + extra),
+      formula: quantos + 'd' + faces + ' (' + dados.join(', ') + ')'
+        + (extra ? (extra > 0 ? ' + ' : ' − ') + Math.abs(extra) : '')
+        + (critico ? ' — crítico' : '')
+    };
+  },
+
+
+  /* ---------- Magia ----------
+     ficha.atributoMagia     'int' | 'sab' | 'car' | '' (não conjura)
+     ficha.espacos           { 1: 4, 2: 3, ... } quantos espaços por nível
+     ficha.espacosGastos     { 1: 2, ... } quantos já foram usados
+     ficha.magias            nomes da lista MAGIAS (regras.js)
+     ficha.concentrando      o nome da magia mantida, ou '' */
+
+  cdMagia: function (f) {
+    return 8 + this.proficiencia(f) + this.mod(f, f.atributoMagia);
+  },
+
+  ataqueMagia: function (f) {
+    return this.proficiencia(f) + this.mod(f, f.atributoMagia);
+  },
+
+  /* Quantos espaços sobram num nível. */
+  espacosLivres: function (f, nivel) {
+    const total = Number((f.espacos || {})[nivel]) || 0;
+    const gastos = Number((f.espacosGastos || {})[nivel]) || 0;
+    return Math.max(0, total - gastos);
+  },
+
+  /* Para conjurar uma magia de nível N, serve o menor espaço livre de
+     nível N ou mais (usar um espaço maior é permitido, só desperdiça).
+     Devolve o nível do espaço, ou null se não houver nenhum. */
+  espacoParaConjurar: function (f, nivelMagia) {
+    for (let nivel = Math.max(1, nivelMagia); nivel <= 9; nivel++) {
+      if (this.espacosLivres(f, nivel) > 0) return nivel;
+    }
+    return null;
   },
 
 
