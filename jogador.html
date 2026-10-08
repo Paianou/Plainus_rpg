@@ -13,6 +13,9 @@
     jogador.html      o esqueleto (o que você está lendo)
     jogador.js        a moldura, as abas e a ficha
     jogador-mesa.js   as abas Mesa e Diário, e o rolador
+    jogador-uso.js    ataques, magias (e a aba Magias), recursos, descansos
+    jogador-inventario.js   a aba Inventário
+    jogador-consulta.js     as abas Regras e Anotações
     visao.js          o que o jogador vê e pode fazer (o futuro servidor)
     planta.js         a planta da cena, a mesma da Visão Geral
     ficha.js          as contas da ficha (CA, perícias, PV...)
@@ -44,8 +47,14 @@
     <div class="faixa-aviso">Sem servidor ainda — o painel lê a campanha guardada neste navegador.</div>
     <header class="barra-topo" id="barraJogador"></header>
 
+    <!--
+      Três colunas: a navegação entre as abas (à esquerda, como o
+      códice do painel do Mestre), o conteúdo da aba e a coluna da
+      campanha, dos dados e da party. O jogador.js preenche as três.
+    -->
     <main class="area-jogador">
       <div class="colunas-jogador">
+        <nav class="nav-jogador" id="navJogador" aria-label="Seções do painel"></nav>
         <section id="principal"></section>
         <aside id="lateral"></aside>
       </div>
@@ -77,6 +86,8 @@
   <script src="visao.js"></script>         <!-- o que o jogador vê e pode fazer -->
   <script src="jogador-mesa.js"></script>  <!-- abas Mesa e Diário, rolador -->
   <script src="jogador-uso.js"></script>   <!-- ataques, magias, recursos, descansos -->
+  <script src="jogador-inventario.js"></script> <!-- aba Inventário -->
+  <script src="jogador-consulta.js"></script>   <!-- abas Regras e Anotações -->
   <script src="jogador.js"></script>
 </body>
 

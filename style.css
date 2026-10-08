@@ -3773,20 +3773,65 @@ legend { padding: 0; }
 
 
 /* ---------- 29. PAINEL DO JOGADOR (jogador.html) ----------
-   A mesma pele do painel do Mestre — barra do topo, .cartao, hairlines
-   — mas sem o códice lateral: o jogador não navega entre oito telas.
-   Duas colunas: a ficha (larga) e a campanha + a party (estreita). */
+   A mesma pele do painel do Mestre — barra do topo, .cartao, hairlines.
+   Três colunas: a navegação entre as abas à esquerda (o mesmo
+   .codice-link do Mestre), a aba aberta no meio, e a campanha + os
+   dados + a party à direita.
+
+     larga (> 1180px)   nav | aba | lateral
+     média              nav | aba     (a lateral desce para baixo da aba)
+     celular (≤ 720px)  a nav vira uma fileira que rola de lado, no topo
+
+   Com o formulário da ficha aberto, a nav some (.sem-nav) e sobram
+   duas colunas. */
 
 .app-jogador { min-height: 100vh; min-height: 100dvh; }
-.area-jogador { max-width: 1240px; margin: 0 auto; padding: 18px 18px 48px; }
+.area-jogador { max-width: 1480px; margin: 0 auto; padding: 18px 18px 48px; }
 
 .colunas-jogador {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 210px minmax(0, 1fr) 300px;
   gap: 18px;
   align-items: start;
 }
+.colunas-jogador.sem-nav { grid-template-columns: minmax(0, 1fr) 320px; }
+
+/* No painel do Mestre, abaixo de 1100px, o espaçador da barra some
+   porque a faixa de áudio ocupa o lugar dele. A barra do jogador não
+   tem áudio: sem o espaçador, o Sair ficaria colado no nome da
+   campanha em vez de ir para a direita. */
+.app-jogador .barra-topo .espaco { display: block; }
+/* E o perfil, que lá ganha margin-left:auto, aqui não precisa: dois
+   "auto" dividiriam o espaço e o Sair pararia no meio da barra. */
+.app-jogador .barra-topo .perfil { margin-left: 0; }
 .colunas-jogador > aside { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 76px; }
+
+/* A navegação: um cartão alto e fixo enquanto a página rola. */
+.nav-jogador {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.nav-jogador .codice-link .pilula { margin-left: auto; }
+.nav-personagem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 6px 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.nav-personagem > div:last-child { min-width: 0; }
+.nav-personagem .nome { font-family: 'Marcellus', Georgia, serif; font-size: 1.02rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-personagem .sub { font-size: 11px; color: var(--texto-3); }
+.nav-personagem .retrato-heroi { width: 38px; height: 38px; }
 
 /* A campanha na barra, no lugar do seletor de sessão do Mestre. */
 .campanha-jogador { display: flex; flex-direction: column; min-width: 0; padding-left: 14px; border-left: 1px solid var(--hairline); }
@@ -3923,9 +3968,33 @@ legend { padding: 0; }
 .pericia-form .atrib { font-size: 10px; color: var(--texto-3); }
 .pericia-form .calc { min-width: 30px; text-align: right; font-family: 'Marcellus', Georgia, serif; color: var(--texto); }
 
-@media (max-width: 980px) {
+/* Média: a coluna da direita desce para baixo da aba, ao lado da nav. */
+@media (max-width: 1180px) {
+  .colunas-jogador { grid-template-columns: 190px minmax(0, 1fr); }
+  .colunas-jogador > aside { grid-column: 2; position: static; }
+  .colunas-jogador.sem-nav { grid-template-columns: minmax(0, 1fr); }
+  .colunas-jogador.sem-nav > aside { grid-column: 1; }
+}
+/* Celular: uma coluna só. A nav vira uma fileira de botões presa sob
+   a barra do topo, que rola de lado — sete abas não cabem lado a lado
+   em 390px, e empilhadas empurrariam a ficha para longe. */
+@media (max-width: 720px) {
   .colunas-jogador { grid-template-columns: minmax(0, 1fr); }
-  .colunas-jogador > aside { position: static; }
+  .colunas-jogador > aside { grid-column: 1; }
+  .nav-jogador {
+    top: 56px;
+    z-index: 6;
+    flex-direction: row;
+    gap: 4px;
+    padding: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-jogador::-webkit-scrollbar { display: none; }
+  .nav-jogador .nav-personagem,
+  .nav-jogador .codice-titulo { display: none; }
+  .nav-jogador .codice-link { flex-shrink: 0; padding: 8px 11px; white-space: nowrap; }
+  .nav-jogador .codice-link .pilula { margin-left: 4px; }
 }
 @media (max-width: 720px) {
   .area-jogador { padding: 14px 14px 40px; }
@@ -3970,7 +4039,6 @@ legend { padding: 0; }
    As barras de vida, pílulas, chips de condição e o número de
    iniciativa são os mesmos do painel do Mestre — só a arrumação muda. */
 
-.abas-jogador { margin-bottom: 16px; }
 .aba.ativa { color: var(--texto); border-color: rgba(77, 141, 255, .45); background: var(--azul-fundo); }
 .aba.ativa .ico { color: var(--azul); }
 
@@ -4253,4 +4321,139 @@ button.pericia { font-size: 13px; }
 @media (max-width: 720px) {
   .espacos-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .magias-form { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* ---------- 32. ABAS MAGIAS, INVENTÁRIO, ANOTAÇÕES E REGRAS ---------- */
+
+/* --- Magias: filtro, preparar --- */
+.filtros-magia { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 6px; }
+.contador-preparadas { margin: 10px 0 0; font-size: 12px; color: var(--texto-2); }
+.contador-preparadas.estourou { color: #f2b8b4; }
+.mini-botao.preparada { color: var(--gelo); border-color: rgba(77, 141, 255, .45); background: var(--azul-fundo); }
+.linha-magia.nao-preparada .nome-uso { color: var(--texto-3); }
+.linha-magia .botoes-uso { flex-shrink: 0; }
+.botao-uso:disabled { opacity: .45; cursor: not-allowed; }
+
+/* --- Inventário --- */
+.moedas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.moeda { display: flex; flex-direction: column; gap: 4px; }
+.moeda label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-3); }
+/* Inter, e não Marcellus, nos números que se DIGITAM: em Marcellus o
+   0 parece um O e o 1 parece um I — num campo de moedas, isso é erro
+   de leitura garantido. */
+.moeda input {
+  width: 100%;
+  padding: 8px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'tnum' 1;
+  font-size: 1.05rem;
+  text-align: center;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.moeda input:focus { outline: none; border-color: rgba(77, 141, 255, .55); }
+.cartao .moedas + .dica { margin: 10px 0 0; }
+
+.aviso-carga { margin: 10px 0 0; font-size: 12.5px; color: #f2b8b4; }
+.cartao .dica.sintonia { margin: 10px 0 0; }
+
+.adicionar-item { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--hairline); }
+.linha-adicionar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.linha-adicionar select,
+.linha-adicionar input[type="text"],
+.linha-adicionar input[type="number"] {
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.linha-adicionar select,
+.linha-adicionar input[type="text"] { flex: 1; min-width: 160px; }
+.linha-adicionar input[type="number"] { width: 82px; }
+.linha-adicionar select option { background: var(--pedra); }
+
+.item-inventario {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 70px auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.item-inventario + .item-inventario { border-top: 1px solid var(--hairline); }
+.item-inventario.equipado .nome-uso { color: var(--gelo); }
+.item-nome { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.item-qtd { display: flex; align-items: center; gap: 6px; font-feature-settings: 'tnum' 1; }
+.passo-qtd { width: 24px; height: 24px; padding: 0; justify-content: center; }
+.item-peso { font-size: 11.5px; text-align: right; color: var(--texto-3); }
+.item-inventario .tirar {
+  width: 24px; height: 24px; padding: 0; font-size: 16px; color: var(--texto-3);
+  cursor: pointer; background: transparent; border: 0; border-radius: 50%;
+}
+.item-inventario .tirar:hover { color: #f2b8b4; background: rgba(194, 65, 63, .12); }
+
+/* --- Anotações --- */
+.form-nota { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.form-nota input,
+.form-nota textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.form-nota textarea { min-height: 110px; resize: vertical; line-height: 1.55; }
+.form-nota input:focus,
+.form-nota textarea:focus { outline: none; border-color: rgba(77, 141, 255, .55); }
+.nota-jogador .botoes-uso { margin-top: 8px; }
+
+/* --- Regras --- */
+.busca-regras { margin: 4px 0 4px; }
+.colunas-regras { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 14px; margin-top: 10px; }
+.lista-regras { display: flex; flex-direction: column; gap: 4px; max-height: 520px; overflow-y: auto; padding-right: 4px; }
+.item-regra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 10px;
+  font: inherit;
+  text-align: left;
+  color: var(--texto);
+  cursor: pointer;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.item-regra .sub { font-size: 11px; color: var(--texto-3); }
+.item-regra:hover { border-color: var(--hairline-forte); }
+.item-regra.ativo { border-color: rgba(77, 141, 255, .5); background: var(--azul-fundo); }
+.detalhe-regras { padding: 12px 14px; background: rgba(0, 0, 0, .2); border: 1px solid var(--hairline); border-radius: var(--r-p); }
+.detalhe-regras p { font-size: 13.5px; line-height: 1.6; color: var(--texto-2); }
+.detalhe-regras .sub { font-size: 12px; color: var(--texto-3); }
+.titulo-regra { margin: 0 0 2px; font-family: 'Marcellus', Georgia, serif; font-weight: 400; font-size: 1.25rem; }
+
+/* As listas que rolam por dentro ganham a barra escura da casa — a
+   do sistema, branca, rasgava o cartão. */
+.lista-regras,
+.magias-form { scrollbar-width: thin; scrollbar-color: var(--pedra-3) transparent; }
+
+/* O chip de condição que abre a regra: mesmo desenho, com cursor. */
+button.chip-regra { font: inherit; font-size: 11px; cursor: pointer; }
+button.chip-regra:hover { border-color: rgba(77, 141, 255, .5); }
+
+@media (max-width: 720px) {
+  .moedas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .item-inventario { grid-template-columns: minmax(0, 1fr) auto; }
+  .item-inventario .item-peso { text-align: left; }
+  .colunas-regras { grid-template-columns: minmax(0, 1fr); }
+  .lista-regras { max-height: 260px; }
 }

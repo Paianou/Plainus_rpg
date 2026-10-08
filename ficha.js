@@ -35,9 +35,12 @@
      pvRolado                               PV máximo, só no método "rolado"
      idiomas, equipamento, talentos, personalidade, historia
 
-     ataques: [{ nome, atributo, proficiente, dano, tipo, bonus }]
+     ataques: [{ nome, atributo, proficiente, dano, tipo, bonus, doItem? }]
      atributoMagia, espacos, espacosGastos, magias, concentrando
+     preparaMagias, preparadas             quem prepara magias a cada dia
      recursos: [{ nome, total, gastos, recarga: 'curto' | 'longo' }]
+     moedas: { pl, po, pe, pp, pc }   itens: [...]   (ver Inventário)
+     notas: [{ id, titulo, texto, quando }]   o caderno do jogador
 
    Os "gastos" (espaços, recursos) e a concentração mudam DURANTE a
    sessão, com um clique na ficha; o resto muda no "Editar ficha".
@@ -322,6 +325,49 @@ const Ficha = {
       if (this.espacosLivres(f, nivel) > 0) return nivel;
     }
     return null;
+  },
+
+
+  /* ---------- Inventário ----------
+     ficha.moedas  { pl, po, pe, pp, pc } — platina, ouro, electro, prata, cobre
+     ficha.itens   [{ id, nome, quantidade, peso, tipo, equipado, magico, sintonizado }]
+       tipo        'arma' | 'armadura' | 'escudo' | 'outro'
+       peso        de UMA unidade, em kg */
+
+  /* Livro do Jogador: carrega até Força × 15 libras ≈ Força × 7,5 kg. */
+  cargaMaxima: function (f) {
+    return this.valor(f, 'for') * 7.5;
+  },
+
+  /* 50 moedas pesam 1 libra (≈ 0,45 kg) — de qualquer metal. Parece
+     detalhe, mas 2.000 PO de um tesouro pesam 18 kg. */
+  pesoMoedas: function (f) {
+    const m = f.moedas || {};
+    const total = ['pl', 'po', 'pe', 'pp', 'pc'].reduce(function (soma, k) { return soma + (Number(m[k]) || 0); }, 0);
+    return total / 50 * 0.45;
+  },
+
+  pesoTotal: function (f) {
+    const itens = (f.itens || []).reduce(function (soma, item) {
+      return soma + (Number(item.quantidade) || 0) * (Number(item.peso) || 0);
+    }, 0);
+    return itens + this.pesoMoedas(f);
+  },
+
+  sintonizados: function (f) {
+    return (f.itens || []).filter(function (i) { return i.sintonizado; }).length;
+  },
+
+  LIMITE_SINTONIA: 3,
+
+
+  /* ---------- Magias preparadas ----------
+     Clérigo, druida e mago (e o paladino, pela metade do nível)
+     preparam a cada dia uma parte das magias que conhecem: atributo
+     de conjuração + nível, no mínimo 1. A ficha mostra o limite; o
+     jogador decide quais. */
+  limitePreparadas: function (f) {
+    return Math.max(1, this.mod(f, f.atributoMagia) + this.nivelTotal(f));
   },
 
 

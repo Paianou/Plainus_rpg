@@ -6,10 +6,15 @@
    desenho do servidor. Esta tela só desenha o que a visão devolve e
    só grava pelas ações de lá — nunca lê nem escreve o Estado direto.
 
-   Três abas:
-     Ficha    a ficha do personagem (ver / criar / editar) — aqui
-     Mesa     a cena e a ordem de iniciativa — jogador-mesa.js
-     Diário   resumos, segredos revelados, pessoas — jogador-mesa.js
+   As abas (ver ABAS):
+     Ficha        a ficha (ver / criar / editar) — aqui; ataques e
+                  recursos — jogador-uso.js
+     Magias       só se o personagem conjura — jogador-uso.js
+     Inventário   moedas, itens, carga, sintonia — jogador-inventario.js
+     Mesa         a cena e a ordem de iniciativa — jogador-mesa.js
+     Diário       resumos, segredos revelados, pessoas — jogador-mesa.js
+     Anotações    o caderno do jogador — jogador-consulta.js
+     Regras       magias, equipamento, condições — jogador-consulta.js
    E o rolador, na coluna lateral (jogador-mesa.js).
 
 
@@ -34,7 +39,7 @@ const Jogador = {
   sessao: null,
   visao: null,
   modo: 'ver',            /* 'ver' | 'editar' — sem personagem, é sempre 'criar' */
-  aba: 'ficha',           /* 'ficha' | 'mesa' | 'diario' — estado de VISTA, não vai para o Estado */
+  aba: 'ficha',           /* ver ABAS abaixo — estado de VISTA, não vai para o Estado */
   rascunho: null,         /* { nome, ficha } enquanto o formulário está aberto */
   dadoTocado: {},         /* o jogador escolheu o dado à mão? então não sugerimos mais */
 
@@ -86,8 +91,11 @@ const Jogador = {
     const area = document.getElementById('principal');
     area.textContent = '';
 
-    /* Criando ou editando a ficha, o formulário ocupa a tela inteira e
-       as abas somem: sair dele no meio perderia o que foi digitado. */
+    /* Criando ou editando a ficha, o formulário ocupa o espaço e a
+       navegação some: sair dele no meio perderia o que foi digitado. */
+    const formulario = !this.visao.meuHeroi || this.modo === 'editar';
+    this.mostrarNav(!formulario);
+
     if (!this.visao.meuHeroi) {
       if (!this.rascunho) this.rascunho = this.rascunhoNovo();
       this.montarFormulario(area, true);
@@ -98,37 +106,89 @@ const Jogador = {
       return;
     }
 
-    area.appendChild(this.montarAbas());
-    if (this.aba === 'mesa') MesaJogador.montarMesa(area, this.visao);
-    else if (this.aba === 'diario') MesaJogador.montarDiario(area, this.visao);
-    else this.montarFicha(area, this.visao.meuHeroi);
+    /* A aba de Magias some se o personagem não conjura; se ela estava
+       aberta, volta para a Ficha. */
+    const abas = this.abasVisiveis();
+    if (!abas.some(function (a) { return a[0] === this.aba; }, this)) this.aba = 'ficha';
+
+    this.montarNav(abas);
+    const heroi = this.visao.meuHeroi;
+    switch (this.aba) {
+      case 'magias':     UsoFicha.montarAbaMagias(area, heroi); break;
+      case 'inventario': InventarioJogador.montar(area, heroi); break;
+      case 'mesa':       MesaJogador.montarMesa(area, this.visao); break;
+      case 'diario':     MesaJogador.montarDiario(area, this.visao); break;
+      case 'notas':      AnotacoesJogador.montar(area, heroi); break;
+      case 'regras':     RegrasJogador.montar(area); break;
+      default:           this.montarFicha(area, heroi);
+    }
   },
 
 
   /* As abas do jogador. A da Mesa avisa, de fora, que há combate — e
      acende quando é a vez dele, para ele não precisar ficar olhando. */
-  montarAbas: function () {
+  /* [id, ícone, texto]. A ordem é a do uso numa sessão: o que é do
+     personagem primeiro, depois a mesa, depois a consulta. */
+  ABAS: [
+    ['ficha', 'escudo', 'Ficha'],
+    ['magias', 'magia', 'Magias'],
+    ['inventario', 'mochila', 'Inventário'],
+    ['mesa', 'mapa', 'Mesa'],
+    ['diario', 'diario', 'Diário'],
+    ['notas', 'nota', 'Anotações'],
+    ['regras', 'compendio', 'Regras']
+  ],
+
+  abasVisiveis: function () {
+    const conjura = !!(this.visao.meuHeroi && this.visao.meuHeroi.ficha.atributoMagia);
+    return this.ABAS.filter(function (a) { return a[0] !== 'magias' || conjura; });
+  },
+
+  /* A navegação da lateral esquerda — o mesmo desenho do códice do
+     painel do Mestre (.codice-link), para os dois painéis falarem a
+     mesma língua. A classe .sem-nav tira a coluna do grid quando o
+     formulário está aberto: só esconder a <nav> deixaria a ficha
+     espremida na coluna estreita que era dela. */
+  mostrarNav: function (mostrar) {
+    document.getElementById('navJogador').hidden = !mostrar;
+    document.querySelector('.colunas-jogador').classList.toggle('sem-nav', !mostrar);
+  },
+
+  montarNav: function (lista) {
     const self = this;
+    const nav = document.getElementById('navJogador');
+    const meu = this.visao.meuHeroi;
     const combate = this.visao.combate;
     const minhaVez = !!(combate && combate.ativo && combate.combatentes.some(function (c) { return c.vez && c.meu; }));
 
-    const abas = criar('div.abas-mesa.abas-jogador');
-    [['ficha', 'escudo', 'Ficha'], ['mesa', 'mapa', 'Mesa'], ['diario', 'diario', 'Diário']].forEach(function (trio) {
+    nav.textContent = '';
+
+    /* Quem é: o personagem no topo da navegação, sempre à vista. */
+    nav.appendChild(criar('div.nav-personagem', [
+      criar('div.retrato-heroi', meu.nome.charAt(0)),
+      criar('div', [
+        criar('div.nome', meu.nome),
+        criar('div.sub', meu.pv + ' / ' + meu.pvMax + ' PV · CA ' + meu.ca)
+      ])
+    ]));
+    nav.appendChild(criar('div.codice-titulo', 'Seu painel'));
+
+    lista.forEach(function (trio) {
       const ativa = self.aba === trio[0];
-      const botao = criar('button.aba' + (ativa ? '.ativa' : ''));
+      const botao = criar('button.codice-link' + (ativa ? '.ativo' : ''));
       botao.type = 'button';
       botao.dataset.acao = 'aba';
       botao.dataset.aba = trio[0];
-      botao.setAttribute('aria-pressed', ativa ? 'true' : 'false');
-      botao.appendChild(Icone.svg(trio[1], 15));
+      /* aria-current diz ao leitor de tela "é aqui que você está". */
+      if (ativa) botao.setAttribute('aria-current', 'page');
+      botao.appendChild(Icone.svg(trio[1], 17));
       botao.appendChild(criar('span', trio[2]));
 
       if (trio[0] === 'mesa' && minhaVez) botao.appendChild(criar('span.pilula.azul', 'Sua vez'));
       else if (trio[0] === 'mesa' && combate && combate.ativo) botao.appendChild(criar('span.pilula.perigo', 'Combate'));
 
-      abas.appendChild(botao);
+      nav.appendChild(botao);
     });
-    return abas;
   },
 
 
@@ -234,7 +294,7 @@ const Jogador = {
               criar('div.barra', preenchimento)
             ]),
             h.condicoes.length
-              ? criar('div.condicoes-jogador', h.condicoes.map(function (c) { return criar('span.chip-condicao', c); }))
+              ? criar('div.condicoes-jogador', h.condicoes.map(function (c) { return MesaJogador.chip(c); }))
               : null
           ])
         ]));
@@ -873,7 +933,7 @@ const Jogador = {
         case 'aba': {
           self.aba = alvo.dataset.aba;
           self.render();
-          const ativa = document.querySelector('.abas-jogador .aba.ativa');
+          const ativa = document.querySelector('.nav-jogador .codice-link.ativo');
           if (ativa) ativa.focus();
           break;
         }
@@ -923,6 +983,30 @@ const Jogador = {
           self.render();
           break;
 
+        /* Aba Magias */
+        case 'preparar':       UsoFicha.preparar(alvo.dataset.nome); break;
+        case 'filtro-magia':
+          UsoFicha.filtroNivel = alvo.dataset.nivel === 'todas' ? 'todas' : Number(alvo.dataset.nivel);
+          self.render();
+          break;
+
+        /* Aba Inventário (jogador-inventario.js) */
+        case 'inv-da-lista':   InventarioJogador.adicionarDaLista(); break;
+        case 'inv-avulso':     InventarioJogador.adicionarAvulso(); break;
+        case 'inv-qtd':        InventarioJogador.quantidade(alvo.dataset.id, Number(alvo.dataset.delta)); break;
+        case 'inv-equipar':    InventarioJogador.equipar(alvo.dataset.id); break;
+        case 'inv-sintonia':   InventarioJogador.sintonizar(alvo.dataset.id); break;
+        case 'inv-remover':    InventarioJogador.remover(alvo.dataset.id); break;
+
+        /* Abas Regras e Anotações (jogador-consulta.js) */
+        case 'regras-tipo':    RegrasJogador.trocarTipo(alvo.dataset.tipo); break;
+        case 'regras-abrir':   RegrasJogador.escolher(alvo.dataset.nome); break;
+        case 'ver-regra':      RegrasJogador.abrir(alvo.dataset.tipo, alvo.dataset.nome); break;
+        case 'nota-salvar':    AnotacoesJogador.salvar(); break;
+        case 'nota-editar':    AnotacoesJogador.editar(alvo.dataset.id); break;
+        case 'nota-cancelar':  AnotacoesJogador.cancelar(); break;
+        case 'nota-apagar':    AnotacoesJogador.apagar(alvo.dataset.id); break;
+
         case 'cancelar':
           self.modo = 'ver';
           self.rascunho = null;
@@ -962,6 +1046,11 @@ const Jogador = {
 
     /* Qualquer tecla no formulário: relê e recalcula, sem redesenhar. */
     document.getElementById('principal').addEventListener('input', function (evento) {
+      /* A busca da aba Regras redesenha só a lista, nunca o campo. */
+      if (evento.target.id === 'buscaRegras') {
+        RegrasJogador.buscar(evento.target.value);
+        return;
+      }
       if (!self.rascunho) return;
       const id = evento.target.id;
       if (id === 'f-dadoVida' || id === 'f-dadoVida2') self.dadoTocado[id.slice(2)] = true;
@@ -972,6 +1061,11 @@ const Jogador = {
     });
     /* <select> e caixas de marcar avisam por 'change'. */
     document.getElementById('principal').addEventListener('change', function (evento) {
+      /* Moedas: guarda quando o campo perde o foco (o 'change'). */
+      if (evento.target.dataset.moeda) {
+        InventarioJogador.mudarMoeda(evento.target.dataset.moeda, evento.target.value);
+        return;
+      }
       if (!self.rascunho) return;
 
       /* "Escolher da lista de armas": preenche a linha e redesenha. */
@@ -998,9 +1092,20 @@ const Jogador = {
        o Estado). Só redesenha se não houver formulário aberto — senão
        apagaria o que está sendo digitado. */
     document.addEventListener('plainus:externo', function () {
-      if (self.rascunho) return;
+      if (self.ocupado()) return;
       self.render();
     });
+  },
+
+
+  /* Há algo sendo digitado? Então um redesenho vindo de outra aba
+     apagaria o texto (a ficha em edição, uma anotação pela metade, a
+     busca das regras). Espera: o Estado já está atualizado na memória,
+     e o próximo clique redesenha com ele. */
+  ocupado: function () {
+    if (this.rascunho) return true;
+    const foco = document.activeElement;
+    return !!(foco && foco.closest && foco.closest('#principal') && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName));
   }
 };
 

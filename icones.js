@@ -76,6 +76,8 @@ const Icone = {
     regua:      '<path d="M3 15.5L15.5 3l5.5 5.5L8.5 21z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2"/>',
     sair:       '<path d="M14 4H5v16h9"/><path d="M10 12h10M17 9l3 3-3 3"/>',
     parede:     '<path d="M3 5h18v14H3z"/><path d="M3 12h18M9 5v7M15 12v7"/>',
+    mochila:    '<path d="M6 8a6 6 0 0 1 12 0v12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2M9 14h6"/>',
+    nota:       '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h5"/>',
     imagem:     '<path d="M3 5h18v14H3z"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5-9 9"/>'
   },
 

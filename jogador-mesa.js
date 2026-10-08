@@ -13,6 +13,22 @@
 
 const MesaJogador = {
 
+  /* Um chip de condição. Se ela é uma condição do livro (CONDICOES),
+     o chip é um botão que abre a regra na aba Regras — "Amedrontado"
+     no meio do combate e um clique para lembrar o que faz. Efeitos
+     anotados pelo Mestre ("Concentrando", "Abençoado") ficam só texto. */
+  chip: function (nome) {
+    if (!CONDICOES[nome]) return criar('span.chip-condicao', nome);
+    const botao = criar('button.chip-condicao.chip-regra', nome);
+    botao.type = 'button';
+    botao.dataset.acao = 'ver-regra';
+    botao.dataset.tipo = 'condicoes';
+    botao.dataset.nome = nome;
+    botao.title = 'O que ' + nome + ' faz';
+    return botao;
+  },
+
+
   /* ===================================================================
      ABA MESA: a cena em jogo e a ordem de iniciativa
      =================================================================== */
@@ -95,7 +111,7 @@ const MesaJogador = {
       if (c.vez) nome.appendChild(criar('span.pilula.azul', 'Vez'));
 
       const condicoes = c.condicoes.length
-        ? criar('div.condicoes-jogador', c.condicoes.map(function (cond) { return criar('span.chip-condicao', cond); }))
+        ? criar('div.condicoes-jogador', c.condicoes.map(function (cond) { return MesaJogador.chip(cond); }))
         : null;
 
       lista.appendChild(criar('div' + classes, [

@@ -36,6 +36,10 @@ const UsoFicha = {
   criticoDe: null,
 
 
+  /* O filtro de nível da aba Magias — estado de vista, não é salvo. */
+  filtroNivel: 'todas',
+
+
   /* Ficha antiga, sem os campos novos: completa com o vazio. */
   completar: function (f) {
     f.ataques = f.ataques || [];
@@ -44,7 +48,12 @@ const UsoFicha = {
     f.espacosGastos = f.espacosGastos || {};
     f.magias = f.magias || [];
     f.concentrando = f.concentrando || '';
+    f.preparaMagias = !!f.preparaMagias;
+    f.preparadas = f.preparadas || [];
     f.recursos = f.recursos || [];
+    f.moedas = f.moedas || { pl: 0, po: 0, pe: 0, pp: 0, pc: 0 };
+    f.itens = f.itens || [];
+    f.notas = f.notas || [];
     return f;
   },
 
@@ -56,8 +65,50 @@ const UsoFicha = {
   montar: function (area, heroi) {
     const f = this.completar(JSON.parse(JSON.stringify(heroi.ficha)));
     area.appendChild(this.cartaoAtaques(f));
-    if (f.atributoMagia) area.appendChild(this.cartaoMagias(f));
+    if (f.atributoMagia) area.appendChild(this.resumoMagias(f));
     area.appendChild(this.cartaoRecursos(f));
+  },
+
+
+  /* Na ficha, as magias viram um resumo com atalho: a lista inteira
+     mora na aba Magias. A concentração fica à vista nos dois lugares —
+     é o que o jogador não pode esquecer no meio do combate. */
+  resumoMagias: function (f) {
+    const ir = criarBotao('mini-botao', 'aba', 'magia', 'Abrir a aba Magias');
+    ir.dataset.aba = 'magias';
+    const ataque = criarBotao('mini-botao.botao-uso', 'ataque-magico', 'magia', 'Ataque mágico ' + comSinal(Ficha.ataqueMagia(f)));
+
+    const cartao = criar('div.cartao', [
+      criar('div.titulo-coluna', [
+        criarComIcone('h2', 'magia', 'Magias', 16),
+        criar('span.sub', 'CD ' + Ficha.cdMagia(f) + ' · ' + f.magias.length + ' conhecidas')
+      ])
+    ]);
+    if (f.concentrando) cartao.appendChild(this.avisoConcentracao(f));
+    cartao.appendChild(criar('div.linha-botoes', [ataque, ir]));
+    return cartao;
+  },
+
+  avisoConcentracao: function (f) {
+    return criar('div.concentrando', [
+      Icone.svg('alerta', 14),
+      criar('span', 'Concentrando em ' + f.concentrando + '. Ao sofrer dano: salvaguarda de CON, CD 10 ou metade do dano.'),
+      criarBotao('mini-botao', 'encerrar-concentracao', 'remover', 'Encerrar')
+    ]);
+  },
+
+
+  /* A aba Magias inteira: o cartão de magias, com filtro de nível. */
+  montarAbaMagias: function (area, heroi) {
+    const f = this.completar(JSON.parse(JSON.stringify(heroi.ficha)));
+    if (!f.atributoMagia) {
+      area.appendChild(criar('div.cartao', [
+        criarComIcone('h2', 'magia', 'Magias', 16),
+        criar('p.dica', 'Este personagem não conjura magias. Em "Editar ficha", escolha o atributo de conjuração.')
+      ]));
+      return;
+    }
+    area.appendChild(this.cartaoMagias(f));
   },
 
 
@@ -99,15 +150,20 @@ const UsoFicha = {
     ]);
 
     /* A concentração em curso, com o botão de largar. */
-    if (f.concentrando) {
-      cartao.appendChild(criar('div.concentrando', [
-        Icone.svg('alerta', 14),
-        criar('span', 'Concentrando em ' + f.concentrando + '. Ao sofrer dano: salvaguarda de CON, CD 10 ou metade do dano.'),
-        criarBotao('mini-botao', 'encerrar-concentracao', 'remover', 'Encerrar')
-      ]));
-    }
+    if (f.concentrando) cartao.appendChild(this.avisoConcentracao(f));
 
     cartao.appendChild(criar('div.linha-botoes', [ataque]));
+
+    /* Quem prepara magias vê quantas preparou e o limite do dia. */
+    const preparadas = f.preparadas.filter(function (n) {
+      const m = MAGIAS.find(function (x) { return x.nome === n; });
+      return m && m.nivel > 0;
+    }).length;
+    if (f.preparaMagias) {
+      const limite = Ficha.limitePreparadas(f);
+      cartao.appendChild(criar('p.contador-preparadas' + (preparadas > limite ? '.estourou' : ''),
+        'Preparadas hoje: ' + preparadas + ' de ' + limite + ' (atributo + nível). Truques não contam e estão sempre prontos.'));
+    }
 
     /* Espaços: uma fileira de bolinhas por nível que tenha espaço. */
     const niveis = NIVEIS_MAGIA.filter(function (n) { return (Number(f.espacos[n]) || 0) > 0; });
@@ -125,18 +181,53 @@ const UsoFicha = {
 
     /* As magias que ele conhece, da mais baixa para a mais alta. Cada
        uma abre os detalhes (o mesmo texto do Compêndio). */
-    const conhecidas = f.magias
+    const todas = f.magias
       .map(function (nome) { return MAGIAS.find(function (m) { return m.nome === nome; }); })
       .filter(Boolean)
       .sort(function (a, b) { return a.nivel - b.nivel || a.nome.localeCompare(b.nome); });
 
-    if (!conhecidas.length) {
+    /* O filtro por nível: só os níveis que ele conhece de fato. */
+    const niveisConhecidos = todas.map(function (m) { return m.nivel; })
+      .filter(function (n, i, lista) { return lista.indexOf(n) === i; });
+    if (niveisConhecidos.length > 1) {
+      const filtros = criar('div.filtros-magia');
+      ['todas'].concat(niveisConhecidos).forEach(function (n) {
+        const botao = criar('button.filtro' + (String(self.filtroNivel) === String(n) ? '.ativo' : ''),
+          n === 'todas' ? 'Todas' : (n === 0 ? 'Truques' : n + 'º'));
+        botao.type = 'button';
+        botao.dataset.acao = 'filtro-magia';
+        botao.dataset.nivel = n;
+        filtros.appendChild(botao);
+      });
+      cartao.appendChild(filtros);
+    }
+
+    const conhecidas = todas.filter(function (m) {
+      return self.filtroNivel === 'todas' || String(m.nivel) === String(self.filtroNivel);
+    });
+
+    if (!todas.length) {
       cartao.appendChild(criar('p.dica', 'Nenhuma magia escolhida. Em "Editar ficha", marque as que o personagem conhece.'));
     }
 
     conhecidas.forEach(function (magia) {
+      const preparada = magia.nivel === 0 || !f.preparaMagias || f.preparadas.indexOf(magia.nome) !== -1;
+
       const conjurar = criarBotao('mini-botao.botao-uso', 'conjurar', 'magia', 'Conjurar');
       conjurar.dataset.nome = magia.nome;
+      /* Quem prepara só conjura o que preparou hoje. */
+      if (!preparada) {
+        conjurar.disabled = true;
+        conjurar.title = 'Prepare esta magia para poder conjurá-la hoje.';
+      }
+
+      let preparar = null;
+      if (f.preparaMagias && magia.nivel > 0) {
+        preparar = criarBotao('mini-botao' + (preparada ? '.preparada' : ''), 'preparar', preparada ? 'check' : null,
+          preparada ? 'Preparada' : 'Preparar');
+        preparar.dataset.nome = magia.nome;
+        preparar.setAttribute('aria-pressed', preparada ? 'true' : 'false');
+      }
 
       const resumo = criar('summary', [
         criar('span.nivel-magia', magia.nivel === 0 ? 'T' : magia.nivel + 'º'),
@@ -152,7 +243,9 @@ const UsoFicha = {
         magia.superior ? criar('p.dica', 'Em espaços superiores: ' + magia.superior) : null
       ]);
 
-      cartao.appendChild(criar('div.linha-magia', [detalhe, conjurar]));
+      cartao.appendChild(criar('div.linha-magia' + (preparada ? '' : '.nao-preparada'), [
+        detalhe, criar('div.botoes-uso', [preparar, conjurar])
+      ]));
     });
 
     return cartao;
@@ -297,6 +390,12 @@ const UsoFicha = {
     let recado = '';
 
     const ok = this.usar(function (f) {
+      /* O botão já vem desligado, mas a regra é conferida aqui também:
+         o botão é a tela; esta função é a regra. */
+      if (magia.nivel > 0 && f.preparaMagias && f.preparadas.indexOf(magia.nome) === -1) {
+        recado = magia.nome + ' não está preparada hoje.';
+        return false;
+      }
       if (magia.nivel > 0) {
         usado = Ficha.espacoParaConjurar(f, magia.nivel);
         if (usado === null) {
@@ -324,6 +423,21 @@ const UsoFicha = {
     if (magia.concentracao) enviarConcentracao(Jogador.sessao, true);
     Jogador.render();
     Layout.recado(recado);
+  },
+
+
+  /* Preparar e despreparar. Passar do limite é permitido, mas o
+     contador fica vermelho: há talentos e itens que mudam o limite, e
+     quem confere é o Mestre. */
+  preparar: function (nome) {
+    let preparou = false;
+    const ok = this.usar(function (f) {
+      if (f.magias.indexOf(nome) === -1) return false;
+      const posicao = f.preparadas.indexOf(nome);
+      if (posicao === -1) { f.preparadas.push(nome); preparou = true; }
+      else f.preparadas.splice(posicao, 1);
+    });
+    if (ok) Layout.recado(nome + (preparou ? ' preparada para hoje.' : ' deixou de estar preparada.'));
   },
 
 
@@ -458,6 +572,16 @@ const UsoFicha = {
     calc.dataset.calc = 'magia';
     secao.appendChild(calc);
 
+    /* Clérigo, druida, mago e paladino escolhem a cada dia quais das
+       magias conhecidas estão prontas. Sugerido pela classe escrita,
+       mas é o jogador que marca. */
+    const prepara = document.createElement('input');
+    prepara.type = 'checkbox';
+    prepara.id = 'f-preparaMagias';
+    prepara.checked = f.preparaMagias;
+    secao.appendChild(criar('label.marcar-opcao', [prepara,
+      document.createTextNode('Prepara magias a cada dia (clérigo, druida, mago, paladino)')]));
+
     /* Os espaços vêm da tabela da classe no Livro do Jogador — não
        estão no regras.js, então o jogador copia do livro. */
     const espacos = criar('div.espacos-form');
@@ -563,17 +687,23 @@ const UsoFicha = {
   lerForm: function (form, f) {
     this.completar(f);
 
+    /* As linhas estão na mesma ordem de f.ataques: é pela posição que
+       a ligação com o item do inventário (doItem) sobrevive à edição. */
+    const ataquesAntigos = f.ataques;
     f.ataques = Array.prototype.map.call(form.querySelectorAll('[data-ataque]'), function (linha, i) {
       const valor = function (parte) { const e = linha.querySelector('[data-parte="' + parte + '"]'); return e ? e.value.trim() : ''; };
       return {
         nome: valor('nome'), atributo: valor('atributo') || 'for',
         dano: valor('dano'), tipo: valor('tipo'), bonus: valor('bonus'),
-        proficiente: linha.querySelector('[data-parte="proficiente"]').checked
+        proficiente: linha.querySelector('[data-parte="proficiente"]').checked,
+        doItem: ataquesAntigos[i] ? ataquesAntigos[i].doItem : undefined
       };
     });
 
     const atributo = form.querySelector('#f-atributoMagia');
     if (atributo) f.atributoMagia = atributo.value;
+    const prepara = form.querySelector('#f-preparaMagias');
+    if (prepara) f.preparaMagias = prepara.checked;
 
     form.querySelectorAll('[data-espaco]').forEach(function (e) { f.espacos[e.dataset.espaco] = e.value; });
 
@@ -644,7 +774,10 @@ const UsoFicha = {
       if (!ATRIBUTOS_FICHA.some(function (p) { return p[0] === a.atributo; })) return { erro: 'Atributo inválido em "' + a.nome + '".' };
       const bonus = inteiro(a.bonus === '' ? 0 : a.bonus, -5, 10);
       if (bonus === null) return { erro: 'Bônus mágico de "' + a.nome + '": de −5 a +10.' };
-      ataques.push({ nome: a.nome, atributo: a.atributo, proficiente: !!a.proficiente, dano: a.dano.replace(/\s+/g, ''), tipo: a.tipo, bonus: bonus });
+      const limpo = { nome: a.nome, atributo: a.atributo, proficiente: !!a.proficiente, dano: a.dano.replace(/\s+/g, ''), tipo: a.tipo, bonus: bonus };
+      /* A ligação com a arma do inventário, se a linha nasceu de uma. */
+      if (a.doItem && (f.itens || []).some(function (i) { return i.id === a.doItem; })) limpo.doItem = a.doItem;
+      ataques.push(limpo);
     }
 
     if (['', 'int', 'sab', 'car'].indexOf(f.atributoMagia) === -1) return { erro: 'Escolha o atributo de conjuração da lista.' };
@@ -679,6 +812,9 @@ const UsoFicha = {
       limpo: {
         ataques: ataques, atributoMagia: f.atributoMagia, espacos: espacos, espacosGastos: espacosGastos,
         magias: magias, recursos: recursos,
+        preparaMagias: !!f.preparaMagias,
+        /* Só pode estar preparada uma magia que ele ainda conhece. */
+        preparadas: f.preparadas.filter(function (n) { return magias.indexOf(n) !== -1; }),
         /* Largou a magia que mantinha? A concentração some junto. */
         concentrando: magias.indexOf(f.concentrando) !== -1 ? f.concentrando : ''
       }
