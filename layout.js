@@ -82,6 +82,25 @@ function criarComIcone(seletor, icone, texto, tamanho) {
   return elemento;
 }
 
+/* Um retrato: a foto, se houver e for de confiança (retratoSeguro, no
+   dados.js); senão, a inicial do nome — como sempre foi. A foto entra
+   como <img> com src, nunca colada em HTML. alt vazio porque o nome já
+   está escrito ao lado: o leitor de tela não precisa ler duas vezes. */
+function criarRetrato(seletor, foto, nome) {
+  const caixa = criar(seletor);
+  const segura = retratoSeguro(foto);
+  if (segura) {
+    const imagem = document.createElement('img');
+    imagem.src = segura;
+    imagem.alt = '';
+    caixa.appendChild(imagem);
+    caixa.classList.add('com-foto');
+  } else {
+    caixa.textContent = String(nome || '?').charAt(0).toUpperCase();
+  }
+  return caixa;
+}
+
 /* Botão com ícone + texto, já com type="button" e data-acao. */
 function criarBotao(classe, acao, icone, texto) {
   const botao = criar('button.' + classe);
@@ -162,7 +181,23 @@ const Layout = {
       self.recado('A campanha foi atualizada em outra aba.');
     });
 
+    /* O chat (chat.js): os eventos dele, e o contador do botão. */
+    Chat.ligar();
+    Chat.aoMudarLidas = function () { self.atualizarChat(); };
+
     if (typeof aoPronto === 'function') aoPronto();
+  },
+
+
+  /* Só o contador do botão de chat — sem redesenhar a barra. */
+  atualizarChat: function () {
+    const botao = document.getElementById('botaoChat');
+    if (!botao) return;
+    const velho = botao.querySelector('.contador-chat');
+    if (velho) velho.remove();
+    const novas = Chat.painel ? 0 : Chat.naoLidas();
+    if (novas) botao.appendChild(criar('span.contador-chat', novas > 9 ? '9+' : String(novas)));
+    botao.setAttribute('aria-label', novas ? 'Chat da mesa (' + novas + ' novas)' : 'Chat da mesa');
   },
 
   /* Preenchida por cada tela (ver 'plainus:externo' acima). */
@@ -326,6 +361,18 @@ const Layout = {
     sino.setAttribute('aria-expanded', Avisos.painel ? 'true' : 'false');
     sino.appendChild(Icone.svg('sino', 16));
     barra.appendChild(sino);
+
+    /* chat — o número é o de mensagens que chegaram desde a última vez
+       que o Mestre olhou (chat.js). */
+    const chat = criar('button.icone-botao.botao-chat');
+    chat.type = 'button';
+    chat.id = 'botaoChat';
+    chat.dataset.acao = 'chat';
+    chat.title = 'Chat da mesa';
+    chat.setAttribute('aria-label', 'Chat da mesa');
+    chat.appendChild(Icone.svg('chat', 16));
+    barra.appendChild(chat);
+    this.atualizarChat();
 
     /* convite */
     const convite = criar('button.icone-botao');
@@ -744,6 +791,9 @@ const Layout = {
           break;
         case 'avisos':
           Avisos.alternar(alvo);
+          break;
+        case 'chat':
+          Chat.alternarPainel();
           break;
         case 'sessao':
           self.alternarMenuSessao('corrente');

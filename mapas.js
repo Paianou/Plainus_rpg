@@ -36,15 +36,14 @@
 
    A IMAGEM DE FUNDO
    Sem servidor, ela vai para o localStorage junto com a campanha. Por
-   isso é recomprimida antes (comprimirImagem): reduzida e salva em
+   isso é recomprimida antes (Imagens.comprimir, no imagens.js): reduzida e salva em
    JPEG, fica em algumas centenas de KB em vez de vários MB. Mesmo
    assim o espaço do navegador acaba — e, se acabar, a janela desfaz a
    mudança e avisa, em vez de deixar a campanha pela metade.
    =================================================================== */
 
-/* Acima disto, a imagem comprimida ainda não coube: a janela recusa.
-   Em caracteres do texto base64 — uns 520 KB de imagem de verdade. */
-const LIMITE_IMAGEM = 700000;
+/* O limite de tamanho de uma imagem de mapa está no imagens.js
+   (Imagens.PERFIS.mapa): a compressão mora lá, junto com a dos retratos. */
 
 /* CELULA e METROS_POR_CELULA vêm do dados.js, que carrega antes desta
    tela. Ficavam declaradas aqui, mas a Visão Geral desenha a mesma
@@ -1036,67 +1035,9 @@ const Mapa = {
   },
 
 
-  /* Reduz a imagem e regrava em JPEG, até caber em LIMITE_IMAGEM.
-
-     O <canvas> é uma folha em branco onde se desenha a imagem no
-     tamanho que quisermos; toDataURL devolve o desenho como texto
-     ("data:image/jpeg;base64,..."), que é o que dá para guardar no
-     localStorage. Cada volta do laço tenta menor e com menos
-     qualidade. O fundo é pintado antes porque PNG transparente vira
-     preto no JPEG — melhor que vire a cor do chão do mapa.
-
-     Devolve uma Promise: carregar uma imagem leva um tempo, e quem
-     chamou continua no .then() quando ela estiver pronta. */
+  /* A compressão mora no imagens.js, que os retratos também usam. */
   comprimirImagem: function (arquivo) {
-    return new Promise(function (resolver, recusar) {
-      if (!/^image\//.test(arquivo.type)) {
-        recusar('Esse arquivo não é uma imagem.');
-        return;
-      }
-      if (arquivo.size > 25 * 1024 * 1024) {
-        recusar('Imagem grande demais (mais de 25 MB). Use uma versão menor.');
-        return;
-      }
-
-      const endereco = URL.createObjectURL(arquivo);
-      const foto = new Image();
-
-      foto.onload = function () {
-        URL.revokeObjectURL(endereco);
-
-        const canvas = document.createElement('canvas');
-        const pincel = canvas.getContext('2d');
-        let lado = 1600;
-        let qualidade = 0.75;
-        let dados = '';
-
-        do {
-          const escala = Math.min(1, lado / Math.max(foto.naturalWidth, foto.naturalHeight));
-          canvas.width = Math.max(1, Math.round(foto.naturalWidth * escala));
-          canvas.height = Math.max(1, Math.round(foto.naturalHeight * escala));
-          pincel.fillStyle = '#0a0c10';
-          pincel.fillRect(0, 0, canvas.width, canvas.height);
-          pincel.drawImage(foto, 0, 0, canvas.width, canvas.height);
-          dados = canvas.toDataURL('image/jpeg', qualidade);
-
-          lado -= 250;
-          qualidade = Math.max(0.45, qualidade - 0.08);
-        } while (dados.length > LIMITE_IMAGEM && lado >= 600);
-
-        if (dados.length > LIMITE_IMAGEM) {
-          recusar('Mesmo comprimida, a imagem não coube. Tente uma com menos detalhe.');
-          return;
-        }
-        resolver({ dados: dados, largura: canvas.width, altura: canvas.height });
-      };
-
-      foto.onerror = function () {
-        URL.revokeObjectURL(endereco);
-        recusar('Não consegui abrir essa imagem.');
-      };
-
-      foto.src = endereco;
-    });
+    return Imagens.comprimir(arquivo, 'mapa');
   },
 
 

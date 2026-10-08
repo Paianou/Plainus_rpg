@@ -11,6 +11,8 @@
      enviarRolagem()   registrar uma rolagem no registro da mesa.
      enviarConcentracao()  marcar/desmarcar "Concentrando" no próprio
                        combatente.
+     enviarMensagem()  o chat — da mesa ou privado com o Mestre (serve
+                       também ao Mestre, com as regras dele).
 
    Hoje roda no navegador, então é uma placa: quem abre o DevTools lê
    o Estado inteiro. Quando o servidor chegar, este arquivo muda de
@@ -77,7 +79,9 @@ function visaoDoJogador(estado, jogadorId) {
     party: herois.filter(function (h) { return h !== meu; }).map(function (h) {
       return {
         id: h.id, nome: h.nome, classe: h.classe, nivel: h.nivel, jogador: h.jogador || '',
-        pv: h.pv, pvMax: h.pvMax, condicoes: condicoesDe(h.id)
+        pv: h.pv, pvMax: h.pvMax, condicoes: condicoesDe(h.id),
+        /* O retrato é o que se vê do companheiro — público. */
+        foto: h.ficha ? retratoSeguro(h.ficha.foto) : null
       };
     }),
 
@@ -102,10 +106,99 @@ function visaoDoJogador(estado, jogadorId) {
       return { id: n.id, nome: n.nome, papel: n.papel, local: n.local, aparencia: n.aparencia, morto: n.status === 'morto' };
     }),
 
+    mensagens: mensagensDoJogador(estado, jogadorId),
+
     rolagensMesa: (estado.rolagensMesa || []).slice(0, 15).map(function (r) {
       return { id: r.id, autor: r.autor, personagem: r.personagem, texto: r.texto, formula: r.formula, total: r.total, marca: r.marca };
     })
   };
+}
+
+
+/* ===================================================================
+   O CHAT
+
+   Três tipos de conversa (o "canal" de cada mensagem):
+     'mesa'                 todos leem: o Mestre e os jogadores
+     'equipe'               só os jogadores — o Mestre fica de fora
+     'privado:<jogadorId>'  só aquele jogador e o Mestre
+
+   Do jogador, saem a mesa, a equipe e a conversa DELE com o Mestre.
+   A conversa privada de outro jogador não sai daqui — com o servidor,
+   não chega ao navegador dele. Do mesmo jeito, a conversa da equipe
+   não vai para o Mestre (hoje o painel dele simplesmente não a mostra;
+   sem servidor, ela está no mesmo armazenamento, e quem souber abrir o
+   DevTools a lê).
+
+   O AUTOR, NA VISÃO DO JOGADOR
+   Sai o nome, o personagem e se a mensagem é dele mesmo — mas NÃO o
+   jogadorId de quem escreveu. Sem servidor, esse id é o que identifica
+   cada jogador; quem soubesse o id de outro poderia se passar por ele.
+   =================================================================== */
+
+const LIMITE_MENSAGENS = 300;
+const LIMITE_TEXTO_MENSAGEM = 500;
+
+function canalPrivado(jogadorId) {
+  return 'privado:' + jogadorId;
+}
+
+function mensagensDoJogador(estado, jogadorId) {
+  const meu = canalPrivado(jogadorId);
+  return (estado.mensagens || [])
+    .filter(function (m) { return m.canal === 'mesa' || m.canal === 'equipe' || m.canal === meu; })
+    .map(function (m) {
+      return {
+        id: m.id, canal: m.canal, texto: m.texto, quando: m.quando,
+        autor: {
+          papel: m.autor.papel, nome: m.autor.nome, personagem: m.autor.personagem || '',
+          eu: m.autor.papel === 'jogador' && m.autor.jogadorId === jogadorId
+        }
+      };
+    });
+}
+
+
+/* Mandar uma mensagem. Serve aos dois papéis, com regras diferentes:
+     jogador   na mesa, na equipe, ou na conversa DELE com o Mestre
+     mestre    na mesa ou na conversa com qualquer jogador que tenha
+               personagem nesta campanha — na equipe, não
+   O autor sai da SESSÃO, nunca do que veio na mensagem. */
+function enviarMensagem(sessao, canal, texto) {
+  const limpo = String(texto || '').trim();
+  if (!limpo) return 'Escreva alguma coisa.';
+  if (limpo.length > LIMITE_TEXTO_MENSAGEM) return 'A mensagem pode ter até ' + LIMITE_TEXTO_MENSAGEM + ' caracteres.';
+
+  const estado = Campanhas.lerEstado(sessao.campanhaId);
+  if (!estado) return 'Esta campanha não está mais guardada neste navegador.';
+
+  const herois = estado.herois || [];
+  let autor;
+
+  if (sessao.papel === 'mestre') {
+    const donos = herois.filter(function (h) { return h.dono; }).map(function (h) { return canalPrivado(h.dono); });
+    if (canal === 'equipe') return 'A conversa da equipe é só dos jogadores.';
+    if (canal !== 'mesa' && donos.indexOf(canal) === -1) return 'Essa conversa não existe.';
+    autor = { papel: 'mestre', nome: estado.mestre.nome || 'Mestre' };
+  } else {
+    if (canal !== 'mesa' && canal !== 'equipe' && canal !== canalPrivado(sessao.jogadorId)) return 'Você não participa dessa conversa.';
+    const meu = herois.find(function (h) { return h.dono === sessao.jogadorId; });
+    autor = {
+      papel: 'jogador', jogadorId: sessao.jogadorId,
+      nome: String(sessao.nome || 'Jogador').slice(0, 30), personagem: meu ? meu.nome : ''
+    };
+  }
+
+  estado.mensagens = (estado.mensagens || []).concat([{
+    id: 'msg' + Date.now() + Math.floor(Math.random() * 1000),
+    canal: canal, autor: autor, texto: limpo, quando: Date.now()
+  }]).slice(-LIMITE_MENSAGENS);
+
+  if (!Campanhas.salvarEstado(sessao.campanhaId, estado)) {
+    return 'O navegador não deixou guardar a mensagem.';
+  }
+  Memoria.carregar();
+  return null;
 }
 
 
@@ -189,6 +282,13 @@ function enviarMeuHeroi(sessao, heroi) {
   if (!estado) return 'Esta campanha não está mais guardada neste navegador.';
 
   estado.herois = estado.herois || [];
+  /* A foto vem do navegador do jogador: só entra se for o JPEG que o
+     site gera, no tamanho de retrato. Com servidor, esta conferência
+     é a que impede alguém de mandar 5 MB ou um SVG com código. */
+  if (heroi.ficha && heroi.ficha.foto && !retratoSeguro(heroi.ficha.foto)) {
+    return 'Essa foto não é válida. Escolha outra imagem.';
+  }
+
   const posicao = estado.herois.findIndex(function (h) { return h.id === heroi.id; });
 
   if (posicao === -1) {

@@ -62,6 +62,15 @@ const Jogador = {
 
     this.sessao = sessao;
     document.getElementById('app').hidden = false;
+
+    /* O chat (chat.js) se liga antes: quando chega mensagem, ele
+       atualiza a lista; a navegação só precisa refazer o contador. */
+    Chat.ligar();
+    const self = this;
+    Chat.aoMudarLidas = function () {
+      if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') self.montarNav(self.abasVisiveis());
+    };
+
     this.render();
     this.ligar();
   },
@@ -117,6 +126,7 @@ const Jogador = {
       case 'magias':     UsoFicha.montarAbaMagias(area, heroi); break;
       case 'inventario': InventarioJogador.montar(area, heroi); break;
       case 'mesa':       MesaJogador.montarMesa(area, this.visao); break;
+      case 'chat':       Chat.montar(area); break;
       case 'diario':     MesaJogador.montarDiario(area, this.visao); break;
       case 'notas':      AnotacoesJogador.montar(area, heroi); break;
       case 'regras':     RegrasJogador.montar(area); break;
@@ -134,6 +144,7 @@ const Jogador = {
     ['magias', 'magia', 'Magias'],
     ['inventario', 'mochila', 'Inventário'],
     ['mesa', 'mapa', 'Mesa'],
+    ['chat', 'chat', 'Chat'],
     ['diario', 'diario', 'Diário'],
     ['notas', 'nota', 'Anotações'],
     ['regras', 'compendio', 'Regras']
@@ -165,7 +176,7 @@ const Jogador = {
 
     /* Quem é: o personagem no topo da navegação, sempre à vista. */
     nav.appendChild(criar('div.nav-personagem', [
-      criar('div.retrato-heroi', meu.nome.charAt(0)),
+      criarRetrato('div.retrato-heroi', meu.ficha.foto, meu.nome),
       criar('div', [
         criar('div.nome', meu.nome),
         criar('div.sub', meu.pv + ' / ' + meu.pvMax + ' PV · CA ' + meu.ca)
@@ -183,6 +194,12 @@ const Jogador = {
       if (ativa) botao.setAttribute('aria-current', 'page');
       botao.appendChild(Icone.svg(trio[1], 17));
       botao.appendChild(criar('span', trio[2]));
+
+      /* Mensagens novas no chat, enquanto ele não está aberto. */
+      if (trio[0] === 'chat' && !ativa) {
+        const novas = Chat.naoLidas();
+        if (novas) botao.appendChild(criar('span.pilula.azul', String(novas)));
+      }
 
       if (trio[0] === 'mesa' && minhaVez) botao.appendChild(criar('span.pilula.azul', 'Sua vez'));
       else if (trio[0] === 'mesa' && combate && combate.ativo) botao.appendChild(criar('span.pilula.perigo', 'Combate'));
@@ -285,7 +302,7 @@ const Jogador = {
         preenchimento.style.width = (proporcao * 100) + '%';
 
         party.appendChild(criar('div.companheiro' + (h.pv <= 0 ? '.caido' : ''), [
-          criar('span.inicial-npc', h.nome.charAt(0)),
+          criarRetrato('span.inicial-npc', h.foto, h.nome),
           criar('div.companheiro-corpo', [
             criar('div.nome', h.nome),
             criar('div.sub', [h.classe, 'Nível ' + h.nivel, h.jogador].filter(Boolean).join(' · ')),
@@ -316,10 +333,22 @@ const Jogador = {
       .filter(Boolean).join(' · ');
 
     area.appendChild(criar('div.cabeca-ficha', [
-      criar('div.retrato-heroi', heroi.nome.charAt(0)),
+      /* O retrato é um botão: clicar nele troca a foto. */
+      (function () {
+        const botao = criarRetrato('button.retrato-heroi.retrato-grande', f.foto, heroi.nome);
+        botao.type = 'button';
+        botao.dataset.acao = 'foto-escolher';
+        botao.title = f.foto ? 'Trocar a foto' : 'Pôr uma foto';
+        botao.setAttribute('aria-label', f.foto ? 'Trocar a foto do personagem' : 'Pôr uma foto do personagem');
+        return botao;
+      })(),
       criar('div', [
         criar('h1.nome-ficha', heroi.nome),
-        criar('div.sub', subtitulo)
+        criar('div.sub', subtitulo),
+        criar('div.botoes-foto', [
+          criarBotao('mini-botao', 'foto-escolher', 'imagem', f.foto ? 'Trocar foto' : 'Pôr foto'),
+          f.foto ? criarBotao('mini-botao.perigo-leve', 'foto-tirar', 'remover', 'Tirar foto') : null
+        ])
       ]),
       criarBotao('botao.fantasma.pequeno', 'editar', 'editar', 'Editar ficha')
     ]));
@@ -926,6 +955,21 @@ const Jogador = {
 
         case 'editar':
           self.editar();
+          break;
+
+        /* A foto do personagem: comprimida no imagens.js e salva pela
+           mesma ação da ficha (enviarMeuHeroi confere de novo). */
+        case 'foto-escolher':
+          Imagens.escolher('retrato', function (resultado) {
+            UsoFicha.usar(function (f) { f.foto = resultado.dados; }, 'Foto do personagem atualizada.');
+          });
+          break;
+
+        case 'foto-tirar':
+          UsoFicha.usar(function (f) {
+            if (!f.foto) return false;
+            delete f.foto;
+          }, 'Foto removida.');
           break;
 
         /* A aba é estado de vista: troca e redesenha, sem gravar nada.

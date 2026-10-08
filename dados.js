@@ -34,16 +34,29 @@
 const CELULA = 40;
 const METROS_POR_CELULA = 1.5;
 
-/* A imagem de fundo de uma cena, se houver e se for de confiança.
-   A tela de Mapas só grava imagens que ela mesma recomprimiu em JPEG;
-   esta checagem existe porque o Estado vem do localStorage, que
-   qualquer um edita — e um href qualquer num <image> do SVG não é
-   coisa para aceitar às cegas. Usada pelas duas telas que desenham
-   a planta (Mapas e Visão Geral). */
-function imagemDaCena(cena) {
-  const imagem = cena && cena.imagem;
-  return typeof imagem === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem)
+/* Uma imagem guardada, se for de confiança — senão, null.
+   O site só grava imagens que ele mesmo recomprimiu em JPEG
+   (imagens.js). Esta checagem existe porque o Estado vem do
+   localStorage, que qualquer um edita — e um endereço qualquer num
+   <img> ou num <image> do SVG não é coisa para aceitar às cegas.
+   `limite` é o tamanho máximo do texto (ver Imagens.PERFIS). */
+function imagemSegura(imagem, limite) {
+  return typeof imagem === 'string'
+    && imagem.length <= (limite || 700000)
+    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem)
     ? imagem : null;
+}
+
+/* A imagem de fundo de uma cena. Usada pelas duas telas que desenham
+   a planta (Mapas e a planta.js). */
+function imagemDaCena(cena) {
+  return imagemSegura(cena && cena.imagem, 700000);
+}
+
+/* O retrato de um personagem ou de um monstro. */
+const LIMITE_RETRATO = 160000;
+function retratoSeguro(imagem) {
+  return imagemSegura(imagem, LIMITE_RETRATO);
 }
 
 
@@ -527,8 +540,10 @@ function estadoVazio() {
     audio: { pista: 'Cripta dos Ancestrais (loop)', volume: 42, tocando: false },
     tabelasMinhas: [],
     monstrosMeus: [],
+    fotosMonstros: {},           /* nome do monstro do livro → retrato */
     rolagensTabela: [],
     rolagensMesa: [],            /* as rolagens dos jogadores (visao.js) */
+    mensagens: [],               /* o chat: da mesa e privadas (visao.js, chat.js) */
     avisosVistos: []
   };
 }
@@ -560,7 +575,12 @@ function regrasPersonagem(estado) {
    'meu: true' marca os criados — é o que libera Editar e Apagar. É
    colocado numa CÓPIA, para não gravar a marca junto do monstro. */
 function todosMonstros() {
-  const prontos = typeof BESTIARIO !== 'undefined' ? BESTIARIO : [];
+  /* Os do livro não se editam: a foto que o Mestre põe neles fica
+     guardada à parte, na campanha, pelo nome (fotosMonstros). */
+  const fotos = Estado.fotosMonstros || {};
+  const prontos = (typeof BESTIARIO !== 'undefined' ? BESTIARIO : []).map(function (b) {
+    return fotos[b.nome] ? Object.assign({}, b, { foto: fotos[b.nome] }) : b;
+  });
   const meus = (Estado.monstrosMeus || []).map(function (m) {
     return Object.assign({}, m, { meu: true });
   });

@@ -211,8 +211,12 @@ const Bestiario = {
     /* O retrato antes do selo: quem procura "aquele bicho de oito
        pernas" acha pela forma antes de ler o nome. Monstro criado por
        você ganha a silhueta do tipo dele, se o tipo tiver uma. */
+    /* A foto que o Mestre pôs vence a silhueta. */
     const desenho = Bicho.para(ficha.nome, ficha.tipo);
-    if (desenho) {
+    if (retratoSeguro(ficha.foto)) {
+      botao.classList.add('com-retrato');
+      botao.appendChild(criarRetrato('span.marca-bicho', ficha.foto, ficha.nome));
+    } else if (desenho) {
       /* A classe avisa ao CSS que esta linha tem uma coluna a mais.
          O .item-compendio e uma grade de tres faixas, compartilhada
          com a lista de magias - que nao tem retrato. Sem a marca, o
@@ -280,7 +284,9 @@ const Bestiario = {
       ])
     ]);
 
-    if (desenhoFicha) {
+    if (retratoSeguro(ficha.foto)) {
+      cabeca.insertBefore(criarRetrato('div.retrato-bicho', ficha.foto, ficha.nome), cabeca.firstChild);
+    } else if (desenhoFicha) {
       const retrato = criar('div.retrato-bicho');
       retrato.appendChild(Bicho.svg(desenhoFicha, 40));
       cabeca.insertBefore(retrato, cabeca.firstChild);
@@ -350,6 +356,10 @@ const Bestiario = {
        um "Esqueleto Guerreiro" é partir do Esqueleto. Editar e Apagar
        só existem para os seus — os do livro não mudam. */
     const acoes = [somar, irCombate, criarBotao('botao.fantasma.pequeno', 'duplicar', 'copiar', 'Duplicar')];
+
+    /* Foto: em qualquer monstro, do livro ou seu. */
+    acoes.push(criarBotao('botao.fantasma.pequeno', 'foto', 'imagem', ficha.foto ? 'Trocar foto' : 'Pôr foto'));
+    if (ficha.foto) acoes.push(criarBotao('botao.fantasma.pequeno', 'tirar-foto', 'remover', 'Tirar foto'));
     if (ficha.meu) {
       acoes.push(criarBotao('botao.fantasma.pequeno', 'editar', 'editar', 'Editar'));
       acoes.push(criarBotao('botao.perigo.pequeno', 'apagar', null, 'Apagar'));
@@ -652,6 +662,9 @@ const Bestiario = {
       atributos: atributos,
       tracos: blocos.tracos, acoes: blocos.acoes
     };
+    /* A foto não está no formulário: vem da ficha que está sendo
+       editada (ou duplicada) e é preservada. */
+    if (retratoSeguro(r.foto)) ficha.foto = r.foto;
     CAMPOS_TEXTO.forEach(function (campo) { ficha[campo[0]] = r[campo[0]] || ''; });
 
     return ficha;
@@ -762,6 +775,35 @@ const Bestiario = {
   },
 
 
+  /* A foto de um monstro. Do seu: vai na ficha dele. Do livro: vai
+     para Estado.fotosMonstros, porque o livro (regras.js) não muda. Se
+     o navegador recusar por falta de espaço, desfaz e avisa. */
+  mudarFoto: function (nome, dados) {
+    const ficha = acharMonstro(nome);
+    if (!ficha) return;
+
+    const antes = JSON.stringify({ meus: Estado.monstrosMeus, fotos: Estado.fotosMonstros || {} });
+
+    if (ficha.meu) {
+      const meu = Estado.monstrosMeus.find(function (m) { return m.id === ficha.id; });
+      if (dados) meu.foto = dados; else delete meu.foto;
+    } else {
+      Estado.fotosMonstros = Estado.fotosMonstros || {};
+      if (dados) Estado.fotosMonstros[nome] = dados; else delete Estado.fotosMonstros[nome];
+    }
+
+    if (!Memoria.salvar({ silencioso: true })) {
+      const volta = JSON.parse(antes);
+      Estado.monstrosMeus = volta.meus;
+      Estado.fotosMonstros = volta.fotos;
+      Layout.recado('Não coube no armazenamento do navegador. Tente uma imagem menor.', true);
+      return;
+    }
+    this.render();
+    Layout.recado(dados ? 'Foto de ' + nome + ' atualizada.' : 'Foto de ' + nome + ' removida.');
+  },
+
+
   somarAoCombate: function (nome) {
     const ficha = acharMonstro(nome);
     if (!ficha) return;
@@ -831,6 +873,10 @@ const Bestiario = {
 
       switch (alvo.dataset.acao) {
         case 'somar':       self.somarAoCombate(alvo.dataset.nome); break;
+        case 'foto':
+          Imagens.escolher('retrato', function (resultado) { self.mudarFoto(self.selecionado, resultado.dados); });
+          break;
+        case 'tirar-foto':  self.mudarFoto(self.selecionado, null); break;
         case 'duplicar':    self.duplicar(); break;
         case 'editar':      self.editar(); break;
         case 'apagar':      self.apagar(); break;

@@ -246,7 +246,8 @@ const Painel = {
     const cartao = criar('article.heroi');
     cartao.dataset.heroi = heroi.id;
 
-    const retrato = criar('div.retrato-heroi', heroi.nome.charAt(0));
+    /* A foto que o jogador pôs na ficha dele, ou a inicial. */
+    const retrato = criarRetrato('div.retrato-heroi', heroi.ficha && heroi.ficha.foto, heroi.nome);
     retrato.appendChild(criar('span.nivel', 'NV ' + heroi.nivel));
 
     cartao.appendChild(criar('div.heroi-topo', [
