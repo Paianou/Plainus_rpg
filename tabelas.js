@@ -346,24 +346,17 @@ const Rolador = {
     if (!tabela) return;
 
     const saidas = [];
+    const rolagens = [];
 
     for (let i = 0; i < (vezes || 1); i++) {
       const face = Layout.dado(tabela.dado);
       const texto = tabela.itens[face - 1] || '(esta tabela não tem resultado para ' + face + ')';
-
-      Estado.rolagensTabela.unshift({
-        tabela: tabela.id,
-        nome: tabela.nome,
-        face: face,
-        texto: texto
-      });
-
+      rolagens.push({ tabela: tabela.id, nome: tabela.nome, face: face, texto: texto });
       saidas.push(face + ': ' + texto);
     }
 
-    Estado.rolagensTabela = Estado.rolagensTabela.slice(0, 30);
-
-    Memoria.salvar();
+    /* Guardar no histórico é uma ação com nome (acoes.js). */
+    if (Acoes.executar('registrarRolagensTabela', { rolagens: rolagens }).erro) return;
     this.render();
 
     Layout.recado(saidas.length === 1
@@ -431,25 +424,16 @@ const Rolador = {
     if (!this.rascunho.categoria) this.rascunho.categoria = 'Minhas';
     this.rascunho.dado = this.dadoPara(this.rascunho.itens.length);
 
-    const existente = (Estado.tabelasMinhas || []).find(function (t) {
-      return t.id === self.rascunho.id;
-    });
-
-    if (existente) {
-      Object.keys(this.rascunho).forEach(function (chave) {
-        existente[chave] = self.rascunho[chave];
-      });
-      Layout.recado('"' + existente.nome + '" atualizada.');
-    } else {
-      Estado.tabelasMinhas.push(this.rascunho);
-      Layout.recado('"' + this.rascunho.nome + '" criada, rolando d' + this.rascunho.dado + '.');
-    }
+    /* A mudança em si é uma ação com nome (acoes.js). */
+    const r = Acoes.executar('salvarItem', { lista: 'tabelasMinhas', item: this.rascunho });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
+    Layout.recado(r.novo
+      ? '"' + this.rascunho.nome + '" criada, rolando d' + this.rascunho.dado + '.'
+      : '"' + this.rascunho.nome + '" atualizada.');
 
     this.selecionada = this.rascunho.id;
     this.modo = 'leitura';
     this.rascunho = null;
-
-    Memoria.salvar();
     this.render();
   },
 
@@ -467,28 +451,22 @@ const Rolador = {
 
     /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). */
     const self = this;
-    const minhas = Estado.tabelasMinhas || [];
-    const posicao = minhas.findIndex(function (t) { return t.id === tabela.id; });
-    const original = minhas[posicao];
-    Estado.tabelasMinhas = minhas.filter(function (t) { return t.id !== tabela.id; });
+    const r = Acoes.executar('apagarItem', { lista: 'tabelasMinhas', id: tabela.id });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
     this.selecionada = null;
-
-    Memoria.salvar();
     this.render();
+
     Layout.recadoDesfazer('"' + tabela.nome + '" apagada.', function () {
-      if (!Estado.tabelasMinhas) Estado.tabelasMinhas = [];
-      if (!Layout.devolver(Estado.tabelasMinhas, original, posicao)) return;
-      self.selecionada = original.id;
-      Memoria.salvar();
+      if (Acoes.executar('devolverItem', { lista: 'tabelasMinhas', item: r.item, posicao: r.posicao }).erro) return;
+      self.selecionada = r.item.id;
       self.render();
-      Layout.recado('"' + original.nome + '" de volta.');
+      Layout.recado('"' + r.item.nome + '" de volta.');
     });
   },
 
 
   limparHistorico: function () {
-    Estado.rolagensTabela = [];
-    Memoria.salvar();
+    Acoes.executar('limparRolagensTabela');
     this.render();
     Layout.recado('Histórico limpo.');
   },

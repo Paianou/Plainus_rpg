@@ -523,22 +523,16 @@ const Elenco = {
       return;
     }
 
-    const existente = this.acharNpc(this.rascunho.id);
-    if (existente) {
-      Object.keys(this.rascunho).forEach(function (chave) {
-        existente[chave] = self.rascunho[chave];
-      });
-      Layout.recado('"' + existente.nome + '" atualizado.');
-    } else {
-      Estado.npcs.push(this.rascunho);
-      Layout.recado('"' + this.rascunho.nome + '" entrou no elenco.');
-    }
+    /* A mudança em si é uma ação com nome (acoes.js). */
+    const r = Acoes.executar('salvarItem', { lista: 'npcs', item: this.rascunho });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
+    Layout.recado(r.novo
+      ? '"' + this.rascunho.nome + '" entrou no elenco.'
+      : '"' + this.rascunho.nome + '" atualizado.');
 
     this.selecionado = this.rascunho.id;
     this.modo = 'leitura';
     this.rascunho = null;
-
-    Memoria.salvar();
     this.render();
   },
 
@@ -551,16 +545,13 @@ const Elenco = {
 
 
   alternarStatus: function () {
-    const npc = this.acharNpc(this.selecionado);
-    if (!npc) return;
-
-    npc.status = npc.status === 'morto' ? 'vivo' : 'morto';
-    Memoria.salvar();
+    const r = Acoes.executar('alternarStatusNpc', { id: this.selecionado });
+    if (r.erro) return;
     this.render();
 
-    Layout.recado(npc.status === 'morto'
-      ? npc.nome + ' foi marcado como morto.'
-      : npc.nome + ' voltou para o elenco dos vivos.');
+    Layout.recado(r.status === 'morto'
+      ? r.nome + ' foi marcado como morto.'
+      : r.nome + ' voltou para o elenco dos vivos.');
   },
 
 
@@ -570,16 +561,14 @@ const Elenco = {
     const npc = this.acharNpc(this.selecionado);
     if (!npc) return;
 
-    const posicao = this.npcs().indexOf(npc);
-    Estado.npcs = this.npcs().filter(function (n) { return n.id !== npc.id; });
+    const r = Acoes.executar('apagarItem', { lista: 'npcs', id: npc.id });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
     this.selecionado = null;
-
-    Memoria.salvar();
     this.render();
+
     Layout.recadoDesfazer('"' + npc.nome + '" foi apagado.', function () {
-      if (!Layout.devolver(Estado.npcs, npc, posicao)) return;
+      if (Acoes.executar('devolverItem', { lista: 'npcs', item: r.item, posicao: r.posicao }).erro) return;
       self.selecionado = npc.id;
-      Memoria.salvar();
       self.render();
       Layout.recado('"' + npc.nome + '" está de volta.');
     });

@@ -575,23 +575,14 @@ const Diario = {
       return;
     }
 
-    const existente = Estado.diario.find(function (e) { return e.id === self.rascunho.id; });
-
-    if (existente) {
-      Object.keys(this.rascunho).forEach(function (chave) {
-        existente[chave] = self.rascunho[chave];
-      });
-      Layout.recado('Sessão ' + existente.sessao + ' atualizada.');
-    } else {
-      Estado.diario.push(this.rascunho);
-      Layout.recado('Sessão ' + this.rascunho.sessao + ' registrada.');
-    }
+    /* A mudança em si é uma ação com nome (acoes.js). */
+    const r = Acoes.executar('salvarItem', { lista: 'diario', item: this.rascunho });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
+    Layout.recado('Sessão ' + this.rascunho.sessao + (r.novo ? ' registrada.' : ' atualizada.'));
 
     this.selecionado = this.rascunho.id;
     this.modo = 'leitura';
     this.rascunho = null;
-
-    Memoria.salvar();
     this.render();
   },
 
@@ -609,41 +600,28 @@ const Diario = {
     if (!entrada) return;
 
     /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). */
-    const posicao = Estado.diario.indexOf(entrada);
-    Estado.diario = Estado.diario.filter(function (e) { return e.id !== entrada.id; });
+    const r = Acoes.executar('apagarItem', { lista: 'diario', id: entrada.id });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
     this.selecionado = null;
-
-    Memoria.salvar();
     this.render();
+
     Layout.recadoDesfazer('Sessão ' + entrada.sessao + ' apagada.', function () {
-      if (!Layout.devolver(Estado.diario, entrada, posicao)) return;
+      if (Acoes.executar('devolverItem', { lista: 'diario', item: r.item, posicao: r.posicao }).erro) return;
       self.selecionado = entrada.id;
-      Memoria.salvar();
       self.render();
       Layout.recado('Sessão ' + entrada.sessao + ' de volta.');
     });
   },
 
 
-  /* Revelar guarda em QUAL sessão foi revelado — meses depois, essa é
-     a informação que reconstrói a linha do tempo da campanha. */
+  /* A regra (guardar EM QUAL sessão foi revelado) mora na ação
+     alternarSegredo, no acoes.js. */
   alternarSegredo: function () {
-    const self = this;
-    const segredo = Estado.segredos.find(function (s) { return s.id === self.selecionado; });
-    if (!segredo) return;
-
-    segredo.revelado = !segredo.revelado;
-
-    if (segredo.revelado) {
-      const ultima = Estado.diario.slice().sort(function (a, b) { return b.sessao - a.sessao; })[0];
-      segredo.reveladoEm = ultima ? ultima.sessao : null;
-      Layout.recado('"' + segredo.titulo + '" agora é história conhecida.');
-    } else {
-      delete segredo.reveladoEm;
-      Layout.recado('"' + segredo.titulo + '" voltou a ser segredo.');
-    }
-
-    Memoria.salvar();
+    const r = Acoes.executar('alternarSegredo', { id: this.selecionado });
+    if (r.erro) return;
+    Layout.recado(r.revelado
+      ? '"' + r.titulo + '" agora é história conhecida.'
+      : '"' + r.titulo + '" voltou a ser segredo.');
     this.render();
   },
 
@@ -661,34 +639,29 @@ const Diario = {
 
     const textoPrazo = prazo.value.trim();
 
-    Estado.pendencias.push({
+    const r = Acoes.executar('salvarItem', { lista: 'pendencias', item: {
       id: 'p' + Date.now(),
       texto: texto,
       prazo: textoPrazo,
       resolvida: false,
       /* Ter prazo é o que torna uma pendência urgente. */
       urgente: textoPrazo !== ''
-    });
+    } });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
 
-    Memoria.salvar();
     this.render();
     Layout.recado('Pendência anotada.');
   },
 
 
   alternarPendencia: function (id) {
-    const pendencia = Estado.pendencias.find(function (p) { return p.id === id; });
-    if (!pendencia) return;
-
-    pendencia.resolvida = !pendencia.resolvida;
-    Memoria.salvar();
+    if (Acoes.executar('alternarPendencia', { id: id }).erro) return;
     this.render();
   },
 
 
   tirarPendencia: function (id) {
-    Estado.pendencias = Estado.pendencias.filter(function (p) { return p.id !== id; });
-    Memoria.salvar();
+    if (Acoes.executar('apagarItem', { lista: 'pendencias', id: id }).erro) return;
     this.render();
   },
 
