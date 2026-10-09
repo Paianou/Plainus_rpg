@@ -817,18 +817,19 @@ const Bestiario = {
     const ficha = acharMonstro(nome);
     if (!ficha) return;
 
-    const combatente = Mesa.somarAoCombate({
-      nome: Mesa.nomeLivre(ficha.nome),
-      tipo: 'inimigo',
+    /* Entrar no combate é uma ação com nome (acoes.js). */
+    const r = Acoes.executar('entrarNoCombate', { molde: {
+      nome: ficha.nome,
       ca: ficha.ca,
       pv: ficha.pv,
       /* A iniciativa de um monstro é o modificador de Destreza dele. */
       bonusIniciativa: modificador(ficha.atributos.des),
       nota: [ficha.tipo, 'ND ' + ficha.nd].filter(Boolean).join(' · ')
-    });
+    } });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
 
     this.render();
-    Layout.recado(combatente.nome + ' entrou na iniciativa com ' + combatente.iniciativa + '. Abra o combate para ver.');
+    Layout.recado(r.combatente.nome + ' entrou na iniciativa com ' + r.combatente.iniciativa + '. Abra o combate para ver.');
   },
 
 

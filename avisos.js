@@ -229,7 +229,7 @@ const Avisos = {
     }
 
     /* O que aconteceu por último no combate — o registro já existe
-       (Mesa.registrar, no dados.js); aqui só mostramos a ponta. */
+       (registrarNoCombate, no acoes.js); aqui só mostramos a ponta. */
     const registro = ((Estado.combate && Estado.combate.registro) || []).slice(0, 4);
     if (registro.length) {
       const recentes = criar('div.avisos-recentes', [criar('div.rotulo-menu', 'Últimos no combate')]);

@@ -11,7 +11,11 @@
 
    Uma regra que vale a pena entender: o PV de um herói mora na FICHA
    (Estado.herois), não no combate. O combatente que é herói guarda um
-   heroiId e as duas coisas são atualizadas juntas (ver sincronizar()).
+   heroiId e as duas coisas são atualizadas juntas (a ação
+   mudarPVCombatente, no acoes.js).
+
+   As MUDANÇAS em si são ações com nome (acoes.js): esta tela lê os
+   campos, pede a ação e mostra o resultado.
    Sem isso, você curaria alguém no combate e a visão geral continuaria
    mostrando o herói ferido — dois números para a mesma coisa é o tipo
    de bug que só aparece na hora errada.
@@ -325,158 +329,72 @@ const Combate = {
   },
 
 
-  /* ---------- Turnos ---------- */
+  /* ---------- Turnos ----------
+     Cada mudança é uma ação com nome (acoes.js): a tela lê os campos,
+     pede a ação e mostra o resultado. A regra mora lá. */
+
+  /* Pede a ação; se der certo, redesenha. Devolve o resultado (ou null). */
+  agir: function (nome, dados) {
+    const r = Acoes.executar(nome, dados);
+    if (r.erro) { Layout.recado(r.erro, true); return null; }
+    this.render();
+    return r;
+  },
 
   proximoTurno: function () {
-    const vez = this.indiceDaVez();
-    if (vez === -1) {
-      Layout.recado('Todos já agiram. Avance a rodada para recomeçar a ordem.');
-      return;
-    }
-
-    const atual = this.dados().combatentes[vez];
-    atual.agiu = true;
-
-    const proxima = this.indiceDaVez();
-    this.salvar();
-
-    if (proxima === -1) {
-      Layout.recado('Fim da rodada ' + this.dados().rodada + '. Avance para a próxima.');
-    } else {
-      Layout.recado('Agora é a vez de ' + this.dados().combatentes[proxima].nome + '.');
-    }
+    const r = this.agir('proximoTurno');
+    if (!r) return;
+    Layout.recado(r.proximo
+      ? 'Agora é a vez de ' + r.proximo + '.'
+      : 'Fim da rodada ' + r.rodada + '. Avance para a próxima.');
   },
-
 
   avancarRodada: function () {
-    const combate = this.dados();
-    combate.rodada += 1;
-    combate.combatentes.forEach(function (c) { c.agiu = false; });
-
-    this.registrar('Rodada ' + combate.rodada + ' começou.', 'turno');
-    this.salvar();
-
-    const primeiro = combate.combatentes[this.indiceDaVez()];
-    Layout.recado('Rodada ' + combate.rodada + (primeiro ? '. Começa ' + primeiro.nome + '.' : '.'));
+    const r = this.agir('avancarRodada');
+    if (r) Layout.recado('Rodada ' + r.rodada + (r.primeiro ? '. Começa ' + r.primeiro + '.' : '.'));
   },
-
 
   rolarIniciativa: function () {
-    const combate = this.dados();
-
-    combate.combatentes.forEach(function (c) {
-      /* O bônus do herói vem da ficha; o do monstro ficou salvo nele. */
-      let bonus = c.bonusIniciativa || 0;
-      if (c.heroiId) {
-        const heroi = Estado.herois.find(function (h) { return h.id === c.heroiId; });
-        if (heroi) bonus = heroi.bonusIniciativa || 0;
-      }
-      c.iniciativa = Layout.dado(20) + bonus;
-      c.agiu = false;
-    });
-
-    Mesa.ordenarIniciativa();
-    combate.rodada = 1;
-
-    this.registrar('Iniciativa rolada de novo. A ordem mudou.', 'turno');
-    this.salvar();
-    Layout.recado('Iniciativa rolada. A rodada voltou para 1.');
+    if (this.agir('rolarIniciativa')) Layout.recado('Iniciativa rolada. A rodada voltou para 1.');
   },
-
 
   encerrar: function () {
-    const combate = this.dados();
-    combate.ativo = false;
-    this.registrar('Combate encerrado.', 'turno');
-    this.salvar();
-    Layout.recado('Combate encerrado. A ordem fica salva caso você queira retomar.');
+    if (this.agir('encerrarCombate')) Layout.recado('Combate encerrado. A ordem fica salva caso você queira retomar.');
   },
 
-
   iniciarCombate: function () {
-    const combate = this.dados();
-    combate.ativo = true;
-    combate.rodada = 1;
-    combate.combatentes.forEach(function (c) { c.agiu = false; });
-    this.registrar('Combate iniciado.', 'turno');
-    this.salvar();
-    Layout.recado('Combate iniciado. Role a iniciativa se quiser uma ordem nova.');
+    if (this.agir('iniciarCombate')) Layout.recado('Combate iniciado. Role a iniciativa se quiser uma ordem nova.');
   },
 
 
   /* ---------- Vida ---------- */
 
   /* sinal: -1 para dano, +1 para cura. O valor vem do campo da linha
-     (ou 5, se estiver vazio). */
+     (ou 5, se estiver vazio). O PV de herói anda junto com a ficha —
+     a regra está na ação mudarPVCombatente. */
   aplicarPV: function (id, sinal) {
-    const combatente = this.achar(id);
-    if (!combatente) return;
-
     const campo = document.querySelector('[data-id="' + id + '"] [data-campo="valor"]');
     const digitado = campo ? parseInt(campo.value, 10) : NaN;
     const quanto = (isNaN(digitado) || digitado < 0) ? 5 : digitado;
 
-    const antes = combatente.pv;
-    combatente.pv = Math.max(0, Math.min(combatente.pvMax, combatente.pv + sinal * quanto));
+    const r = Acoes.executar('mudarPVCombatente', { id: id, delta: sinal * quanto });
+    if (r.erro || !r.mudou) return;
 
-    if (combatente.pv === antes) return;
-
-    this.sincronizar(combatente);
     if (campo) campo.value = '';
-
-    const verbo = sinal < 0 ? 'sofre' : 'recupera';
-    this.registrar(combatente.nome + ' ' + verbo + ' ' + Math.abs(combatente.pv - antes) + ' PV.', sinal < 0 ? 'dano' : 'cura');
-
-    if (combatente.pv === 0) {
-      const aviso = combatente.tipo === 'inimigo'
-        ? combatente.nome + ' foi abatido.'
-        : combatente.nome + ' caiu a 0 PV — testes de morte a partir do próximo turno.';
-      this.registrar(aviso, 'dano');
-      Layout.recado(aviso, true);
-    } else {
-      Layout.recado(combatente.nome + ': ' + antes + ' → ' + combatente.pv + ' PV.');
-    }
-
-    this.salvar();
-  },
-
-
-  /* O PV de herói mora na ficha. Aqui as duas cópias andam juntas. */
-  sincronizar: function (combatente) {
-    if (!combatente.heroiId) return;
-    const heroi = Estado.herois.find(function (h) { return h.id === combatente.heroiId; });
-    if (heroi) heroi.pv = combatente.pv;
+    this.render();
+    if (r.aviso) Layout.recado(r.aviso, true);
+    else Layout.recado(r.nome + ': ' + r.antes + ' → ' + r.depois + ' PV.');
   },
 
 
   /* ---------- Condições ---------- */
 
   porCondicao: function (id, condicao) {
-    const combatente = this.achar(id);
-    if (!combatente) return;
-
-    const posicao = combatente.condicoes.indexOf(condicao);
-    if (posicao === -1) {
-      combatente.condicoes.push(condicao);
-      this.registrar(combatente.nome + ' está ' + condicao.toLowerCase() + '.', 'magia');
-    } else {
-      combatente.condicoes.splice(posicao, 1);
-    }
-
-    this.salvar();
+    this.agir('alternarCondicao', { id: id, condicao: condicao });
   },
 
-
   tirarCondicao: function (id, condicao) {
-    const combatente = this.achar(id);
-    if (!combatente) return;
-
-    const posicao = combatente.condicoes.indexOf(condicao);
-    if (posicao === -1) return;
-
-    combatente.condicoes.splice(posicao, 1);
-    this.registrar(combatente.nome + ' não está mais ' + condicao.toLowerCase() + '.', 'cura');
-    this.salvar();
+    this.agir('tirarCondicao', { id: id, condicao: condicao });
   },
 
 
@@ -487,20 +405,16 @@ const Combate = {
     const ficha = acharMonstro(select.value);
     if (!ficha) return;
 
-    const combatente = Mesa.somarAoCombate({
-      nome: Mesa.nomeLivre(ficha.nome),
-      tipo: 'inimigo',
+    const r = this.agir('entrarNoCombate', { molde: {
+      nome: ficha.nome,
       ca: ficha.ca,
       pv: ficha.pv,
       /* A iniciativa de um monstro é o modificador de Destreza dele. */
       bonusIniciativa: modificador(ficha.atributos.des),
       nota: [ficha.tipo, 'ND ' + ficha.nd].filter(Boolean).join(' · ')
-    });
-
-    this.render();
-    Layout.recado(combatente.nome + ' entrou com iniciativa ' + combatente.iniciativa + '.');
+    } });
+    if (r) Layout.recado(r.combatente.nome + ' entrou com iniciativa ' + r.combatente.iniciativa + '.');
   },
-
 
   adicionarAvulso: function () {
     const campoNome = document.getElementById('nomeAvulso');
@@ -514,68 +428,31 @@ const Combate = {
       return;
     }
 
-    const pv = Math.max(1, parseInt(campoPV.value, 10) || 10);
-    const ca = Math.max(1, parseInt(campoCA.value, 10) || 12);
-
-    const combatente = Mesa.somarAoCombate({
-      nome: Mesa.nomeLivre(nome), tipo: 'inimigo',
-      ca: ca, pv: pv, bonusIniciativa: 0, nota: 'Avulso'
-    });
+    const r = this.agir('entrarNoCombate', { molde: {
+      nome: nome,
+      pv: Math.max(1, parseInt(campoPV.value, 10) || 10),
+      ca: Math.max(1, parseInt(campoCA.value, 10) || 12),
+      bonusIniciativa: 0,
+      nota: 'Avulso'
+    } });
+    if (!r) return;
 
     campoNome.value = '';
     campoPV.value = '';
     campoCA.value = '';
     campoNome.focus();
-
-    this.render();
-    Layout.recado(combatente.nome + ' entrou com iniciativa ' + combatente.iniciativa + '.');
+    Layout.recado(r.combatente.nome + ' entrou com iniciativa ' + r.combatente.iniciativa + '.');
   },
-
 
   /* Traz para o combate os heróis que ainda não estão nele. */
   adicionarParty: function () {
-    const combate = this.dados();
-    let entraram = 0;
-
-    Estado.herois.forEach(function (heroi) {
-      const jaEsta = combate.combatentes.some(function (c) { return c.heroiId === heroi.id; });
-      if (jaEsta) return;
-
-      Mesa.somarAoCombate({
-        heroiId: heroi.id,
-        nome: heroi.nome,
-        tipo: 'heroi',
-        ca: heroi.ca,
-        pv: heroi.pv,
-        pvMax: heroi.pvMax,
-        bonusIniciativa: heroi.bonusIniciativa || 0,
-        nota: heroi.classe
-      });
-
-      entraram += 1;
-    });
-
-    if (entraram === 0) {
-      Layout.recado('A party inteira já está no combate.');
-      return;
-    }
-
-    this.salvar();
-    Layout.recado(entraram + (entraram === 1 ? ' herói entrou' : ' heróis entraram') + ' na ordem.');
+    const r = this.agir('trazerParty');
+    if (r) Layout.recado(r.entraram + (r.entraram === 1 ? ' herói entrou' : ' heróis entraram') + ' na ordem.');
   },
 
-
   remover: function (id) {
-    const combate = this.dados();
-    const posicao = combate.combatentes.findIndex(function (c) { return c.id === id; });
-    if (posicao === -1) return;
-
-    const saiu = combate.combatentes[posicao];
-    combate.combatentes.splice(posicao, 1);
-
-    this.registrar(saiu.nome + ' saiu do combate.', 'saida');
-    this.salvar();
-    Layout.recado(saiu.nome + ' saiu da ordem.');
+    const r = this.agir('sairDoCombate', { id: id });
+    if (r) Layout.recado(r.nome + ' saiu da ordem.');
   },
 
 
@@ -586,17 +463,8 @@ const Combate = {
   },
 
 
-  registrar: function (texto, tipo) {
-    Mesa.registrar(texto, tipo);
-  },
-
-
-  /* Guarda e redesenha. Toda ação termina aqui — assim não existe
-     caminho que muda o Estado e esquece de mostrar. */
-  salvar: function () {
-    Memoria.salvar();
-    this.render();
-  }
+  /* (O registrar e o salvar de antes viraram parte das ações, no
+     acoes.js: cada ação já registra no log e o executar() já salva.) */
 };
 
 

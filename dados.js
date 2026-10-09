@@ -714,68 +714,7 @@ window.addEventListener('storage', function (evento) {
 
 
 /* ===================================================================
-   Mesa — operações sobre o Estado que mais de uma tela precisa.
-
-   Nasceu porque a tela de Combate e a do Bestiário fazem a MESMA
-   coisa ("põe esta criatura na ordem de iniciativa"), e duas cópias
-   da mesma regra é o começo de duas regras diferentes.
-
-   Repare que nada aqui sabe desenhar tela: só mexe no Estado e salva.
-   Quem chamou decide o que redesenhar.
+   (Aqui morava o objeto Mesa — as operações de combate que mais de uma
+   tela usa. Ele virou parte do acoes.js: entrarNoCombate e os
+   ajudantes de iniciativa, registro e nomes repetidos.)
    =================================================================== */
-
-const Mesa = {
-
-  /* molde: { nome, tipo, ca, pv, bonusIniciativa, nota, heroiId }
-     Devolve o combatente criado, já com a iniciativa rolada. */
-  somarAoCombate: function (molde) {
-    const combatente = {
-      id: 'c' + Date.now() + Math.floor(Math.random() * 1000),
-      heroiId: molde.heroiId || null,
-      nome: molde.nome,
-      tipo: molde.tipo || 'inimigo',
-      iniciativa: Math.floor(Math.random() * 20) + 1 + (molde.bonusIniciativa || 0),
-      bonusIniciativa: molde.bonusIniciativa || 0,
-      ca: molde.ca,
-      pv: molde.pv,
-      pvMax: molde.pvMax || molde.pv,
-      agiu: false,
-      condicoes: [],
-      nota: molde.nota || ''
-    };
-
-    Estado.combate.combatentes.push(combatente);
-    this.registrar(combatente.nome + ' entra no combate (iniciativa ' + combatente.iniciativa + ').', 'entrada');
-    this.ordenarIniciativa();
-    Memoria.salvar();
-
-    return combatente;
-  },
-
-
-  /* Maior iniciativa primeiro; empate desempata pelo nome, para a
-     ordem não ficar dançando a cada redesenho. */
-  ordenarIniciativa: function () {
-    Estado.combate.combatentes.sort(function (a, b) {
-      if (b.iniciativa !== a.iniciativa) return b.iniciativa - a.iniciativa;
-      return a.nome.localeCompare(b.nome);
-    });
-  },
-
-
-  registrar: function (texto, tipo) {
-    Estado.combate.registro.unshift({ texto: texto, tipo: tipo });
-    Estado.combate.registro = Estado.combate.registro.slice(0, 40);
-  },
-
-
-  /* Dois "Esqueleto" no mesmo combate precisam de nomes distintos,
-     senão o mestre não sabe qual está com 3 PV. */
-  nomeLivre: function (nome) {
-    const iguais = Estado.combate.combatentes.filter(function (c) {
-      return c.nome === nome || c.nome.indexOf(nome + ' ') === 0;
-    }).length;
-
-    return iguais === 0 ? nome : nome + ' ' + (iguais + 1);
-  }
-};
