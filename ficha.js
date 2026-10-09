@@ -287,6 +287,7 @@ const Ficha = {
     const extra = this.bonusDano(f, ataque);
     const soma = dados.reduce(function (a, b) { return a + b; }, 0);
     return {
+      dados: dados, faces: faces, extra: extra,     /* para a animação (dados3d.js) */
       total: Math.max(0, soma + extra),
       formula: quantos + 'd' + faces + ' (' + dados.join(', ') + ')'
         + (extra ? (extra > 0 ? ' + ' : ' − ') + Math.abs(extra) : '')

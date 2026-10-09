@@ -79,6 +79,7 @@
       <section class="campanhas-salvas" id="campanhasSalvas" hidden>
         <h2>Suas campanhas</h2>
         <div class="lista-campanhas" id="listaCampanhas"></div>
+        <p class="dica-backup">Baixe um backup de vez em quando: a campanha só existe neste navegador. O arquivo leva os segredos do Mestre — guarde para você.</p>
       </section>
 
 
@@ -183,6 +184,28 @@
       -->
       <p class="erro-entrada" id="erro" role="alert"></p>
 
+      <!-- O par do #erro para boas notícias ("campanha restaurada").
+           role="status" é o aviso educado: o leitor de tela lê quando
+           puder, sem interromper — o "alert" do erro interrompe. -->
+      <p class="aviso-entrada" id="aviso" role="status"></p>
+
+      <!-- ============ RESTAURAR UM BACKUP ============
+
+        Fica FORA da lista "Suas campanhas" de propósito: o caso mais
+        importante do backup é justamente quando a lista está vazia
+        (limpou o navegador, trocou de computador) — e a lista some
+        quando não há campanha.
+
+        O <input type="file"> é escondido porque o desenho dele não dá
+        para estilizar; o botão o "clica" pelo app.js e abre a janela
+        de escolher arquivo do sistema.
+      -->
+      <div class="restaurar-backup">
+        <span>Tem um backup de campanha guardado?</span>
+        <button class="botao-compacto neutro" type="button" id="btnRestaurar">Restaurar backup</button>
+        <input type="file" id="arquivoBackup" accept=".json,application/json" hidden>
+      </div>
+
     </div>
   </main>
 
@@ -193,6 +216,10 @@
     o app.js usa as funções dele (Campanhas, Sessao).
   -->
   <script src="campanhas.js"></script>
+  <!-- dados.js entra pelo molde estadoVazio(), que o backup.js usa para
+       conferir um arquivo restaurado. -->
+  <script src="dados.js"></script>
+  <script src="backup.js"></script>
   <script src="app.js"></script>
 
 </body>

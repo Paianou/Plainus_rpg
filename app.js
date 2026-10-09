@@ -70,6 +70,7 @@ const Entrada = {
 
   limparErro: function () {
     document.getElementById('erro').textContent = '';
+    document.getElementById('aviso').textContent = '';
     document.querySelectorAll('[aria-invalid]').forEach(function (campo) {
       campo.removeAttribute('aria-invalid');
     });
@@ -90,9 +91,17 @@ const Entrada = {
       const meta = [c.sistema, 'Sessão ' + c.sessao, c.mestre ? 'Mestre: ' + c.mestre : '']
         .filter(Boolean).join(' · ');
 
+      /* Quando foi o último backup — ou o lembrete de que nunca houve. */
+      const quando = Backup.quandoFoi(c.id);
+      const estadoBackup = el('span', 'campanha-backup' + (quando ? '' : ' nunca'),
+        quando ? 'Backup ' + quando : 'Sem backup');
+
+      const linhaMeta = el('div', 'campanha-meta', meta + ' · ');
+      linhaMeta.appendChild(estadoBackup);
+
       const info = el('div', 'campanha-info');
       info.appendChild(el('div', 'campanha-nome', c.nome));
-      info.appendChild(el('div', 'campanha-meta', meta));
+      info.appendChild(linhaMeta);
 
       /* data-id, e não onclick com o id dentro: ver problema 5 do
          CLAUDE.md. Um único listener lá embaixo lê o data-id. */
@@ -100,6 +109,13 @@ const Entrada = {
       continuar.type = 'button';
       continuar.dataset.acao = 'continuar';
       continuar.dataset.id = c.id;
+
+      const backup = el('button', 'botao-compacto neutro', 'Backup');
+      backup.type = 'button';
+      backup.dataset.acao = 'backup';
+      backup.dataset.id = c.id;
+      backup.title = 'Baixar um arquivo com a campanha inteira';
+      backup.setAttribute('aria-label', 'Baixar backup da campanha ' + c.nome);
 
       const esquecer = el('button', 'botao-compacto discreto', 'Esquecer');
       esquecer.type = 'button';
@@ -110,6 +126,7 @@ const Entrada = {
       const linha = el('div', 'campanha-salva');
       linha.appendChild(info);
       linha.appendChild(continuar);
+      linha.appendChild(backup);
       linha.appendChild(esquecer);
       lista.appendChild(linha);
     });
@@ -134,11 +151,44 @@ const Entrada = {
     if (!certeza) return;
 
     Campanhas.apagar(id);
+    Backup.esquecerData(id);
 
     const sessao = Sessao.ler();
     if (sessao && sessao.campanhaId === id) Sessao.limpar();
 
     this.desenharCampanhas();
+  },
+
+
+  /* ---------- Backup (backup.js) ---------- */
+
+  baixarBackup: function (id) {
+    this.limparErro();
+    if (!Backup.baixar(id)) {
+      this.mostrarErro('Não deu para ler essa campanha para o backup.');
+      return;
+    }
+    this.mostrarAviso('Backup baixado. Guarde o arquivo num lugar fora deste navegador — pendrive, nuvem, e-mail para você mesmo.');
+    this.desenharCampanhas();
+  },
+
+  restaurarBackup: function (arquivo) {
+    const self = this;
+    this.limparErro();
+    Backup.restaurar(arquivo).then(function (resultado) {
+      if (!resultado.ok) {
+        self.mostrarErro(resultado.erro);
+        return;
+      }
+      self.desenharCampanhas();
+      self.mostrarAviso(resultado.copia
+        ? 'Essa campanha já estava aqui, então o backup entrou como cópia: "' + resultado.nome + '". As duas estão na lista — esqueça a que não quiser.'
+        : 'Campanha "' + resultado.nome + '" restaurada. Ela está na lista acima.');
+    });
+  },
+
+  mostrarAviso: function (texto) {
+    document.getElementById('aviso').textContent = texto;
   },
 
 
@@ -286,6 +336,17 @@ const Entrada = {
       if (!alvo) return;
       if (alvo.dataset.acao === 'continuar') self.continuar(alvo.dataset.id);
       if (alvo.dataset.acao === 'esquecer') self.esquecer(alvo.dataset.id);
+      if (alvo.dataset.acao === 'backup') self.baixarBackup(alvo.dataset.id);
+    });
+
+    /* O botão abre a janela de escolher arquivo; o change traz o
+       arquivo escolhido. O value é zerado depois para que escolher o
+       MESMO arquivo de novo também dispare o change. */
+    const arquivo = document.getElementById('arquivoBackup');
+    document.getElementById('btnRestaurar').addEventListener('click', function () { arquivo.click(); });
+    arquivo.addEventListener('change', function () {
+      if (arquivo.files[0]) self.restaurarBackup(arquivo.files[0]);
+      arquivo.value = '';
     });
 
     /* O erro some assim que a pessoa começa a corrigir. */

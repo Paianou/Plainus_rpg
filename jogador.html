@@ -43,22 +43,32 @@
 <body>
 
   <!-- Nasce escondido: se o JS falhar ou a sessão não for de jogador, nada aparece. -->
-  <div class="app-jogador" id="app" hidden>
+  <!--
+    O MESMO esqueleto do painel do Mestre (.app-mesa > .corpo-mesa >
+    .codice + .area-trabalho), de propósito: as duas telas dividem as
+    medidas, as quebras de tela e a pele. Mudou o códice do Mestre,
+    o do jogador acompanha — não há uma cópia para esquecer.
+  -->
+  <div class="app-mesa app-jogador" id="app" hidden>
     <div class="faixa-aviso">Sem servidor ainda — o painel lê a campanha guardada neste navegador.</div>
     <header class="barra-topo" id="barraJogador"></header>
 
-    <!--
-      Três colunas: a navegação entre as abas (à esquerda, como o
-      códice do painel do Mestre), o conteúdo da aba e a coluna da
-      campanha, dos dados e da party. O jogador.js preenche as três.
-    -->
-    <main class="area-jogador">
-      <div class="colunas-jogador">
-        <nav class="nav-jogador" id="navJogador" aria-label="Seções do painel"></nav>
-        <section id="principal"></section>
-        <aside id="lateral"></aside>
-      </div>
-    </main>
+    <div class="corpo-mesa" id="corpoJogador">
+      <!-- A navegação entre as abas: o códice, colado à esquerda. -->
+      <nav class="codice nav-jogador" id="navJogador" aria-label="Seções do painel"></nav>
+
+      <main class="area-trabalho">
+        <!-- Onde você está: o nome da aba e para que ela serve (o lugar
+             que as abas Panorama/Grupo/Cena ocupam no Mestre). -->
+        <div class="cabeca-aba" id="cabecaAba"></div>
+
+        <!-- O conteúdo da aba e, à direita, campanha, dados e party. -->
+        <div class="colunas-jogador">
+          <section id="principal"></section>
+          <aside id="lateral"></aside>
+        </div>
+      </main>
+    </div>
   </div>
 
   <div class="recados" id="recados" role="status" aria-live="polite"></div>
@@ -86,6 +96,8 @@
   <script src="ficha.js"></script>
   <script src="visao.js"></script>         <!-- o que o jogador vê e pode fazer -->
   <script src="chat.js"></script>           <!-- o chat (aba Chat) -->
+  <script src="vendor/three.min.js"></script> <!-- o 3D dos dados (Three.js r158) -->
+  <script src="dados3d.js"></script>       <!-- a animação dos dados -->
   <script src="jogador-mesa.js"></script>  <!-- abas Mesa e Diário, rolador -->
   <script src="jogador-uso.js"></script>   <!-- ataques, magias, recursos, descansos -->
   <script src="jogador-inventario.js"></script> <!-- aba Inventário -->

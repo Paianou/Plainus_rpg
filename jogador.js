@@ -40,6 +40,11 @@ const Jogador = {
   visao: null,
   modo: 'ver',            /* 'ver' | 'editar' — sem personagem, é sempre 'criar' */
   aba: 'ficha',           /* ver ABAS abaixo — estado de VISTA, não vai para o Estado */
+  /* Pede a animação de entrada no próximo render. Só a TROCA de aba
+     (e a chegada à página) anima: o render também roda a cada rolagem,
+     a cada mudança vinda de outra aba do navegador — se animasse
+     sempre, a tela piscaria a cada dado. */
+  entrando: true,
   rascunho: null,         /* { nome, ficha } enquanto o formulário está aberto */
   dadoTocado: {},         /* o jogador escolheu o dado à mão? então não sugerimos mais */
 
@@ -100,10 +105,15 @@ const Jogador = {
     const area = document.getElementById('principal');
     area.textContent = '';
 
+    const entrando = this.entrando;
+    this.entrando = false;
+
     /* Criando ou editando a ficha, o formulário ocupa o espaço e a
-       navegação some: sair dele no meio perderia o que foi digitado. */
+       navegação some: sair dele no meio perderia o que foi digitado.
+       O cabeçalho some junto — o formulário tem o título dele. */
     const formulario = !this.visao.meuHeroi || this.modo === 'editar';
     this.mostrarNav(!formulario);
+    document.getElementById('cabecaAba').hidden = formulario;
 
     if (!this.visao.meuHeroi) {
       if (!this.rascunho) this.rascunho = this.rascunhoNovo();
@@ -121,6 +131,7 @@ const Jogador = {
     if (!abas.some(function (a) { return a[0] === this.aba; }, this)) this.aba = 'ficha';
 
     this.montarNav(abas);
+    this.montarCabeca(abas);
     const heroi = this.visao.meuHeroi;
     switch (this.aba) {
       case 'magias':     UsoFicha.montarAbaMagias(area, heroi); break;
@@ -132,6 +143,29 @@ const Jogador = {
       case 'regras':     RegrasJogador.montar(area); break;
       default:           this.montarFicha(area, heroi);
     }
+
+    if (entrando) this.animarEntrada();
+  },
+
+
+  /* A entrada da aba: o cabeçalho e os cartões sobem 8px e acendem, em
+     cascata (o CSS dá o atraso de cada um). A classe sai no fim, e não
+     fica para sempre: transform num ancestral quebra o position:sticky
+     dos filhos (o resumo da ficha) enquanto estiver aplicado.
+     Quem pediu "reduzir movimento" no sistema não vê nada disso (CSS). */
+  animarEntrada: function () {
+    ['principal', 'cabecaAba', 'navJogador'].forEach(function (id) {
+      const el = document.getElementById(id);
+      el.classList.remove('entrando');
+      void el.offsetWidth;   /* força o navegador a "esquecer" a animação anterior */
+      el.classList.add('entrando');
+    });
+    clearTimeout(this.fimEntrada);
+    this.fimEntrada = setTimeout(function () {
+      ['principal', 'cabecaAba', 'navJogador'].forEach(function (id) {
+        document.getElementById(id).classList.remove('entrando');
+      });
+    }, 700);
   },
 
 
@@ -139,15 +173,16 @@ const Jogador = {
      acende quando é a vez dele, para ele não precisar ficar olhando. */
   /* [id, ícone, texto]. A ordem é a do uso numa sessão: o que é do
      personagem primeiro, depois a mesa, depois a consulta. */
+  /* O quarto item é a linha do cabeçalho: para que serve a aba. */
   ABAS: [
-    ['ficha', 'escudo', 'Ficha'],
-    ['magias', 'magia', 'Magias'],
-    ['inventario', 'mochila', 'Inventário'],
-    ['mesa', 'mapa', 'Mesa'],
-    ['chat', 'chat', 'Chat'],
-    ['diario', 'diario', 'Diário'],
-    ['notas', 'nota', 'Anotações'],
-    ['regras', 'compendio', 'Regras']
+    ['ficha', 'escudo', 'Ficha', 'Atributos, perícias e ataques. Clique num valor para rolar.'],
+    ['magias', 'magia', 'Magias', 'Espaços, magias preparadas e concentração.'],
+    ['inventario', 'mochila', 'Inventário', 'Moedas, carga e o que vai na mochila.'],
+    ['mesa', 'mapa', 'Mesa', 'A cena que o Mestre mostra e a ordem do combate.'],
+    ['chat', 'chat', 'Chat', 'Conversa com a equipe e com o Mestre.'],
+    ['diario', 'diario', 'Diário', 'O que já aconteceu na campanha.'],
+    ['notas', 'nota', 'Anotações', 'O que você quer lembrar da campanha.'],
+    ['regras', 'compendio', 'Regras', 'Consulta rápida das regras do jogo.']
   ],
 
   abasVisiveis: function () {
@@ -162,7 +197,32 @@ const Jogador = {
      espremida na coluna estreita que era dela. */
   mostrarNav: function (mostrar) {
     document.getElementById('navJogador').hidden = !mostrar;
+    document.getElementById('corpoJogador').classList.toggle('sem-nav', !mostrar);
     document.querySelector('.colunas-jogador').classList.toggle('sem-nav', !mostrar);
+  },
+
+  /* O cabeçalho da área: o nome da aba aberta, para que ela serve e,
+     à direita, as pílulas — o mesmo lugar e o mesmo desenho da fileira
+     de abas do painel do Mestre, para os dois se alinharem. */
+  montarCabeca: function (lista) {
+    const self = this;
+    const cabeca = document.getElementById('cabecaAba');
+    const aba = lista.find(function (a) { return a[0] === self.aba; }) || lista[0];
+    const meu = this.visao.meuHeroi;
+    const combate = this.visao.combate;
+
+    cabeca.textContent = '';
+    cabeca.appendChild(criar('div.cabeca-aba-icone', Icone.svg(aba[1], 18)));
+    cabeca.appendChild(criar('div.cabeca-aba-texto', [
+      criar('h1', aba[2]),
+      criar('p', aba[3])
+    ]));
+
+    const pilulas = criar('div.cabeca-aba-pilulas');
+    if (combate && combate.ativo) pilulas.appendChild(criar('span.pilula.perigo', 'Em combate'));
+    pilulas.appendChild(criar('span.pilula', 'Sessão ' + this.visao.campanha.sessao));
+    pilulas.appendChild(criar('span.pilula.azul', 'Nível ' + (meu.nivel || 1)));
+    cabeca.appendChild(pilulas);
   },
 
   montarNav: function (lista) {
@@ -975,6 +1035,7 @@ const Jogador = {
         /* A aba é estado de vista: troca e redesenha, sem gravar nada.
            O foco volta para a aba, como na Visão Geral do Mestre. */
         case 'aba': {
+          if (self.aba !== alvo.dataset.aba) self.entrando = true;
           self.aba = alvo.dataset.aba;
           self.render();
           const ativa = document.querySelector('.nav-jogador .codice-link.ativo');
@@ -996,6 +1057,13 @@ const Jogador = {
 
         case 'modo-rolagem':
           RoladorJogador.modo = alvo.dataset.modo;
+          self.render();
+          break;
+
+        /* Liga ou desliga a animação dos dados (dados3d.js). É escolha
+           de quem olha, guardada neste navegador — não da campanha. */
+        case 'alternar-animacao':
+          Layout.recado(Dados3D.alternar() ? 'Animação dos dados ligada.' : 'Animação dos dados desligada.');
           self.render();
           break;
 
@@ -1125,6 +1193,14 @@ const Jogador = {
       if (id === 'f-dadoVida' || id === 'f-dadoVida2') self.dadoTocado[id.slice(2)] = true;
       self.lerFormulario();
       self.atualizarCalculos();
+    });
+
+    /* A CD do cartão de dados mora na coluna lateral, fora do
+       #principal: tem o próprio ouvinte. */
+    document.getElementById('lateral').addEventListener('input', function (evento) {
+      if (evento.target.id !== 'cdTeste') return;
+      const valor = parseInt(evento.target.value, 10);
+      RoladorJogador.cd = valor >= 1 && valor <= 40 ? valor : null;
     });
 
     /* Enter num campo de texto não deve "enviar" a página. */

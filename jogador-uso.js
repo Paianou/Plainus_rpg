@@ -339,13 +339,15 @@ const UsoFicha = {
        botão de dano já nasce marcado como crítico. */
     this.criticoDe = rolagem.dado === 20 ? indice : null;
 
-    RoladorJogador.registrar({
-      texto: 'Ataque — ' + ataque.nome,
-      formula: rolagem.formula + ' ' + (bonus < 0 ? '− ' + Math.abs(bonus) : '+ ' + bonus),
-      total: rolagem.dado + bonus,
-      marca: rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null)
-    });
-    if (rolagem.dado === 20) Layout.recado('Crítico! O próximo dano de ' + ataque.nome + ' rola os dados em dobro.');
+    const texto = 'Ataque — ' + ataque.nome;
+    const formula = rolagem.formula + ' ' + (bonus < 0 ? '− ' + Math.abs(bonus) : '+ ' + bonus);
+    const marca = rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null);
+    RoladorJogador.registrar(
+      { texto: texto, formula: formula, total: rolagem.dado + bonus, marca: marca },
+      Object.assign(RoladorJogador.cenaTeste(texto, rolagem, bonus, formula, marca), { ataque: true })
+    );
+    /* Com a animação ligada, o "20 natural" já aparece nela. */
+    if (rolagem.dado === 20 && !Dados3D.ativa()) Layout.recado('Crítico! O próximo dano de ' + ataque.nome + ' rola os dados em dobro.');
   },
 
 
@@ -363,12 +365,12 @@ const UsoFicha = {
       return;
     }
 
-    RoladorJogador.registrar({
-      texto: 'Dano — ' + ataque.nome + (ataque.tipo ? ' (' + ataque.tipo + ')' : ''),
-      formula: resultado.formula,
-      total: resultado.total,
-      marca: critico ? 'critico' : null
-    });
+    const texto = 'Dano — ' + ataque.nome + (ataque.tipo ? ' (' + ataque.tipo + ')' : '');
+    RoladorJogador.registrar(
+      { texto: texto, formula: resultado.formula, total: resultado.total, marca: critico ? 'critico' : null },
+      { modo: 'dano', faces: resultado.faces, valores: resultado.dados, texto: texto,
+        total: resultado.total, formula: resultado.formula, marca: critico ? 'critico' : null }
+    );
   },
 
 

@@ -204,6 +204,7 @@ const MesaJogador = {
 const RoladorJogador = {
 
   modo: 'normal',       /* 'vantagem' | 'normal' | 'desvantagem' */
+  cd: null,             /* a CD (ou CA do alvo) digitada no cartão — estado de vista */
 
 
   montar: function (area, visao) {
@@ -232,6 +233,27 @@ const RoladorJogador = {
       grade.appendChild(botao);
     });
     cartao.appendChild(grade);
+
+    /* A CD do teste (ou a CA do alvo, num ataque), quando o Mestre diz
+       em voz alta: com ela, a animação mostra SUCESSO ou FALHA. Vale
+       para as próximas rolagens até ser apagada. */
+    const cd = document.createElement('input');
+    cd.type = 'number';
+    cd.id = 'cdTeste';
+    cd.min = 1;
+    cd.max = 40;
+    cd.placeholder = '—';
+    if (this.cd) cd.value = this.cd;
+    cd.setAttribute('aria-label', 'CD do teste ou CA do alvo');
+
+    const animacao = criarBotao('mini-botao' + (Dados3D.ativa() ? '.ligado' : ''), 'alternar-animacao', 'dados',
+      Dados3D.ativa() ? 'Animação ligada' : 'Animação desligada');
+    animacao.setAttribute('aria-pressed', Dados3D.ativa() ? 'true' : 'false');
+
+    cartao.appendChild(criar('div.opcoes-rolagem', [
+      criar('label.campo-cd', [criar('span', 'CD / CA'), cd]),
+      animacao
+    ]));
     cartao.appendChild(criar('p.dica', 'Na ficha, clique numa perícia, atributo ou salvaguarda para rolar o teste.'));
 
     /* O registro da mesa: as rolagens de todos. */
@@ -255,55 +277,75 @@ const RoladorJogador = {
 
   /* Um d20, levando em conta o modo. Devolve o dado que valeu e a
      fórmula para mostrar: "d20 (17, 4) vantagem". */
+  /* valores e escolhido vão para a animação: com vantagem, os DOIS
+     dados aparecem, e o que não valeu se apaga. */
   d20: function () {
     if (this.modo === 'normal') {
       const d = Layout.dado(20);
-      return { dado: d, formula: 'd20 (' + d + ')' };
+      return { dado: d, valores: [d], escolhido: 0, formula: 'd20 (' + d + ')' };
     }
     const a = Layout.dado(20);
     const b = Layout.dado(20);
     const dado = this.modo === 'vantagem' ? Math.max(a, b) : Math.min(a, b);
-    return { dado: dado, formula: 'd20 (' + a + ', ' + b + ') ' + this.modo };
+    return { dado: dado, valores: [a, b], escolhido: dado === a ? 0 : 1, formula: 'd20 (' + a + ', ' + b + ') ' + this.modo };
+  },
+
+  /* A cena da animação de um teste de d20 (dados3d.js). */
+  cenaTeste: function (texto, rolagem, bonus, formula, marca) {
+    return {
+      modo: 'teste', faces: 20, texto: texto,
+      valores: rolagem.valores, escolhido: rolagem.escolhido,
+      bonus: bonus, total: rolagem.dado + bonus, cd: this.cd,
+      formula: formula, marca: marca
+    };
   },
 
 
   rolarTeste: function (texto, bonus) {
     const rolagem = this.d20();
-    const total = rolagem.dado + bonus;
-    this.registrar({
-      texto: texto,
-      formula: rolagem.formula + ' ' + (bonus < 0 ? '− ' + Math.abs(bonus) : '+ ' + bonus),
-      total: total,
-      marca: rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null)
-    });
+    const formula = rolagem.formula + ' ' + (bonus < 0 ? '− ' + Math.abs(bonus) : '+ ' + bonus);
+    const marca = rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null);
+    this.registrar(
+      { texto: texto, formula: formula, total: rolagem.dado + bonus, marca: marca },
+      this.cenaTeste(texto, rolagem, bonus, formula, marca)
+    );
   },
 
 
   rolarDado: function (faces) {
     if (faces === 20) {
       const rolagem = this.d20();
-      this.registrar({
-        texto: 'd20', formula: rolagem.formula, total: rolagem.dado,
-        marca: rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null)
-      });
+      const marca = rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null);
+      this.registrar(
+        { texto: 'd20', formula: rolagem.formula, total: rolagem.dado, marca: marca },
+        this.cenaTeste('d20', rolagem, 0, rolagem.formula, marca)
+      );
       return;
     }
     const valor = Layout.dado(faces);
     const rotulo = faces === 100 ? 'd%' : 'd' + faces;
-    this.registrar({ texto: rotulo, formula: rotulo, total: valor, marca: null });
+    this.registrar(
+      { texto: rotulo, formula: rotulo, total: valor, marca: null },
+      { modo: 'dano', faces: faces, valores: [valor], texto: rotulo, total: valor, formula: rotulo, marca: null }
+    );
   },
 
 
-  /* Manda para o registro da mesa e mostra o resultado na hora. */
-  registrar: function (rolagem) {
+  /* Manda para o registro da mesa e mostra o resultado: com a
+     animação (dados3d.js), ou com o recado, se ela estiver desligada.
+     A ordem importa: o resultado é GRAVADO antes de ser mostrado — a
+     animação só encena o que já está decidido. */
+  registrar: function (rolagem, cena) {
     const problema = enviarRolagem(Jogador.sessao, rolagem);
     if (problema) {
       Layout.recado(problema, true);
       return;
     }
 
+    Jogador.render();
+    if (cena && Dados3D.mostrar(cena)) return;
+
     const destaque = rolagem.marca === 'critico' ? ' — 20 natural!' : (rolagem.marca === 'falha' ? ' — 1 natural.' : '');
     Layout.recado(rolagem.texto + ': ' + rolagem.total + '  (' + rolagem.formula + ')' + destaque, rolagem.marca === 'falha');
-    Jogador.render();
   }
 };

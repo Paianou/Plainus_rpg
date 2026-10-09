@@ -522,8 +522,12 @@ const Painel = {
     cartao.appendChild(this.montarResultado());
 
     const secreta = criarBotao('botao.fantasma.pequeno', 'rolagem-secreta', 'secreto', 'Percepção secreta (só você vê)');
-    secreta.style.marginTop = '12px';
-    cartao.appendChild(secreta);
+    const animacao = criarBotao('mini-botao' + (Dados3D.ativa() ? '.ligado' : ''), 'alternar-animacao', 'dados',
+      Dados3D.ativa() ? 'Animação ligada' : 'Animação desligada');
+    animacao.setAttribute('aria-pressed', Dados3D.ativa() ? 'true' : 'false');
+    const linha = criar('div.linha-botoes', [secreta, animacao]);
+    linha.style.marginTop = '12px';
+    cartao.appendChild(linha);
 
     return cartao;
   },
@@ -813,14 +817,21 @@ const Painel = {
 
       case 'rolagem-secreta': {
         const valor = Layout.dado(20);
-        this.registrarRolagem({
-          texto: 'Percepção secreta (DM)',
-          formula: 'd20 — só você vê',
-          total: valor,
-          marca: valor === 20 ? 'critico' : (valor === 1 ? 'falha' : null)
-        });
+        const marca = valor === 20 ? 'critico' : (valor === 1 ? 'falha' : null);
+        this.registrarRolagem(
+          { texto: 'Percepção secreta (DM)', formula: 'd20 — só você vê', total: valor, marca: marca },
+          { modo: 'teste', faces: 20, valores: [valor], escolhido: 0, bonus: 0, total: valor,
+            texto: 'Percepção secreta', formula: 'd20 — só você vê', marca: marca }
+        );
         break;
       }
+
+      /* Liga ou desliga a animação dos dados (dados3d.js) — escolha de
+         quem olha, guardada neste navegador. */
+      case 'alternar-animacao':
+        Layout.recado(Dados3D.alternar() ? 'Animação dos dados ligada.' : 'Animação dos dados desligada.');
+        this.render();
+        break;
 
       case 'gerar-npc':
         Estado.npc = {
@@ -866,31 +877,41 @@ const Painel = {
     let total;
     let formula;
 
+    let valores;
+
     /* Vantagem e desvantagem só fazem sentido no d20. */
     if (faces === 20 && this.modoRolagem !== 'normal') {
       const a = Layout.dado(20);
       const b = Layout.dado(20);
       total = this.modoRolagem === 'vantagem' ? Math.max(a, b) : Math.min(a, b);
       formula = rotulo + ' (' + a + ', ' + b + ') — ' + this.modoRolagem;
+      valores = [a, b];
     } else {
       total = Layout.dado(faces);
       formula = rotulo;
+      valores = [total];
     }
 
-    this.registrarRolagem({
-      texto: 'Rolagem livre — ' + rotulo,
-      formula: formula,
-      total: total,
-      marca: faces === 20 && total === 20 ? 'critico' : (faces === 20 && total === 1 ? 'falha' : null)
-    });
+    const marca = faces === 20 && total === 20 ? 'critico' : (faces === 20 && total === 1 ? 'falha' : null);
+    const texto = 'Rolagem livre — ' + rotulo;
+    this.registrarRolagem(
+      { texto: texto, formula: formula, total: total, marca: marca },
+      /* O d20 cai em 3D; os outros, na bandeja rápida (dados3d.js). */
+      faces === 20
+        ? { modo: 'teste', faces: 20, valores: valores, escolhido: valores.indexOf(total), bonus: 0, total: total, texto: texto, formula: formula, marca: marca }
+        : { modo: 'dano', faces: faces, valores: valores, total: total, texto: texto, formula: formula, marca: null }
+    );
   },
 
 
-  registrarRolagem: function (rolagem) {
+  /* Grava e mostra: com a animação (dados3d.js) ou, desligada, com o
+     recado de sempre. O resultado é gravado ANTES de ser mostrado. */
+  registrarRolagem: function (rolagem, cena) {
     Estado.rolagens.unshift(rolagem);
     Estado.rolagens = Estado.rolagens.slice(0, 8);
     Memoria.salvar();
     this.render();
+    if (cena && Dados3D.mostrar(cena)) return;
 
     const extra = rolagem.marca === 'critico' ? ' — crítico!'
                 : rolagem.marca === 'falha' ? ' — falha crítica.' : '';

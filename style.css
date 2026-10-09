@@ -2712,9 +2712,12 @@ legend { padding: 0; }
   cursor: pointer;
   transition: var(--transicao);
 }
+/* Inter, e não Marcellus: na Marcellus o "d10" vira "dIO" (o 1 parece
+   I e o 0 parece O). */
 .dado .face {
-  font-family: 'Marcellus', serif;
-  font-size: 16px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
   color: var(--texto);
   line-height: 1.2;
 }
@@ -3471,6 +3474,52 @@ legend { padding: 0; }
   background: rgba(194, 65, 63, .08);
 }
 
+/* Ação neutra (Backup): nem o azul do "Continuar", que é o caminho
+   principal, nem o vermelho do "Esquecer" ao passar o mouse. */
+.botao-compacto.neutro {
+  color: var(--texto-2);
+  background: rgba(255, 255, 255, .03);
+  border-color: var(--hairline-forte);
+}
+.botao-compacto.neutro:hover { color: var(--texto); background: rgba(255, 255, 255, .07); }
+
+/* "Backup há 3 dias" na linha da campanha; "Sem backup" acende um
+   pouco — é um lembrete, não um alarme. */
+.campanha-backup { color: var(--texto-3); }
+.campanha-backup.nunca { color: var(--gelo); font-weight: 600; }
+.dica-backup { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: var(--texto-3); }
+
+.restaurar-backup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 44px 28px;
+  padding-top: 18px;
+  font-size: 13px;
+  color: var(--texto-3);
+  border-top: 1px solid var(--hairline);
+}
+
+/* O par do .erro-entrada para boa notícia: a mesma faixa, em azul. */
+.aviso-entrada {
+  margin: 0 44px 20px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--gelo);
+  background: var(--azul-fundo);
+  border-left: 2px solid var(--azul);
+  border-radius: 0 var(--r-p) var(--r-p) 0;
+}
+.aviso-entrada:empty { display: none; margin: 0; padding: 0; }
+
+@media (max-width: 720px) {
+  .restaurar-backup,
+  .aviso-entrada { margin-left: 26px; margin-right: 26px; }
+}
+
 
 /* ----- A criação em etapas (criar-campanha.html) ----- */
 .criar-caixa { max-width: 620px; }
@@ -3773,28 +3822,27 @@ legend { padding: 0; }
 
 
 /* ---------- 29. PAINEL DO JOGADOR (jogador.html) ----------
-   A mesma pele do painel do Mestre — barra do topo, .cartao, hairlines.
-   Três colunas: a navegação entre as abas à esquerda (o mesmo
-   .codice-link do Mestre), a aba aberta no meio, e a campanha + os
-   dados + a party à direita.
+   O MESMO esqueleto do painel do Mestre: .app-mesa > .corpo-mesa >
+   .codice (a navegação, colada à esquerda) + .area-trabalho. Aqui só
+   fica o que é do jogador: as duas colunas de dentro da área, o
+   cabeçalho da aba e a animação de entrada.
 
-     larga (> 1180px)   nav | aba | lateral
-     média              nav | aba     (a lateral desce para baixo da aba)
-     celular (≤ 720px)  a nav vira uma fileira que rola de lado, no topo
+     larga (> 1180px)   códice | aba | lateral
+     média              códice | aba  (a lateral desce para baixo da aba)
+     ≤ 1100px           o códice vira faixa no topo, como no Mestre
+     celular (≤ 720px)  a faixa vira uma fileira que rola de lado
 
-   Com o formulário da ficha aberto, a nav some (.sem-nav) e sobram
-   duas colunas. */
-
-.app-jogador { min-height: 100vh; min-height: 100dvh; }
-.area-jogador { max-width: 1480px; margin: 0 auto; padding: 18px 18px 48px; }
+   Com o formulário da ficha aberto, o códice some (.sem-nav) e o
+   formulário ganha a largura toda. */
 
 .colunas-jogador {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 18px;
   align-items: start;
 }
 .colunas-jogador.sem-nav { grid-template-columns: minmax(0, 1fr) 320px; }
+.corpo-mesa.sem-nav { grid-template-columns: minmax(0, 1fr); }
 
 /* No painel do Mestre, abaixo de 1100px, o espaçador da barra some
    porque a faixa de áudio ocupa o lugar dele. A barra do jogador não
@@ -3804,20 +3852,23 @@ legend { padding: 0; }
 /* E o perfil, que lá ganha margin-left:auto, aqui não precisa: dois
    "auto" dividiriam o espaço e o Sair pararia no meio da barra. */
 .app-jogador .barra-topo .perfil { margin-left: 0; }
+/* A barra do Mestre tem 62px (os botões dele são mais altos). A do
+   jogador fica igual: as duas telas alinham, e o códice preso logo
+   abaixo (top: 62px) não deixa uma fresta ao rolar. */
+.app-jogador .barra-topo { min-height: 62px; }
 .colunas-jogador > aside { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 76px; }
 
-/* A navegação: um cartão alto e fixo enquanto a página rola. */
+/* O códice do jogador fica preso sob a barra do topo enquanto a ficha
+   rola (a ficha é longa; a do Mestre não precisa). A altura de uma
+   tela inteira mantém a coluna escura até embaixo, como a do Mestre. */
 .nav-jogador {
   position: sticky;
-  top: 76px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 10px;
-  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-m);
-  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+  top: 62px;
+  align-self: start;
+  height: calc(100vh - 62px);
+  height: calc(100dvh - 62px);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 .nav-jogador .codice-link .pilula { margin-left: auto; }
 .nav-personagem {
@@ -3968,36 +4019,39 @@ legend { padding: 0; }
 .pericia-form .atrib { font-size: 10px; color: var(--texto-3); }
 .pericia-form .calc { min-width: 30px; text-align: right; font-family: 'Marcellus', Georgia, serif; color: var(--texto); }
 
-/* Média: a coluna da direita desce para baixo da aba, ao lado da nav. */
+/* Média: a coluna da direita desce para baixo da aba. */
 @media (max-width: 1180px) {
-  .colunas-jogador { grid-template-columns: 190px minmax(0, 1fr); }
-  .colunas-jogador > aside { grid-column: 2; position: static; }
+  .colunas-jogador,
   .colunas-jogador.sem-nav { grid-template-columns: minmax(0, 1fr); }
-  .colunas-jogador.sem-nav > aside { grid-column: 1; }
+  .colunas-jogador > aside { position: static; }
 }
-/* Celular: uma coluna só. A nav vira uma fileira de botões presa sob
-   a barra do topo, que rola de lado — sete abas não cabem lado a lado
-   em 390px, e empilhadas empurrariam a ficha para longe. */
+/* ≤ 1100px: o códice do Mestre vira uma faixa no topo (seção 25); o do
+   jogador vai junto, então desfaz a coluna presa de altura fixa. O
+   personagem sai da faixa — a ficha já mostra quem ele é. */
+@media (max-width: 1100px) {
+  .nav-jogador { position: static; height: auto; overflow: visible; }
+  .nav-jogador .nav-personagem { display: none; }
+}
+/* Celular: a faixa vira uma fileira presa sob a barra do topo, que rola
+   de lado — oito abas não cabem lado a lado em 390px, e quebradas em
+   três linhas empurrariam a ficha para longe. */
 @media (max-width: 720px) {
-  .colunas-jogador { grid-template-columns: minmax(0, 1fr); }
-  .colunas-jogador > aside { grid-column: 1; }
   .nav-jogador {
+    position: sticky;
     top: 56px;
     z-index: 6;
-    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 4px;
-    padding: 6px;
+    padding: 8px 14px;
     overflow-x: auto;
     scrollbar-width: none;
   }
   .nav-jogador::-webkit-scrollbar { display: none; }
-  .nav-jogador .nav-personagem,
   .nav-jogador .codice-titulo { display: none; }
   .nav-jogador .codice-link { flex-shrink: 0; padding: 8px 11px; white-space: nowrap; }
   .nav-jogador .codice-link .pilula { margin-left: 4px; }
 }
 @media (max-width: 720px) {
-  .area-jogador { padding: 14px 14px 40px; }
   .faixa-ficha, .atributos-ficha { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* O resumo acompanha a rolagem (sticky): no celular ele tem de ser
      uma linha só, senão cobre metade do que se está digitando. */
@@ -4030,6 +4084,10 @@ legend { padding: 0; }
   .passos { gap: 6px; }
   .passos li { font-size: 9px; letter-spacing: .02em; }
   .campanha-salva { flex-wrap: wrap; }
+  /* No celular, o nome em cima e os três botões dividindo a linha de
+     baixo — sem isso o "Esquecer" caía sozinho numa terceira linha. */
+  .campanha-salva .campanha-info { flex-basis: 100%; }
+  .campanha-salva .botao-compacto { flex: 1; padding-left: 8px; padding-right: 8px; }
   .campanha-info { flex-basis: 100%; }
 }
 
@@ -4147,7 +4205,7 @@ button.pericia { font-size: 13px; }
 
 /* --- O rolador --- */
 .grade-dados-jogador { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.grade-dados-jogador .dado { font-family: 'Marcellus', Georgia, serif; font-size: 15px; color: var(--texto); }
+.grade-dados-jogador .dado { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-size: 14px; color: var(--texto); }
 .rolador-jogador .titulo-grupo { margin: 14px 0 8px; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
 .rolador-jogador .dica { margin: 10px 0 0; }
 
@@ -4584,4 +4642,280 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 @media (max-width: 720px) {
   .chat-lista { height: 340px; }
   .mensagem { max-width: 92%; }
+}
+
+
+
+/* ---------- 34. OS DADOS QUE ROLAM (dados3d.js) ----------
+   O palco escurece a página e o d20 cai no meio; o resultado aparece
+   quando ele pousa. Os números do resultado em Inter, e não Marcellus,
+   pelo mesmo motivo dos botões: 1 e 0 legíveis. */
+
+.palco-dados {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  background: radial-gradient(ellipse at 50% 45%, rgba(20, 28, 48, .55), rgba(4, 5, 7, .82) 70%);
+  backdrop-filter: blur(2px);
+  animation: palco-entra 180ms ease-out both;
+}
+.palco-dados.saindo { animation: palco-sai 220ms ease-in both; }
+@keyframes palco-entra { from { opacity: 0; } to { opacity: 1; } }
+@keyframes palco-sai { to { opacity: 0; } }
+
+.palco-3d canvas { display: block; }
+
+.resultado-dados {
+  min-height: 150px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(8px) scale(.96);
+  transition: opacity 260ms ease-out, transform 260ms cubic-bezier(.16, 1, .3, 1);
+  pointer-events: none;
+}
+.palco-dados.pousou .resultado-dados { opacity: 1; transform: none; }
+
+.texto-rolagem {
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 1.25rem;
+  letter-spacing: .04em;
+  color: var(--texto-2);
+}
+.total-rolagem {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'tnum' 1;
+  font-size: 4.2rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--texto);
+  text-shadow: 0 0 28px rgba(77, 141, 255, .55);
+}
+.total-rolagem.critico { color: #fff; text-shadow: 0 0 22px #4d8dff, 0 0 60px rgba(77, 141, 255, .9); }
+.total-rolagem.falha { color: #f2b8b4; text-shadow: 0 0 26px rgba(194, 65, 63, .8); }
+.formula-rolagem { font-size: 13px; color: var(--texto-3); font-feature-settings: 'tnum' 1; }
+
+.veredito {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  border-radius: 999px;
+}
+.veredito.sucesso { color: var(--gelo); background: rgba(77, 141, 255, .16); border: 1px solid rgba(77, 141, 255, .5); }
+.veredito.fracasso { color: #f2b8b4; background: rgba(194, 65, 63, .14); border: 1px solid rgba(194, 65, 63, .5); }
+
+/* 20 natural: uma explosão de luz azul atrás do dado. */
+.palco-dados.critico::before {
+  content: '';
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  width: 60vmin;
+  height: 60vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(140, 180, 255, .55), rgba(77, 141, 255, .18) 40%, transparent 70%);
+  transform: translate(-50%, -50%) scale(.2);
+  animation: explosao 700ms cubic-bezier(.16, 1, .3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes explosao { to { transform: translate(-50%, -50%) scale(1.3); opacity: 0; } }
+
+/* 1 natural: a tela treme e escurece de vermelho nas bordas. */
+.palco-dados.falha { animation: palco-entra 180ms ease-out both, tremor 380ms ease-in-out; }
+.palco-dados.falha::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 140px rgba(194, 65, 63, .45);
+  pointer-events: none;
+}
+@keyframes tremor {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+/* --- A bandeja: dano, e o d20 quando não há 3D --- */
+.palco-dados.bandeja {
+  inset: auto 0 28px 0;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  padding: 16px 22px 12px;
+  background: linear-gradient(180deg, var(--pedra-3), var(--pedra));
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-alta), inset 0 1px 0 var(--relevo);
+  backdrop-filter: none;
+}
+.palco-dados.bandeja .resultado-dados { min-height: 0; }
+.palco-dados.bandeja .total-rolagem { font-size: 2.2rem; }
+.palco-dados.bandeja .texto-rolagem { font-size: 1rem; }
+.palco-dados.bandeja.critico::before { top: 50%; width: 260px; height: 260px; }
+
+.fileira-dados { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 520px; }
+.dado-2d {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'tnum' 1;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--gelo);
+  background: linear-gradient(160deg, #2a3350, #151a28);
+  animation: chacoalha 120ms linear infinite;
+}
+.dado-2d.parou { animation: pousa 260ms cubic-bezier(.16, 1, .3, 1); color: #fff; text-shadow: 0 0 10px #4d8dff; }
+.dado-2d.descartado.parou { opacity: .35; text-shadow: none; }
+@keyframes chacoalha { 0% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } 100% { transform: rotate(-12deg); } }
+@keyframes pousa { from { transform: scale(1.35); } to { transform: none; } }
+
+/* O formato de cada dado, recortado com clip-path. */
+.dado-2d.d4   { clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 12px; }
+.dado-2d.d6   { border-radius: 8px; }
+.dado-2d.d8   { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.dado-2d.d10  { clip-path: polygon(50% 0, 100% 42%, 50% 100%, 0 42%); }
+.dado-2d.d12  { clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
+.dado-2d.d20  { clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.dado-2d.d100 { border-radius: 50%; font-size: 14px; }
+
+/* Só para leitor de tela: fora da vista, mas lido. */
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- No cartão de dados: a CD e o botão da animação --- */
+.opcoes-rolagem { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.campo-cd { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-3); }
+.campo-cd input {
+  width: 64px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+.mini-botao.ligado { color: var(--gelo); border-color: rgba(77, 141, 255, .45); background: var(--azul-fundo); }
+
+@media (prefers-reduced-motion: reduce) {
+  .palco-dados, .palco-dados.falha, .dado-2d, .dado-2d.parou, .palco-dados.critico::before { animation: none !important; }
+}
+
+
+/* ---------- 35. CABEÇALHO DA ABA E ENTRADA (painel do jogador) ----------
+   O cabeçalho ocupa, no jogador, o lugar da fileira de abas do Mestre
+   (.abas-mesa): mesma hairline embaixo, mesmo respiro — assim o primeiro
+   cartão dos dois painéis começa na mesma altura. */
+
+.cabeca-aba {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.cabeca-aba-icone {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  color: var(--azul);
+  background: var(--azul-fundo);
+  border-radius: var(--r-p);
+  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .22), inset 0 1px 0 var(--relevo);
+}
+.cabeca-aba-texto { min-width: 0; }
+.cabeca-aba h1 {
+  margin: 0;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--texto);
+}
+.cabeca-aba p { margin: 2px 0 0; font-size: 12px; color: var(--texto-3); }
+.cabeca-aba-pilulas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-left: auto; }
+
+/* A marca da aba ativa: um fio de luz azul na borda esquerda do link.
+   Vale para os dois códices (Mestre e jogador) — é a mesma peça. */
+.codice-link.ativo { position: relative; }
+.codice-link.ativo::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--azul);
+  box-shadow: 0 0 8px rgba(77, 141, 255, .7);
+}
+/* Na faixa horizontal (≤ 1100px) o fio vertical não faz sentido. */
+@media (max-width: 1100px) {
+  .codice-link.ativo::before { display: none; }
+}
+
+/* A ENTRADA. Só sobe 8px e acende: o bastante para o olho perceber
+   que a tela mudou, pouco para atrasar quem já sabe para onde vai.
+   Os cartões entram em cascata (40ms entre um e outro, no máximo
+   cinco degraus) — mais que isso a última parte demora a aparecer.
+   O jogador.js põe .entrando ao trocar de aba e tira depois de 700ms. */
+@keyframes aba-entra {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes aba-marca {
+  from { opacity: 0; transform: scaleY(0); }
+  to   { opacity: 1; transform: none; }
+}
+
+#principal.entrando > *,
+.cabeca-aba.entrando > * {
+  animation: aba-entra .34s cubic-bezier(.2, .7, .2, 1) both;
+}
+.cabeca-aba.entrando > :nth-child(2) { animation-delay: .03s; }
+.cabeca-aba.entrando > :nth-child(3) { animation-delay: .06s; }
+#principal.entrando > :nth-child(1) { animation-delay: .06s; }
+#principal.entrando > :nth-child(2) { animation-delay: .10s; }
+#principal.entrando > :nth-child(3) { animation-delay: .14s; }
+#principal.entrando > :nth-child(4) { animation-delay: .18s; }
+#principal.entrando > :nth-child(n+5) { animation-delay: .22s; }
+.nav-jogador.entrando .codice-link.ativo::before { animation: aba-marca .3s cubic-bezier(.2, .7, .2, 1) both; }
+
+@media (max-width: 720px) {
+  .cabeca-aba { gap: 10px; padding-bottom: 12px; margin-bottom: 14px; }
+  .cabeca-aba-icone { width: 34px; height: 34px; }
+  .cabeca-aba h1 { font-size: 18px; }
+  .cabeca-aba-pilulas { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #principal.entrando > *,
+  .cabeca-aba.entrando > *,
+  .nav-jogador.entrando .codice-link.ativo::before { animation: none; }
 }
