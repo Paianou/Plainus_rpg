@@ -71,7 +71,13 @@ const MesaJogador = {
 
 
   montarCombate: function (combate) {
-    const cartao = criar('div.cartao', [criarComIcone('h2', 'ampulheta', 'Ordem de iniciativa', 16)]);
+    /* O liga/desliga do aviso da vez mora aqui, junto do combate. */
+    const ligado = AvisoVez.ligado();
+    const aviso = criarBotao('mini-botao' + (ligado ? '.ligado' : ''), 'alternar-aviso-vez', 'sino',
+      ligado ? 'Aviso da vez ligado' : 'Aviso da vez desligado');
+    aviso.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+    aviso.title = 'Toca um sino (e avisa o sistema, se você permitir) quando chegar a sua vez';
+    const cartao = criar('div.cartao', [criar('div.titulo-coluna', [criarComIcone('h2', 'ampulheta', 'Ordem de iniciativa', 16), aviso])]);
 
     if (!combate) {
       cartao.appendChild(criar('p.dica', 'Nenhum combate agora.'));
@@ -347,5 +353,90 @@ const RoladorJogador = {
 
     const destaque = rolagem.marca === 'critico' ? ' — 20 natural!' : (rolagem.marca === 'falha' ? ' — 1 natural.' : '');
     Layout.recado(rolagem.texto + ': ' + rolagem.total + '  (' + rolagem.formula + ')' + destaque, rolagem.marca === 'falha');
+  }
+};
+
+
+/* ===================================================================
+   AvisoVez — o sino quando chega a SUA vez no combate
+
+   O Mestre passa o turno; o jogador está no Discord, ou lendo a aba
+   de Regras. Um sino curto (feito na hora com WebAudio, sem arquivo de
+   som) e, se a aba estiver escondida e a pessoa tiver permitido, uma
+   notificação do sistema. Quem decide QUANDO é o jogador.js
+   (vigiarMesa), que percebe a passagem de "não é minha vez" para "é".
+
+   Vem ligado: é o aviso que mais importa numa sessão. Desliga no botão
+   do cartão "Ordem de iniciativa", e a escolha fica neste navegador.
+
+   A notificação do sistema pode não existir aqui: aberto por duplo
+   clique (file://), o navegador costuma recusar a permissão. Aí sobra
+   o sino e o título da aba — e tudo bem.
+   =================================================================== */
+
+const AvisoVez = {
+
+  CHAVE: 'plainus:aviso-vez',
+
+  ligado: function () {
+    try { return localStorage.getItem(this.CHAVE) !== 'desligado'; } catch (erro) { return true; }
+  },
+
+  alternar: function () {
+    const novo = !this.ligado();
+    try { localStorage.setItem(this.CHAVE, novo ? 'ligado' : 'desligado'); } catch (erro) { /* fica só nesta visita */ }
+    if (novo) this.pedirPermissao();
+    return novo;
+  },
+
+  /* Só pergunta quando a pessoa LIGA o aviso — nunca ao abrir a página,
+     que é o jeito certo de ter a permissão negada para sempre. */
+  pedirPermissao: function () {
+    try {
+      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    } catch (erro) { /* sem notificação; o sino basta */ }
+  },
+
+  tocar: function (nome) {
+    if (!this.ligado()) return;
+    this.sino();
+    try {
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        /* tag: um aviso novo SUBSTITUI o anterior, em vez de empilhar. */
+        new Notification('Sua vez!', { body: 'É a vez de ' + nome + ' no combate.', tag: 'plainus-vez' });
+      }
+    } catch (erro) { /* idem */ }
+  },
+
+  /* Duas notas de sino, uma quinta acima da outra: chama a atenção sem
+     soar como alarme. Cada nota é uma senoide com um harmônico, que
+     começa forte e se apaga devagar. */
+  sino: function () {
+    try {
+      const Contexto = window.AudioContext || window.webkitAudioContext;
+      if (!Contexto) return;
+      if (!this.audio) this.audio = new Contexto();
+      const ctx = this.audio;
+      if (ctx.state === 'suspended') ctx.resume();
+      const agora = ctx.currentTime;
+
+      [[659.25, 0], [987.77, 0.16]].forEach(function (par) {
+        [1, 2.01].forEach(function (multiplo, i) {
+          const osc = ctx.createOscillator();
+          const ganho = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = par[0] * multiplo;
+          const inicio = agora + par[1];
+          const pico = i === 0 ? 0.12 : 0.03;
+          ganho.gain.setValueAtTime(0.0001, inicio);
+          ganho.gain.exponentialRampToValueAtTime(pico, inicio + 0.012);
+          ganho.gain.exponentialRampToValueAtTime(0.0001, inicio + 1.3);
+          osc.connect(ganho);
+          ganho.connect(ctx.destination);
+          osc.start(inicio);
+          osc.stop(inicio + 1.35);
+        });
+      });
+    } catch (erro) { /* sem som; o título da aba ainda avisa */ }
   }
 };

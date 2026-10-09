@@ -309,14 +309,23 @@ const AnotacoesJogador = {
     Jogador.render();
   },
 
+  /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). */
   apagar: function (id) {
-    if (!window.confirm('Apagar esta anotação?')) return;
     const self = this;
-    UsoFicha.usar(function (f) {
-      const antes = f.notas.length;
-      f.notas = f.notas.filter(function (n) { return n.id !== id; });
-      if (f.notas.length === antes) return false;
+    let nota = null;
+    let posicao = 0;
+    const ok = UsoFicha.usar(function (f) {
+      posicao = f.notas.findIndex(function (n) { return n.id === id; });
+      if (posicao === -1) return false;
+      nota = f.notas[posicao];
+      f.notas.splice(posicao, 1);
       if (self.editando === id) self.editando = null;
-    }, 'Anotação apagada.');
+    });
+    if (!ok) return;
+    Layout.recadoDesfazer('Anotação apagada.', function () {
+      UsoFicha.usar(function (f) {
+        return Layout.devolver(f.notas, nota, posicao);
+      }, 'Anotação de volta.');
+    });
   }
 };

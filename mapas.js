@@ -1131,8 +1131,10 @@ const Mapa = {
     const cena = this.cena();
     if (!cena) return;
 
-    if (!window.confirm('Apagar a cena "' + cena.nome + '"? Paredes, tokens e marcadores dela vão junto. Isso não tem desfazer.')) return;
-
+    /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). A cena
+       volta com paredes, tokens e marcadores — e volta a ser a atual. */
+    const self = this;
+    const posicao = Estado.cenas.indexOf(cena);
     Estado.cenas = Estado.cenas.filter(function (c) { return c.id !== cena.id; });
     Estado.cenaAtual = Estado.cenas.length ? Estado.cenas[0].id : null;
     this.selecionado = null;
@@ -1140,7 +1142,13 @@ const Mapa = {
 
     Memoria.salvar();
     this.render();
-    Layout.recado('Cena "' + cena.nome + '" apagada.');
+    Layout.recadoDesfazer('Cena "' + cena.nome + '" apagada.', function () {
+      if (!Layout.devolver(Estado.cenas, cena, posicao)) return;
+      Estado.cenaAtual = cena.id;
+      Memoria.salvar();
+      self.render();
+      Layout.recado('Cena "' + cena.nome + '" de volta.');
+    });
   }
 };
 

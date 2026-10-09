@@ -348,9 +348,12 @@ const InventarioJogador = {
     const self = this;
     const item = (Jogador.visao.meuHeroi.ficha.itens || []).find(function (i) { return i.id === id; });
     if (!item) return;
-    if (!window.confirm('Tirar "' + item.nome + '" do inventário?')) return;
-
-    UsoFicha.usar(function (f) {
+    /* Tira na hora e oferece desfazer (Layout.recadoDesfazer). Como tirar
+       um item equipado também mexe em ataques, armadura e escudo, a
+       volta restaura os quatro como estavam. */
+    let antes = null;
+    const ok = UsoFicha.usar(function (f) {
+      antes = JSON.parse(JSON.stringify({ itens: f.itens, ataques: f.ataques, armadura: f.armadura, escudo: f.escudo }));
       const alvo = f.itens.find(function (i) { return i.id === id; });
       if (!alvo) return false;
       if (self.equipado(f, alvo)) {
@@ -359,7 +362,14 @@ const InventarioJogador = {
         if (alvo.tipo === 'escudo') f.escudo = false;
       }
       f.itens = f.itens.filter(function (i) { return i.id !== id; });
-    }, item.nome + ' saiu do inventário.');
+    });
+    if (!ok) return;
+    Layout.recadoDesfazer(item.nome + ' saiu do inventário.', function () {
+      UsoFicha.usar(function (f) {
+        if (f.itens.some(function (i) { return i.id === id; })) return false;
+        Object.assign(f, antes);
+      }, item.nome + ' voltou para a mochila.');
+    });
   },
 
 

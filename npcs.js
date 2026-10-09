@@ -564,20 +564,25 @@ const Elenco = {
   },
 
 
-  /* Apagar não tem desfazer, então pergunta antes. */
+  /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). */
   apagar: function () {
+    const self = this;
     const npc = this.acharNpc(this.selecionado);
     if (!npc) return;
 
-    const certeza = window.confirm('Apagar "' + npc.nome + '" do elenco? Isso não tem desfazer.');
-    if (!certeza) return;
-
+    const posicao = this.npcs().indexOf(npc);
     Estado.npcs = this.npcs().filter(function (n) { return n.id !== npc.id; });
     this.selecionado = null;
 
     Memoria.salvar();
     this.render();
-    Layout.recado('"' + npc.nome + '" foi apagado.');
+    Layout.recadoDesfazer('"' + npc.nome + '" foi apagado.', function () {
+      if (!Layout.devolver(Estado.npcs, npc, posicao)) return;
+      self.selecionado = npc.id;
+      Memoria.salvar();
+      self.render();
+      Layout.recado('"' + npc.nome + '" está de volta.');
+    });
   },
 
 

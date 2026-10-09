@@ -741,21 +741,30 @@ const Bestiario = {
     this.render();
   },
 
-  /* Apagar não tem desfazer. Quem já estava no combate continua lá: o
-     combatente guarda a própria CA e PV, não depende da ficha. */
+  /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). Quem já
+     estava no combate continua lá: o combatente guarda a própria CA e
+     PV, não depende da ficha. */
   apagar: function () {
+    const self = this;
     const ficha = acharMonstro(this.selecionado);
     if (!ficha || !ficha.meu) return;
 
-    if (!window.confirm('Apagar "' + ficha.nome + '" do bestiário? Isso não tem desfazer.')) return;
-
+    const posicao = Estado.monstrosMeus.findIndex(function (m) { return m.id === ficha.id; });
+    const original = Estado.monstrosMeus[posicao];
     Estado.monstrosMeus = Estado.monstrosMeus.filter(function (m) { return m.id !== ficha.id; });
     this.selecionado = null;
 
     Memoria.salvar();
     this.montarFiltros();
     this.render();
-    Layout.recado('"' + ficha.nome + '" foi apagado.');
+    Layout.recadoDesfazer('"' + ficha.nome + '" foi apagado.', function () {
+      if (!Layout.devolver(Estado.monstrosMeus, original, posicao)) return;
+      self.selecionado = original.id;
+      Memoria.salvar();
+      self.montarFiltros();
+      self.render();
+      Layout.recado('"' + original.nome + '" está de volta.');
+    });
   },
 
   maisBloco: function (lista) {

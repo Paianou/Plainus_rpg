@@ -78,9 +78,20 @@ const Jogador = {
     const self = this;
     Chat.aoMudarLidas = function () {
       if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') self.montarNav(self.abasVisiveis());
+      if (self.visao) self.vigiarMesa(self.visao);
     };
 
     AvisoSaida.registrar(function () { return self.rascunhoMudou(); });
+
+    Atalhos.aoReverTour = function () {
+      if (!self.visao || !self.visao.meuHeroi || self.modo === 'editar') return;
+      if (self.aba !== 'ficha') {
+        self.aba = 'ficha';
+        location.hash = 'aba=ficha';
+        self.render();
+      }
+      self.iniciarTour();
+    };
 
     this.render();
     this.ligar();
@@ -104,6 +115,7 @@ const Jogador = {
 
   render: function () {
     this.visao = visaoDoJogador(Estado, this.sessao.jogadorId);
+    this.vigiarMesa(this.visao);
 
     this.renderBarra();
     this.renderLateral();
@@ -152,6 +164,8 @@ const Jogador = {
       default:           this.montarFicha(area, heroi);
     }
 
+    if (this.aba === 'ficha') this.agendarTour();
+
     if (entrando) this.animarEntrada();
   },
 
@@ -174,6 +188,64 @@ const Jogador = {
         document.getElementById(id).classList.remove('entrando');
       });
     }, 700);
+  },
+
+
+  /* A visita guiada (tour.js), uma vez por navegador. Espera a animação
+     de entrada da aba terminar, e confere de novo antes de começar:
+     nesse meio-tempo a pessoa pode ter trocado de aba ou aberto a edição. */
+  agendarTour: function () {
+    const self = this;
+    if (this.tourAgendado || Tour.aberto() || Tour.jaViu()) return;
+    this.tourAgendado = true;
+    setTimeout(function () {
+      self.tourAgendado = false;
+      if (self.aba === 'ficha' && self.modo !== 'editar' && self.visao.meuHeroi && !Tour.aberto() && !Tour.jaViu()) self.iniciarTour();
+    }, 700);
+  },
+
+  /* Os passos: o essencial para quem nunca viu o painel. */
+  iniciarTour: function () {
+    const cartaoDe = function (seletor) {
+      const el = document.querySelector(seletor);
+      return el && el.closest('.cartao');
+    };
+    Tour.iniciar([
+      { alvo: function () { return document.getElementById('navJogador'); },
+        titulo: 'Suas abas',
+        texto: 'Ficha, Inventário, Mesa, Chat… tudo do seu personagem mora aqui. Dica: as teclas 1 a 8 pulam entre elas.' },
+      { alvo: function () { return cartaoDe('#principal button.pericia'); },
+        titulo: 'Clique para rolar',
+        texto: 'Perícias, atributos e salvaguardas são botões: um clique rola o d20 com o bônus já somado.' },
+      { alvo: function () { return cartaoDe('#lateral .grade-dados-jogador'); },
+        titulo: 'Os dados',
+        texto: 'Dados livres, vantagem e desvantagem, e a CD do teste para saber na hora se passou. A animação pode ser desligada aqui.' },
+      { alvo: function () { return document.querySelector('.nav-jogador [data-aba="mesa"]'); },
+        titulo: 'A mesa',
+        texto: 'A cena que o Mestre mostra e a ordem do combate. Quando chegar a sua vez, um sino toca e o título da aba avisa.' },
+      { alvo: function () { return document.querySelector('.nav-jogador [data-aba="chat"]'); },
+        titulo: 'O chat',
+        texto: 'Converse com a equipe toda ou só com o Mestre.' },
+      { alvo: function () { return document.getElementById('botaoAjuda'); },
+        titulo: 'Ajuda',
+        texto: 'Os atalhos do teclado ficam aqui — e este tour, se quiser rever.' }
+    ]);
+  },
+
+
+  /* O que acontece na mesa e merece aviso, mesmo de longe: mensagens
+     novas e a vez no combate vão para o título da aba (Layout.marcarTitulo),
+     e a PASSAGEM para "é a minha vez" toca o sino (AvisoVez). Na primeira
+     olhada (eraMinhaVez ainda indefinido) não toca: abrir a página no
+     meio do próprio turno não é novidade. */
+  vigiarMesa: function (visao) {
+    const combate = visao.combate;
+    const minha = !!(combate && combate.ativo && combate.combatentes.some(function (c) { return c.vez && c.meu; }));
+    if (minha && this.eraMinhaVez === false) AvisoVez.tocar(visao.meuHeroi ? visao.meuHeroi.nome : '');
+    this.eraMinhaVez = minha;
+
+    const novas = this.aba === 'chat' ? 0 : Chat.naoLidas();
+    Layout.marcarTitulo(novas, minha ? 'Sua vez!' : '');
   },
 
 
@@ -304,6 +376,9 @@ const Jogador = {
     ]));
 
     barra.appendChild(criar('div.espaco'));
+
+    /* Atalhos e ajuda (atalhos.js) — e, de lá, o "Rever o tour". */
+    barra.appendChild(Atalhos.botao());
 
     const sair = criar('button.icone-botao');
     sair.type = 'button';
@@ -1075,6 +1150,13 @@ const Jogador = {
           break;
         }
 
+        case 'alternar-aviso-vez':
+          Layout.recado(AvisoVez.alternar()
+            ? 'Aviso da vez ligado: um sino quando chegar a sua vez.'
+            : 'Aviso da vez desligado.');
+          self.render();
+          break;
+
         /* Rolagens (jogador-mesa.js). O bônus foi calculado pela ficha
            na hora de desenhar; aqui só é lido de volta e conferido. */
         case 'rolar-teste': {
@@ -1244,16 +1326,16 @@ const Jogador = {
        o Estado). Só redesenha se não houver formulário aberto — senão
        apagaria o que está sendo digitado. */
     document.addEventListener('plainus:externo', function () {
+      /* A vez e o título são conferidos SEMPRE — mesmo com a pessoa
+         digitando, quando o redesenho espera (ver ocupado). Senão o
+         sino só tocaria depois que ela parasse de digitar. */
+      self.vigiarMesa(visaoDoJogador(Estado, self.sessao.jogadorId));
       if (self.ocupado()) return;
       self.render();
     });
   },
 
 
-  /* Há algo sendo digitado? Então um redesenho vindo de outra aba
-     apagaria o texto (a ficha em edição, uma anotação pela metade, a
-     busca das regras). Espera: o Estado já está atualizado na memória,
-     e o próximo clique redesenha com ele. */
   /* O rascunho da ficha e uma cópia de como ele COMEÇOU: o aviso de
      saída (aviso-saida.js) só pergunta se os dois forem diferentes —
      abrir "Editar ficha" e sair sem mexer em nada não é perder nada. */
@@ -1276,6 +1358,10 @@ const Jogador = {
     if (this.rascunho && this.rascunhoInicial === null) this.rascunhoInicial = JSON.stringify(this.rascunho);
   },
 
+  /* Há algo sendo digitado? Então um redesenho vindo de outra aba
+     apagaria o texto (a ficha em edição, uma anotação pela metade, a
+     busca das regras). Espera: o Estado já está atualizado na memória,
+     e o próximo clique redesenha com ele. */
   ocupado: function () {
     if (this.rascunho) return true;
     const foco = document.activeElement;

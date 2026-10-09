@@ -296,23 +296,64 @@ const Entrada = {
     location.href = 'jogador.html';
   },
 
-  /* Apagar não tem desfazer — e aqui apaga a campanha INTEIRA. */
+  /* Esquece na hora e oferece desfazer — sem o "Tem certeza?" (ver
+     Layout.recadoDesfazer, no layout.js, para o porquê). Aqui apaga a
+     campanha INTEIRA, então a volta guarda tudo o que sai junto: o
+     Estado, os cartões de jogador, a data do backup e a sessão da aba.
+     Se a pessoa fechar a página antes de desfazer, aí sim é para sempre. */
   esquecer: function (id) {
+    const self = this;
     const campanha = Campanhas.achar(id);
     if (!campanha) return;
 
-    const certeza = window.confirm('Esquecer a campanha "' + campanha.nome
-      + '"? Heróis, NPCs, diário e mapas dela serão apagados deste navegador. Isso não tem desfazer.');
-    if (!certeza) return;
+    const estado = Campanhas.lerEstado(id);
+    const mesas = Mesas.listar().filter(function (m) { return m.campanhaId === id; });
+    const dataBackup = Backup.ultimo(id);
+    const sessao = Sessao.ler();
+    const eraDestaAba = !!(sessao && sessao.campanhaId === id);
 
     Campanhas.apagar(id);
     Backup.esquecerData(id);
     Mesas.esquecer(id);
-
-    const sessao = Sessao.ler();
-    if (sessao && sessao.campanhaId === id) Sessao.limpar();
+    if (eraDestaAba) Sessao.limpar();
 
     this.desenharMesas();
+
+    this.recadoDesfazer('"' + campanha.nome + '" foi esquecida.', function () {
+      if (!estado || !Campanhas.salvarEstado(id, estado)) {
+        self.mostrarErro('Não deu para trazer a campanha de volta — o navegador recusou a gravação.');
+        return;
+      }
+      mesas.forEach(function (m) { Mesas.lembrar(m.campanhaId, m.nome, m.jogadorId); });
+      if (dataBackup) Backup.marcarData(id, dataBackup);
+      if (eraDestaAba) Sessao.gravar(sessao);
+      self.desenharMesas();
+      self.mostrarAviso('"' + campanha.nome + '" está de volta.');
+    });
+  },
+
+  /* O recado com "Desfazer" — a mesma ideia do layout.js, que esta tela
+     não carrega. Mais tempo na tela que nos painéis (12s): aqui o que
+     sai é uma campanha inteira. */
+  recadoDesfazer: function (texto, desfazer) {
+    const area = document.getElementById('recados');
+    const botao = el('button', 'desfazer-recado', 'Desfazer');
+    botao.type = 'button';
+    const caixa = el('div', 'recado-flutuante com-acao');
+    caixa.appendChild(el('span', '', texto));
+    caixa.appendChild(botao);
+
+    let usado = false;
+    botao.addEventListener('click', function () {
+      if (usado) return;
+      usado = true;
+      caixa.remove();
+      desfazer();
+    });
+
+    area.appendChild(caixa);
+    while (area.children.length > 3) area.removeChild(area.firstChild);
+    setTimeout(function () { caixa.remove(); }, 12000);
   },
 
   /* Só tira o cartão: o personagem continua na campanha, e o código

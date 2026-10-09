@@ -40,6 +40,7 @@ const Icone = {
     volume:     '<path d="M5 9h3l4-3v12l-4-3H5z"/><path d="M16 9a4 4 0 0 1 0 6"/>',
     mudo:       '<path d="M5 9h3l4-3v12l-4-3H5z"/><path d="M16 9l5 6M21 9l-5 6"/>',
     pausa:      '<path d="M9 5v14M15 5v14"/>',
+    ajuda:      '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2.9-1.2 1.7v.4"/><path d="M12 16.8h.01"/>',
     opcoes:     '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
     voltar:     '<path d="M15 18l-6-6 6-6"/>',
     convite:    '<path d="M4 7h16v11H4z"/><path d="M4 7l8 6 8-6"/>',

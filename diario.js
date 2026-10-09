@@ -608,16 +608,20 @@ const Diario = {
     const entrada = Estado.diario.find(function (e) { return e.id === self.selecionado; });
     if (!entrada) return;
 
-    const certeza = window.confirm('Apagar a sessão ' + entrada.sessao
-      + ' ("' + entrada.titulo + '")? Isso não tem desfazer.');
-    if (!certeza) return;
-
+    /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). */
+    const posicao = Estado.diario.indexOf(entrada);
     Estado.diario = Estado.diario.filter(function (e) { return e.id !== entrada.id; });
     this.selecionado = null;
 
     Memoria.salvar();
     this.render();
-    Layout.recado('Sessão apagada.');
+    Layout.recadoDesfazer('Sessão ' + entrada.sessao + ' apagada.', function () {
+      if (!Layout.devolver(Estado.diario, entrada, posicao)) return;
+      self.selecionado = entrada.id;
+      Memoria.salvar();
+      self.render();
+      Layout.recado('Sessão ' + entrada.sessao + ' de volta.');
+    });
   },
 
 

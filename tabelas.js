@@ -465,17 +465,24 @@ const Rolador = {
     const tabela = this.achar(this.selecionada);
     if (!tabela || !tabela.minha) return;
 
-    const certeza = window.confirm('Apagar a tabela "' + tabela.nome + '"? Isso não tem desfazer.');
-    if (!certeza) return;
-
-    Estado.tabelasMinhas = (Estado.tabelasMinhas || []).filter(function (t) {
-      return t.id !== tabela.id;
-    });
+    /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). */
+    const self = this;
+    const minhas = Estado.tabelasMinhas || [];
+    const posicao = minhas.findIndex(function (t) { return t.id === tabela.id; });
+    const original = minhas[posicao];
+    Estado.tabelasMinhas = minhas.filter(function (t) { return t.id !== tabela.id; });
     this.selecionada = null;
 
     Memoria.salvar();
     this.render();
-    Layout.recado('"' + tabela.nome + '" apagada.');
+    Layout.recadoDesfazer('"' + tabela.nome + '" apagada.', function () {
+      if (!Estado.tabelasMinhas) Estado.tabelasMinhas = [];
+      if (!Layout.devolver(Estado.tabelasMinhas, original, posicao)) return;
+      self.selecionada = original.id;
+      Memoria.salvar();
+      self.render();
+      Layout.recado('"' + original.nome + '" de volta.');
+    });
   },
 
 

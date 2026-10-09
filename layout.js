@@ -220,6 +220,7 @@ const Layout = {
     const novas = Chat.painel ? 0 : Chat.naoLidas();
     if (novas) botao.appendChild(criar('span.contador-chat', novas > 9 ? '9+' : String(novas)));
     botao.setAttribute('aria-label', novas ? 'Chat da mesa (' + novas + ' novas)' : 'Chat da mesa');
+    this.marcarTitulo(novas);
   },
 
   /* Preenchida por cada tela (ver 'plainus:externo' acima). */
@@ -398,6 +399,9 @@ const Layout = {
     convite.setAttribute('aria-label', 'Copiar código de convite');
     convite.appendChild(Icone.svg('copiar', 16));
     barra.appendChild(convite);
+
+    /* ajuda — a lista de atalhos (atalhos.js) */
+    if (typeof Atalhos !== 'undefined') barra.appendChild(Atalhos.botao());
 
     /* sair — volta para a entrada, onde estão as outras campanhas e o
        "Criar campanha". A campanha continua salva; só a sessão acaba. */
@@ -956,6 +960,86 @@ const Layout = {
 
     setTimeout(function () { caixa.remove(); }, 4200);
     while (area.children.length > 3) area.removeChild(area.firstChild);
+  },
+
+
+  /* O título da aba do navegador como aviso: "(2) Visão Geral — ..."
+     com mensagens novas, "Sua vez! · Painel do jogador — ..." no turno.
+     Numa sessão a pessoa vive alternando com o Discord: o título é a
+     única parte da página que ela vê da outra aba. O título original é
+     guardado na primeira chamada, para os avisos não se acumularem. */
+  marcarTitulo: function (naoLidas, alerta) {
+    if (this.tituloBase === undefined) this.tituloBase = document.title;
+    let titulo = this.tituloBase;
+    if (naoLidas) titulo = '(' + (naoLidas > 9 ? '9+' : naoLidas) + ') ' + titulo;
+    if (alerta) titulo = alerta + ' · ' + titulo;
+    if (document.title !== titulo) document.title = titulo;
+  },
+
+
+  /* "Goblin apagado · Desfazer" — no lugar do "Tem certeza?".
+
+     A janela de confirmação pergunta ANTES, toda vez, e quase sempre a
+     resposta é "sim": a pessoa aprende a clicar OK sem ler, e no dia em
+     que clicou errado, clicou OK do mesmo jeito. Apagar na hora e
+     oferecer a volta por uns segundos protege melhor e não interrompe
+     ninguém (é o que o Gmail e o Trello fazem).
+
+     'desfazer' é quem sabe pôr de volta — cada tela guarda o que tirou.
+     Ctrl+Z também desfaz, enquanto o recado estiver na tela. */
+  DURACAO_DESFAZER: 8000,
+
+  recadoDesfazer: function (texto, desfazer) {
+    const area = document.getElementById('recados');
+    if (!area) return;
+    const self = this;
+
+    const botao = criar('button.desfazer-recado', 'Desfazer');
+    botao.type = 'button';
+    const caixa = criar('div.recado-flutuante.com-acao', [criar('span', texto), botao]);
+
+    /* Uma vez só: dois cliques rápidos não podem pôr o item de volta duas vezes. */
+    let usado = false;
+    const executar = function () {
+      if (usado) return;
+      usado = true;
+      caixa.remove();
+      if (self.desfazerPendente === executar) self.desfazerPendente = null;
+      desfazer();
+    };
+    botao.addEventListener('click', executar);
+
+    area.appendChild(caixa);
+    while (area.children.length > 3) area.removeChild(area.firstChild);
+
+    this.desfazerPendente = executar;
+    setTimeout(function () {
+      caixa.remove();
+      if (self.desfazerPendente === executar) self.desfazerPendente = null;
+    }, this.DURACAO_DESFAZER);
+
+    /* O Ctrl+Z é ligado uma vez por página, na primeira vez que precisa.
+       Dentro de um campo de texto, o Ctrl+Z é do campo (desfazer a
+       digitação), não daqui. */
+    if (!this.ctrlZLigado) {
+      this.ctrlZLigado = true;
+      document.addEventListener('keydown', function (evento) {
+        if (!(evento.ctrlKey || evento.metaKey) || evento.shiftKey || evento.key.toLowerCase() !== 'z') return;
+        const foco = document.activeElement;
+        if (foco && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)) return;
+        if (!self.desfazerPendente) return;
+        evento.preventDefault();
+        self.desfazerPendente();
+      });
+    }
+  },
+
+  /* Põe de volta um item tirado de uma lista do Estado, na posição em
+     que estava — se ele já não tiver voltado por outro caminho. */
+  devolver: function (lista, item, posicao) {
+    if (!item || lista.some(function (x) { return x.id === item.id; })) return false;
+    lista.splice(Math.min(Math.max(posicao, 0), lista.length), 0, item);
+    return true;
   },
 
 
