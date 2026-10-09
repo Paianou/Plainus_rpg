@@ -65,117 +65,105 @@
         </svg>
 
         <h1 class="titulo">Plainus RPG</h1>
-        <p class="subtitulo">Crie uma campanha ou entre na de um amigo.</p>
+        <!-- O app.js troca o texto quando há mesas: quem volta não
+             precisa ler o convite de quem chega pela primeira vez. -->
+        <p class="subtitulo" id="subtitulo">Crie uma campanha ou entre na de um amigo.</p>
       </header>
 
 
-      <!-- ============ SUAS CAMPANHAS (só aparece se houver alguma) ============
+      <!-- ============ SUAS MESAS (só aparece se houver alguma) ============
 
-        Nasce com hidden: numa primeira visita não há nada para listar,
-        e um título "Suas campanhas" sobre uma lista vazia é ruído. O
-        app.js tira o hidden quando encontra campanhas salvas e monta
-        uma linha por campanha dentro de #listaCampanhas.
+        Quem VOLTA é quem mais abre esta tela — toda semana, a mesma
+        campanha. Por isso as mesas vêm primeiro, cada uma num cartão
+        com um botão que leva direto para dentro:
+          - as campanhas que você mestra  → Continuar  (painel do Mestre)
+          - as mesas em que você joga     → Voltar para a mesa (sua ficha)
+
+        Nasce com hidden: numa primeira visita não há nada para listar.
+        O app.js monta os cartões dentro de #listaCampanhas.
       -->
       <section class="campanhas-salvas" id="campanhasSalvas" hidden>
-        <h2>Suas campanhas</h2>
-        <div class="lista-campanhas" id="listaCampanhas"></div>
-        <p class="dica-backup">Baixe um backup de vez em quando: a campanha só existe neste navegador. O arquivo leva os segredos do Mestre — guarde para você.</p>
+        <h2>Suas mesas</h2>
+        <div class="lista-mesas" id="listaCampanhas"></div>
+        <p class="dica-backup">A campanha só existe neste navegador: baixe um backup de vez em quando (no menu do cartão). O arquivo leva os segredos do Mestre — guarde para você.</p>
       </section>
 
 
-      <!-- ============ BLOCO 1: quem é você ============ -->
+      <!-- ============ AS DUAS PORTAS ============
 
-      <div class="campo">
-        <!--
-          O 'for' do label aponta para o 'id' do input.
-          Com isso, clicar no texto "Seu nome" já foca o campo.
-        -->
-        <label for="nome">Seu nome</label>
-        <input type="text" id="nome" placeholder="Como a mesa te chama" maxlength="30" autocomplete="nickname">
+        Antes, criar e entrar dividiam a tela, com os campos dos dois à
+        vista ao mesmo tempo. Agora a pessoa diz primeiro O QUE veio
+        fazer, e só então vê o formulário daquilo. Duas perguntas, e
+        não seis campos.
+      -->
+      <div class="portas" id="portas">
+        <button class="porta" type="button" data-porta="convite">
+          <span class="porta-icone" data-icone="convite"></span>
+          <span class="porta-titulo">Tenho um convite</span>
+          <span class="porta-texto">Entrar na mesa de um amigo com o código que o Mestre passou.</span>
+        </button>
+        <button class="porta" type="button" data-porta="mestrar">
+          <span class="porta-icone" data-icone="mestre"></span>
+          <span class="porta-titulo">Vou mestrar</span>
+          <span class="porta-texto">Criar uma campanha nova e chamar o grupo.</span>
+        </button>
       </div>
 
 
-      <!--
-        Os dois blocos de baixo ficam lado a lado no computador
-        e empilhados no celular (o CSS cuida disso).
+      <!-- ============ O FORMULÁRIO DA PORTA ESCOLHIDA ============
+
+        Um formulário só, com o nome em comum e o resto trocando: o
+        bloco de convite (código) ou o de mestrar (nome da campanha).
+        O app.js mostra um e esconde o outro.
+
+        NÃO há mais "entrar como Mestre" com o código. Era o problema 1
+        do CLAUDE.md: quem soubesse o código virava Mestre. O Mestre
+        volta pela campanha dele, em "Suas mesas".
       -->
-      <div class="colunas">
+      <section class="formulario-porta" id="formPorta" hidden>
+        <div class="cabeca-porta">
+          <button class="voltar-porta" type="button" id="btnVoltarPorta" data-icone="voltar">Voltar</button>
+          <h2 id="tituloPorta">Tenho um convite</h2>
+        </div>
 
-        <!-- ============ BLOCO 2: criar uma campanha nova ============ -->
+        <!-- Quando a pessoa chega por um link de convite e a campanha
+             existe aqui, ela vê para ONDE está entrando antes de entrar. -->
+        <p class="convite-achado" id="conviteAchado" hidden></p>
 
-        <section class="coluna">
-          <h2>Criar campanha</h2>
+        <div class="campo">
+          <!-- O 'for' do label aponta para o 'id' do input: clicar no
+               texto "Seu nome" já foca o campo. -->
+          <label for="nome">Seu nome</label>
+          <input type="text" id="nome" placeholder="Como a mesa te chama" maxlength="30" autocomplete="nickname">
+        </div>
 
-          <div class="campo">
-            <label for="campanha">Nome da campanha</label>
-            <input type="text" id="campanha" placeholder="Crônicas de Ravendusk" maxlength="60" autocomplete="off">
-          </div>
-
+        <div id="blocoConvite">
           <!--
-            type="button" é importante: sem isso, um botão dentro de um formulário
-            tenta enviar a página e recarrega tudo.
-          -->
-          <button class="botao" type="button" id="btnCriar">Criar campanha</button>
-        </section>
-
-
-        <!-- ============ BLOCO 3: entrar em uma campanha existente ============ -->
-
-        <section class="coluna">
-          <h2>Entrar com código</h2>
-
-          <!--
-            O código tem 12 caracteres sorteados (XXXX-XXXX-XXXX), e não
-            mais 3 letras + 4 dígitos: aquele formato dava para adivinhar
-            por tentativa. maxlength 20, e não 14, para caber um código
-            colado com espaços — o app.js limpa e arruma.
+            O código tem 12 caracteres sorteados (XXXX-XXXX-XXXX).
+            maxlength 20, e não 14, para caber um código colado com
+            espaços — o app.js limpa e arruma.
           -->
           <div class="campo">
             <label for="codigo">Código da campanha</label>
             <input class="codigo-entrada" type="text" id="codigo" placeholder="K7QM-2XRP-9HVD" maxlength="20" autocomplete="off" spellcheck="false">
           </div>
+          <div class="campo">
+            <button class="botao fantasma" type="button" id="btnEntrar">Entrar na mesa</button>
+          </div>
+        </div>
 
-          <!--
-            Dois <input type="radio"> com o MESMO 'name' formam um grupo:
-            o navegador garante que só um dos dois fique marcado.
-            O 'checked' define qual vem marcado por padrão.
-
-            O <fieldset> + <legend> agrupam as opções para leitores de tela.
-            O radio em si fica invisível; o <span> logo depois dele é o "cartão"
-            que o usuário enxerga (o CSS pinta o cartão quando o radio está marcado).
-          -->
-          <fieldset class="campo">
-            <legend class="rotulo-grupo">Você vai jogar como</legend>
-
-            <div class="escolha-papel">
-              <label class="opcao-papel">
-                <input type="radio" name="papel" value="jogador" checked>
-                <span class="opcao-papel-conteudo">
-                  <!-- Ícone "party": mesmo traço da mesa-virtual/public/js/icones.js -->
-                  <svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                    <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M12 9v5M9.5 11.5h5"/>
-                  </svg>
-                  Jogador
-                </span>
-              </label>
-
-              <label class="opcao-papel">
-                <input type="radio" name="papel" value="mestre">
-                <span class="opcao-papel-conteudo">
-                  <!-- Ícone "mestre": mesmo traço da mesa-virtual/public/js/icones.js -->
-                  <svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                    <path d="M4 8l3.5 4L12 5l4.5 7L20 8v10H4z"/><path d="M4 18h16"/>
-                  </svg>
-                  Mestre
-                </span>
-              </label>
-            </div>
-          </fieldset>
-
-          <button class="botao fantasma" type="button" id="btnEntrar">Entrar na mesa</button>
-        </section>
-
-      </div>
+        <div id="blocoMestrar" hidden>
+          <div class="campo">
+            <label for="campanha">Nome da campanha</label>
+            <input type="text" id="campanha" placeholder="Crônicas de Ravendusk" maxlength="60" autocomplete="off">
+          </div>
+          <!-- type="button": sem isso, um botão dentro de um formulário
+               tenta enviar a página e recarrega tudo. -->
+          <div class="campo">
+            <button class="botao" type="button" id="btnCriar">Criar campanha</button>
+          </div>
+        </div>
+      </section>
 
       <!--
         Espaço reservado para mensagens de erro ("código não encontrado").
@@ -191,14 +179,11 @@
 
       <!-- ============ RESTAURAR UM BACKUP ============
 
-        Fica FORA da lista "Suas campanhas" de propósito: o caso mais
-        importante do backup é justamente quando a lista está vazia
-        (limpou o navegador, trocou de computador) — e a lista some
-        quando não há campanha.
-
-        O <input type="file"> é escondido porque o desenho dele não dá
-        para estilizar; o botão o "clica" pelo app.js e abre a janela
-        de escolher arquivo do sistema.
+        Fica FORA de "Suas mesas" de propósito: o caso mais importante
+        do backup é justamente quando a lista está vazia (limpou o
+        navegador, trocou de computador) — e a lista some quando não há
+        mesa. O <input type="file"> fica escondido porque o desenho dele
+        não dá para estilizar; o botão o "clica" pelo app.js.
       -->
       <div class="restaurar-backup">
         <span>Tem um backup de campanha guardado?</span>
@@ -215,9 +200,11 @@
     o getElementById devolveria null. O campanhas.js vem antes porque
     o app.js usa as funções dele (Campanhas, Sessao).
   -->
+  <script src="icones.js"></script>
   <script src="campanhas.js"></script>
   <!-- dados.js entra pelo molde estadoVazio(), que o backup.js usa para
-       conferir um arquivo restaurado. -->
+       conferir um arquivo restaurado, e pelo retratoSeguro() e o
+       imagemDaCena() dos cartões. icones.js, pelos ícones em traço. -->
   <script src="dados.js"></script>
   <script src="backup.js"></script>
   <script src="app.js"></script>

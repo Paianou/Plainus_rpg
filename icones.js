@@ -40,6 +40,10 @@ const Icone = {
     volume:     '<path d="M5 9h3l4-3v12l-4-3H5z"/><path d="M16 9a4 4 0 0 1 0 6"/>',
     mudo:       '<path d="M5 9h3l4-3v12l-4-3H5z"/><path d="M16 9l5 6M21 9l-5 6"/>',
     pausa:      '<path d="M9 5v14M15 5v14"/>',
+    opcoes:     '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+    voltar:     '<path d="M15 18l-6-6 6-6"/>',
+    convite:    '<path d="M4 7h16v11H4z"/><path d="M4 7l8 6 8-6"/>',
+    seta:       '<path d="M5 12h14M13 6l6 6-6 6"/>',
     recarregar: '<path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/>',
 
     /* --- atributos de ficha --- */

@@ -37,6 +37,15 @@
 
      plainus:campanha:<id>     o Estado inteiro de UMA campanha.
 
+     plainus:minhas-mesas      as mesas em que alguém deste navegador
+                               entrou como JOGADOR: { campanhaId, nome,
+                               jogadorId, em }. É o que deixa a Ana
+                               voltar para a Lyra com um clique, sem
+                               digitar nome e código toda sessão.
+
+     plainus:meu-nome          o último nome digitado na entrada, só
+                               para já vir preenchido.
+
    Por que separar índice e Estado: para listar as campanhas na
    entrada não é preciso abrir o Estado de todas — que tem heróis,
    NPCs, diário, mapas. A lista lê uma chave pequena.
@@ -56,6 +65,8 @@
 const CHAVE_SESSAO = 'plainus:sessao';
 const CHAVE_INDICE = 'plainus:campanhas';
 const PREFIXO_CAMPANHA = 'plainus:campanha:';
+const CHAVE_MESAS = 'plainus:minhas-mesas';
+const CHAVE_NOME = 'plainus:meu-nome';
 
 /* Sem 0/O nem 1/I: o código é lido em voz alta e digitado por outra
    pessoa, e esses pares se confundem. 32 letras — ver gerarCodigo(). */
@@ -264,5 +275,59 @@ const Campanhas = {
     }
 
     return limpo.slice(0, 4) + '-' + limpo.slice(4, 8) + '-' + limpo.slice(8, 12);
+  }
+};
+
+
+/* ===================================================================
+   MESAS — onde este navegador joga como JOGADOR
+
+   O Mestre já tinha a lista dele (o índice de campanhas). O jogador
+   não tinha nada: toda sessão, nome + código + "Jogador" de novo.
+   Isto guarda a entrada dele para a tela de entrada mostrar um cartão
+   "Voltar para a mesa".
+
+   É lembrança, não permissão: quem clica no cartão passa pelo mesmo
+   caminho de quem digita o código (jogador.html confere a sessão). E,
+   como o resto, vale só para este navegador.
+   =================================================================== */
+
+const Mesas = {
+
+  /* Só as que ainda existem: se o Mestre esqueceu a campanha, a
+     lembrança dela não tem para onde levar. */
+  listar: function () {
+    const lista = Armazem.ler(CHAVE_MESAS);
+    if (!Array.isArray(lista)) return [];
+    return lista.filter(function (m) {
+      return m && typeof m.campanhaId === 'string' && typeof m.jogadorId === 'string'
+        && typeof m.nome === 'string' && Campanhas.achar(m.campanhaId);
+    });
+  },
+
+  /* A mesma pessoa entrando de novo na mesma campanha não vira um
+     segundo cartão: troca o antigo. */
+  lembrar: function (campanhaId, nome, jogadorId) {
+    const lista = this.listar().filter(function (m) {
+      return !(m.campanhaId === campanhaId && m.jogadorId === jogadorId);
+    });
+    lista.push({ campanhaId: campanhaId, nome: nome, jogadorId: jogadorId, em: Date.now() });
+    Armazem.gravar(CHAVE_MESAS, lista);
+  },
+
+  /* Tira o cartão da lista. Não apaga personagem nem campanha. */
+  esquecer: function (campanhaId, jogadorId) {
+    Armazem.gravar(CHAVE_MESAS, this.listar().filter(function (m) {
+      return !(m.campanhaId === campanhaId && (!jogadorId || m.jogadorId === jogadorId));
+    }));
+  },
+
+  ultimoNome: function () {
+    const nome = Armazem.ler(CHAVE_NOME);
+    return typeof nome === 'string' ? nome.slice(0, 30) : '';
+  },
+
+  guardarNome: function (nome) {
+    Armazem.gravar(CHAVE_NOME, nome);
   }
 };

@@ -856,12 +856,21 @@ const Layout = {
     const codigo = Estado.campanha.codigo;
     const self = this;
 
+    /* No ar (http/https), copia o LINK de convite: o jogador clica e
+       cai na entrada com o código já preenchido (app.js, lerConvite).
+       Aberto por duplo clique (file://), o link seria um caminho do
+       SEU disco — inútil para quem está em outro computador —, então
+       copia só o código. */
+    const noAr = location.protocol === 'http:' || location.protocol === 'https:';
+    const texto = noAr ? new URL('index.html#convite=' + codigo, location.href).href : codigo;
+    const oQue = noAr ? 'Link de convite' : 'Código ' + codigo;
+
     /* A API moderna só funciona em contexto seguro (https, localhost).
        Abrindo por duplo clique (file://) ela pode falhar — por isso o
        catch mostra o código em vez de ficar em silêncio. */
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(codigo).then(function () {
-        self.recado('Código ' + codigo + ' copiado.');
+      navigator.clipboard.writeText(texto).then(function () {
+        self.recado(oQue + ' copiado.');
       }).catch(function () {
         self.recado('Não consegui copiar daqui. O código é ' + codigo + '.', true);
       });

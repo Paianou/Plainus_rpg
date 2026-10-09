@@ -25,7 +25,7 @@
    .entrada-caixa .... o cartão principal da tela
    .entrada-marca .... cabeçalho do cartão (arco + título + frase)
    .campo ............ par label + input
-   .colunas / .coluna  divide o cartão em duas colunas
+   .portas / .porta   as duas escolhas da entrada (convite, mestrar)
    .escolha-papel .... grupo de opções marcáveis (radio) — ver index.html
    .botao ............ botão cheio (ação principal, cinza/grafite)
    .botao.fantasma ... botão contornado (ação secundária, azul)
@@ -346,21 +346,9 @@ body::after {
 }
 
 
-/* ---------- 7. DUAS COLUNAS ----------
-   Um hairline separa as colunas — nunca uma borda grossa. */
-.colunas {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 8px;
-  border-top: 1px solid var(--hairline);
-}
-.coluna {
-  display: flex;
-  flex-direction: column;
-  padding: 32px 44px 40px;
-}
-.coluna + .coluna { border-left: 1px solid var(--hairline); }
-
+/* ---------- 7. TÍTULOS DE BLOCO ----------
+   (Aqui moravam as duas colunas da entrada antiga, Criar | Entrar.
+   Viraram as portas — seção 36, no fim do arquivo.) */
 h2 {
   display: flex;
   align-items: center;
@@ -383,8 +371,6 @@ h2::before {
   flex-shrink: 0;
 }
 
-.coluna .campo { padding: 0; margin-bottom: 18px; }
-.coluna .campo:last-of-type { margin-bottom: 26px; }
 
 
 /* ---------- 8. ESCOLHA (Jogador / Mestre) ---------- */
@@ -492,9 +478,6 @@ legend { padding: 0; }
   .pagina-entrada { padding: 16px; align-items: flex-start; padding-top: 40px; }
   .entrada-marca { padding: 32px 26px 4px; }
   .campo { padding: 0 26px; }
-  .colunas { grid-template-columns: 1fr; }
-  .coluna { padding: 28px 26px 32px; }
-  .coluna + .coluna { border-left: 0; border-top: 1px solid var(--hairline); }
 }
 
 
@@ -3418,37 +3401,15 @@ legend { padding: 0; }
 .campo-dupla .campo { padding: 0; }
 
 
-/* ----- Suas campanhas (index.html) ----- */
+/* ----- Suas mesas (index.html) — os cartões estão na seção 36 ----- */
 .campanhas-salvas {
-  margin: 26px 44px 26px;
-  padding-bottom: 22px;
+  margin: 26px 44px 0;
+  padding-bottom: 24px;
   border-bottom: 1px solid var(--hairline);
 }
-.campanhas-salvas h2 { font-size: 1.1rem; margin-bottom: 12px; }
+.campanhas-salvas h2 { font-size: 1.1rem; margin-bottom: 14px; }
 
-.lista-campanhas { display: flex; flex-direction: column; gap: 8px; }
-
-.campanha-salva {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  background: rgba(0, 0, 0, .25);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-p);
-}
-.campanha-info { flex: 1; min-width: 0; }
-.campanha-nome {
-  font-family: 'Marcellus', Georgia, serif;
-  font-size: 1.02rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.campanha-meta { font-size: 12px; color: var(--texto-3); }
-
-/* O .botao da entrada ocupa a largura toda; aqui o botão divide a
-   linha com o nome da campanha, então é outro, mais curto. */
+/* Botão curto, para dividir uma linha com texto (o Restaurar backup). */
 .botao-compacto {
   flex-shrink: 0;
   padding: 8px 14px;
@@ -4083,11 +4044,6 @@ legend { padding: 0; }
   .link-pular { margin-right: 26px; }
   .passos { gap: 6px; }
   .passos li { font-size: 9px; letter-spacing: .02em; }
-  .campanha-salva { flex-wrap: wrap; }
-  /* No celular, o nome em cima e os três botões dividindo a linha de
-     baixo — sem isso o "Esquecer" caía sozinho numa terceira linha. */
-  .campanha-salva .campanha-info { flex-basis: 100%; }
-  .campanha-salva .botao-compacto { flex: 1; padding-left: 8px; padding-right: 8px; }
   .campanha-info { flex-basis: 100%; }
 }
 
@@ -4918,4 +4874,253 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
   #principal.entrando > *,
   .cabeca-aba.entrando > *,
   .nav-jogador.entrando .codice-link.ativo::before { animation: none; }
+}
+
+
+
+/* ---------- 36. A ENTRADA: SUAS MESAS E AS DUAS PORTAS (index.html) ----------
+   Quem volta vê as mesas dele primeiro, em cartões com a cara da
+   campanha (o mapa ao fundo, a party em miniatura); quem chega escolhe
+   uma de duas portas. Um cartão é .cartao-mesa, e mais:
+     .campanha-salva   você mestra esta (selo "Mestre")
+     .mesa-jogador     você joga nesta  (selo "Jogando com Lyra") */
+
+.lista-mesas {
+  display: grid;
+  /* auto-fit: um cartão sozinho ocupa a linha toda; dois dividem. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.cartao-mesa {
+  position: relative;
+  isolation: isolate;          /* o fundo (z-index -1) fica dentro do cartão */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 16px 16px;
+  background: linear-gradient(180deg, rgba(31, 34, 40, .9), rgba(14, 16, 20, .95));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+  transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.cartao-mesa:hover {
+  border-color: rgba(77, 141, 255, .3);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -14px rgba(77, 141, 255, .35), inset 0 1px 0 var(--relevo);
+}
+
+/* O mapa da cena atual, como uma gravura apagada atrás do cartão:
+   cinza, escuro e sumindo para baixo, para o texto continuar lendo. */
+.fundo-mesa {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(.6) brightness(.55);
+  opacity: .35;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+}
+
+.topo-mesa { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.selo-mesa {
+  min-width: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 999px;
+}
+.selo-mesa.mestre { color: var(--gelo); background: var(--azul-fundo); box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .3); }
+.selo-mesa.jogador { color: var(--texto-2); background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px var(--hairline-forte); }
+
+.cartao-mesa .campanha-nome {
+  margin: 0;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cartao-mesa .campanha-meta { font-size: 12px; line-height: 1.5; color: var(--texto-3); }
+
+/* A party: bolinhas sobrepostas, como fichas na mesa. */
+.retratos-mesa { display: flex; align-items: center; min-height: 32px; padding-left: 6px; }
+.retrato-mini {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: -6px;
+  overflow: hidden;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 14px;
+  color: var(--texto-2);
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 2px solid #121419;
+  border-radius: 50%;
+}
+.retrato-mini img { width: 100%; height: 100%; object-fit: cover; }
+.retrato-mini.meu { color: var(--texto); border-color: var(--azul); box-shadow: 0 0 10px rgba(77, 141, 255, .45); }
+.retrato-mini.mais { font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 600; color: var(--texto-3); }
+.sem-party { margin-left: -6px; font-size: 12px; color: var(--texto-3); }
+
+/* O botão principal do cartão: um só, sempre embaixo. */
+.botao-mesa {
+  margin-top: 2px;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gelo);
+  cursor: pointer;
+  background: rgba(77, 141, 255, .1);
+  border: 1px solid rgba(77, 141, 255, .38);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.botao-mesa:hover { background: rgba(77, 141, 255, .18); border-color: rgba(77, 141, 255, .6); }
+
+/* O menu "⋯": <details>, que abre e fecha sem JS. */
+.menu-mesa { position: relative; flex-shrink: 0; }
+.botao-opcoes {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--texto-3);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.botao-opcoes::-webkit-details-marker { display: none; }
+.botao-opcoes:hover,
+.menu-mesa[open] .botao-opcoes { color: var(--texto); background: rgba(255, 255, 255, .06); }
+.itens-menu-mesa {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 5px;
+  background: linear-gradient(180deg, #1d2026, #121419);
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-p);
+  box-shadow: var(--sombra-alta);
+}
+.itens-menu-mesa button {
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--texto-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.itens-menu-mesa button:hover { color: var(--texto); background: rgba(255, 255, 255, .06); }
+.itens-menu-mesa button.perigo:hover { color: #f2b8b4; background: rgba(194, 65, 63, .1); }
+
+
+/* As duas portas: grandes, lado a lado, com luz no topo. */
+.portas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 26px 44px 28px;
+}
+.porta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px 20px 22px;
+  font: inherit;
+  text-align: left;
+  color: var(--texto);
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(36, 39, 46, .7), rgba(14, 16, 20, .7));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-m);
+  box-shadow: inset 0 1px 0 var(--relevo);
+  transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.porta:hover {
+  border-color: rgba(77, 141, 255, .45);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px -16px rgba(77, 141, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+.porta-icone {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 6px;
+  color: var(--azul);
+  background: var(--azul-fundo);
+  border-radius: var(--r-p);
+  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .25);
+}
+.porta-titulo { font-family: 'Marcellus', Georgia, serif; font-size: 1.2rem; letter-spacing: .02em; }
+.porta-texto { font-size: 13px; line-height: 1.5; color: var(--texto-3); }
+
+/* O formulário da porta escolhida. */
+.formulario-porta { padding: 22px 0 8px; }
+.formulario-porta.abrindo { animation: aba-entra .3s cubic-bezier(.2, .7, .2, 1) both; }
+.cabeca-porta { display: flex; align-items: center; gap: 12px; padding: 0 44px; margin-bottom: 20px; }
+.cabeca-porta h2 { margin: 0; }
+.voltar-porta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px 6px 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--texto-3);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+  transition: var(--transicao);
+}
+.voltar-porta:hover { color: var(--texto); border-color: var(--hairline-forte); }
+.convite-achado {
+  margin: 0 44px 20px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--texto-2);
+  background: var(--azul-fundo);
+  border-left: 2px solid var(--azul);
+  border-radius: 0 var(--r-p) var(--r-p) 0;
+}
+.convite-achado strong { font-family: 'Marcellus', Georgia, serif; font-size: 15px; font-weight: 400; color: var(--texto); }
+.formulario-porta .botao { margin-top: 4px; }
+
+@media (max-width: 720px) {
+  .campanhas-salvas { margin: 22px 26px 0; }
+  .portas { grid-template-columns: 1fr; padding: 22px 26px 24px; }
+  .cabeca-porta { padding: 0 26px; }
+  .convite-achado { margin-left: 26px; margin-right: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formulario-porta.abrindo { animation: none; }
+  .porta:hover, .cartao-mesa:hover { transform: none; }
 }
