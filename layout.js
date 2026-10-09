@@ -101,6 +101,28 @@ function criarRetrato(seletor, foto, nome) {
   return caixa;
 }
 
+/* A marca na barra do topo — e um link para o início (index.html),
+   como em quase todo site: quem se perde clica no nome e volta para a
+   porta de entrada. A sessão desta aba não acaba; a entrada mostra a
+   mesa em "Suas mesas", e um clique traz de volta.
+
+   Um <a> de verdade, e não um div com onclick: o navegador já sabe
+   abrir em outra aba com o botão do meio, o leitor de tela anuncia
+   "link", e o Tab chega nele sem nada a mais. */
+function marcaDoSite(emblema, funcao) {
+  const marca = criar('a.marca-mestre', [
+    emblema,
+    criar('div', [
+      criar('div.nome', 'Plainus RPG'),
+      criar('div.funcao', funcao)
+    ])
+  ]);
+  marca.href = 'index.html';
+  marca.title = 'Ir para o início';
+  marca.setAttribute('aria-label', 'Plainus RPG — ir para o início');
+  return marca;
+}
+
 /* Botão com ícone + texto, já com type="button" e data-acao. */
 function criarBotao(classe, acao, icone, texto) {
   const botao = criar('button.' + classe);
@@ -299,13 +321,7 @@ const Layout = {
     const emblema = criar('span.emblema');
     emblema.appendChild(Icone.svg('mestre', 19));
 
-    barra.appendChild(criar('div.marca-mestre', [
-      emblema,
-      criar('div', [
-        criar('div.nome', 'Plainus RPG'),
-        criar('div.funcao', 'Painel de Campanha')
-      ])
-    ]));
+    barra.appendChild(marcaDoSite(emblema, 'Painel de Campanha'));
 
     /* Seletor de sessão + o botão de nova sessão, na mesma caixa.
        A caixa é 'position: relative' porque o menu se pendura nela. */

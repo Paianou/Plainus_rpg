@@ -546,6 +546,8 @@ const Criacao = {
     }
 
     try { sessionStorage.removeItem(CHAVE_RASCUNHO); } catch (erro) { /* tanto faz */ }
+    /* Esta saída É o salvamento: sem perguntar "sair sem salvar?". */
+    AvisoSaida.liberar();
     location.href = 'mestre.html';
   },
 

@@ -547,6 +547,13 @@ legend { padding: 0; }
   padding-right: 16px;
   border-right: 1px solid var(--hairline);
 }
+/* A marca é um link (layout.js, marcaDoSite): sem sublinhado, e ao
+   passar o mouse só o emblema acende — um aviso discreto de "clicável". */
+a.marca-mestre { color: inherit; text-decoration: none; border-radius: var(--r-p); }
+a.marca-mestre .emblema { transition: var(--transicao); }
+a.marca-mestre:hover .emblema { color: var(--gelo); border-color: rgba(77, 141, 255, .6); box-shadow: 0 0 14px rgba(77, 141, 255, .35); }
+a.marca-mestre:hover .nome { color: #fff; }
+
 .marca-mestre .emblema {
   display: grid;
   place-items: center;

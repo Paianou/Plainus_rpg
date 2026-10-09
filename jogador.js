@@ -68,6 +68,10 @@ const Jogador = {
     this.sessao = sessao;
     document.getElementById('app').hidden = false;
 
+    /* Abriu com #aba=inventario no endereço (F5, link, voltar do
+       navegador): começa nessa aba, e não na Ficha. */
+    this.aba = this.abaDoEndereco() || 'ficha';
+
     /* O chat (chat.js) se liga antes: quando chega mensagem, ele
        atualiza a lista; a navegação só precisa refazer o contador. */
     Chat.ligar();
@@ -75,6 +79,8 @@ const Jogador = {
     Chat.aoMudarLidas = function () {
       if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') self.montarNav(self.abasVisiveis());
     };
+
+    AvisoSaida.registrar(function () { return self.rascunhoMudou(); });
 
     this.render();
     this.ligar();
@@ -116,12 +122,14 @@ const Jogador = {
     document.getElementById('cabecaAba').hidden = formulario;
 
     if (!this.visao.meuHeroi) {
-      if (!this.rascunho) this.rascunho = this.rascunhoNovo();
+      if (!this.rascunho) this.guardarRascunho(this.rascunhoNovo());
       this.montarFormulario(area, true);
+      this.copiarRascunhoInicial();
       return;
     }
     if (this.modo === 'editar') {
       this.montarFormulario(area, false);
+      this.copiarRascunhoInicial();
       return;
     }
 
@@ -184,6 +192,18 @@ const Jogador = {
     ['notas', 'nota', 'Anotações', 'O que você quer lembrar da campanha.'],
     ['regras', 'compendio', 'Regras', 'Consulta rápida das regras do jogo.']
   ],
+
+  /* "#aba=inventario" → 'inventario'. Só vale um id que existe em ABAS:
+     o endereço é texto que qualquer um edita. (Magias num personagem
+     que não conjura: o render() já devolve para a Ficha.) O "aba="
+     na frente evita que o navegador role a página até um elemento
+     que tenha o mesmo id. */
+  abaDoEndereco: function () {
+    const achado = /^#aba=([a-z]+)$/.exec(location.hash);
+    if (!achado) return null;
+    const id = achado[1];
+    return this.ABAS.some(function (a) { return a[0] === id; }) ? id : null;
+  },
 
   abasVisiveis: function () {
     const conjura = !!(this.visao.meuHeroi && this.visao.meuHeroi.ficha.atributoMagia);
@@ -276,13 +296,7 @@ const Jogador = {
     const emblema = criar('span.emblema');
     emblema.appendChild(Icone.svg('escudo', 19));
 
-    barra.appendChild(criar('div.marca-mestre', [
-      emblema,
-      criar('div', [
-        criar('div.nome', 'Plainus RPG'),
-        criar('div.funcao', 'Painel do jogador')
-      ])
-    ]));
+    barra.appendChild(marcaDoSite(emblema, 'Painel do jogador'));
 
     barra.appendChild(criar('div.campanha-jogador', [
       criar('span.titulo-sessao', this.visao.campanha.nome),
@@ -991,7 +1005,7 @@ const Jogador = {
   editar: function () {
     const meu = this.visao.meuHeroi;
     if (!meu) return;
-    this.rascunho = { id: meu.id, nome: meu.nome, ficha: UsoFicha.completar(JSON.parse(JSON.stringify(meu.ficha))) };
+    this.guardarRascunho({ id: meu.id, nome: meu.nome, ficha: UsoFicha.completar(JSON.parse(JSON.stringify(meu.ficha))) });
     this.dadoTocado = { dadoVida: true, dadoVida2: true };   /* já foi escolhido antes */
     this.modo = 'editar';
     this.render();
@@ -1002,6 +1016,16 @@ const Jogador = {
 
   ligar: function () {
     const self = this;
+
+    /* O "voltar" e o "avançar" do navegador trocam o #aba= do endereço:
+       a tela acompanha. */
+    window.addEventListener('hashchange', function () {
+      const aba = self.abaDoEndereco() || 'ficha';
+      if (aba === self.aba) return;
+      self.entrando = true;
+      self.aba = aba;
+      self.render();
+    });
 
     document.getElementById('app').addEventListener('click', function (evento) {
       const alvo = evento.target.closest('[data-acao]');
@@ -1035,8 +1059,16 @@ const Jogador = {
         /* A aba é estado de vista: troca e redesenha, sem gravar nada.
            O foco volta para a aba, como na Visão Geral do Mestre. */
         case 'aba': {
-          if (self.aba !== alvo.dataset.aba) self.entrando = true;
-          self.aba = alvo.dataset.aba;
+          if (self.aba !== alvo.dataset.aba) {
+            self.entrando = true;
+            self.aba = alvo.dataset.aba;
+            /* A aba vai para o endereço: o F5 volta a ela, e o "voltar"
+               do navegador volta à aba anterior (o hashchange, lá em
+               baixo, cuida disso). O redesenho é feito AQUI, na hora,
+               e não esperando o hashchange — que chega um instante
+               depois e, achando a aba já trocada, não faz nada. */
+            location.hash = 'aba=' + self.aba;
+          }
           self.render();
           const ativa = document.querySelector('.nav-jogador .codice-link.ativo');
           if (ativa) ativa.focus();
@@ -1222,6 +1254,28 @@ const Jogador = {
      apagaria o texto (a ficha em edição, uma anotação pela metade, a
      busca das regras). Espera: o Estado já está atualizado na memória,
      e o próximo clique redesenha com ele. */
+  /* O rascunho da ficha e uma cópia de como ele COMEÇOU: o aviso de
+     saída (aviso-saida.js) só pergunta se os dois forem diferentes —
+     abrir "Editar ficha" e sair sem mexer em nada não é perder nada. */
+  guardarRascunho: function (rascunho) {
+    this.rascunho = rascunho;
+    /* A cópia é tirada depois do PRIMEIRO desenho do formulário (ver
+       render), e não aqui: ao se desenhar, o formulário completa o
+       rascunho com os valores padrão — e uma ficha em branco já
+       pareceria "mexida". */
+    this.rascunhoInicial = null;
+  },
+
+  rascunhoMudou: function () {
+    return !!this.rascunho && this.rascunhoInicial !== null && JSON.stringify(this.rascunho) !== this.rascunhoInicial;
+  },
+
+  /* Depois de desenhar o formulário: se a cópia ainda não existe, é
+     agora — com o rascunho já completado pelo desenho. */
+  copiarRascunhoInicial: function () {
+    if (this.rascunho && this.rascunhoInicial === null) this.rascunhoInicial = JSON.stringify(this.rascunho);
+  },
+
   ocupado: function () {
     if (this.rascunho) return true;
     const foco = document.activeElement;
