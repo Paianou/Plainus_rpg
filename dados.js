@@ -34,30 +34,8 @@
 const CELULA = 40;
 const METROS_POR_CELULA = 1.5;
 
-/* Uma imagem guardada, se for de confiança — senão, null.
-   O site só grava imagens que ele mesmo recomprimiu em JPEG
-   (imagens.js). Esta checagem existe porque o Estado vem do
-   localStorage, que qualquer um edita — e um endereço qualquer num
-   <img> ou num <image> do SVG não é coisa para aceitar às cegas.
-   `limite` é o tamanho máximo do texto (ver Imagens.PERFIS). */
-function imagemSegura(imagem, limite) {
-  return typeof imagem === 'string'
-    && imagem.length <= (limite || 700000)
-    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem)
-    ? imagem : null;
-}
-
-/* A imagem de fundo de uma cena. Usada pelas duas telas que desenham
-   a planta (Mapas e a planta.js). */
-function imagemDaCena(cena) {
-  return imagemSegura(cena && cena.imagem, 700000);
-}
-
-/* O retrato de um personagem ou de um monstro. */
-const LIMITE_RETRATO = 160000;
-function retratoSeguro(imagem) {
-  return imagemSegura(imagem, LIMITE_RETRATO);
-}
+/* imagemSegura(), imagemDaCena() e retratoSeguro() moram no modelo.js:
+   o servidor confere as imagens com a mesma regra. */
 
 
 const Estado = {
@@ -504,13 +482,8 @@ function estadoDeExemplo() {
    (Estado.campanha inteiro vem do salvo), então uma campanha criada
    antes desta regra existir não tem o objeto — e quem lê não deve
    ter de lembrar disso. */
-function regrasPersonagem(estado) {
-  const campanha = (estado || Estado).campanha || {};
-  return Object.assign(
-    { atributos: 'compra', pv: 'media', talentos: true, multiclasse: false },
-    campanha.regrasPersonagem
-  );
-}
+/* (regrasPersonagem() mora no modelo.js: o servidor monta a visão do
+   jogador com ela.) */
 
 
 /* ---------- O bestiário inteiro: o do livro + os seus ----------
