@@ -1,0 +1,16 @@
+const { ACOES } = require('../../acoes.js');
+let falhas = 0;
+const ok = (c, t) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + t); if (!c) falhas++; };
+const estado = {};
+const foto = 'data:image/jpeg;base64,' + 'A'.repeat(1000);
+ok(!ACOES.salvarItem(estado, { lista: 'monstrosMeus', item: { id: 'mm1', nome: 'Lobo Sombrio', pv: 42 } }).erro && estado.monstrosMeus.length === 1, 'monstro próprio salvo');
+ok(!ACOES.mudarFotoMonstro(estado, { meuId: 'mm1', foto: foto }).erro && estado.monstrosMeus[0].foto === foto, 'foto no monstro próprio vai na ficha dele');
+ok(!ACOES.mudarFotoMonstro(estado, { nome: 'Goblin', foto: foto }).erro && estado.fotosMonstros.Goblin === foto, 'foto em monstro do livro vai para fotosMonstros, pelo nome');
+ACOES.mudarFotoMonstro(estado, { nome: 'Goblin', foto: null });
+ok(!('Goblin' in estado.fotosMonstros), 'foto null tira');
+ok(ACOES.mudarFotoMonstro(estado, { nome: 'Goblin', foto: 'data:image/svg+xml;base64,PHN2Zz4=' }).erro, 'SVG (que pode levar script): recusado');
+ok(ACOES.mudarFotoMonstro(estado, { nome: 'Goblin', foto: 'javascript:alert(1)' }).erro, '"javascript:" no lugar da foto: recusado');
+ok(ACOES.mudarFotoMonstro(estado, { nome: 'Goblin', foto: 'data:image/jpeg;base64,' + 'A'.repeat(200000) }).erro, 'foto maior que o limite: recusada');
+ok(ACOES.mudarFotoMonstro(estado, { meuId: 'mm9', foto: foto }).erro, 'monstro próprio que não existe: recusado');
+ok(ACOES.mudarFotoMonstro(estado, { nome: '__proto__', foto: foto }).erro && Object.getPrototypeOf(estado.fotosMonstros) === Object.prototype, 'foto com nome "__proto__" é recusada (e não envenena o objeto)');
+console.log(falhas ? falhas + ' FALHAS' : '\nBestiário certo no Node.');

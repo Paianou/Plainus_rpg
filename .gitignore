@@ -1,3 +1,6 @@
 node_modules/
 data/
 .env
+
+# O que os testes geram (fotos de tela, downloads, perfil do navegador)
+testes/saida/
