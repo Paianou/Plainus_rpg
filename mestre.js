@@ -765,8 +765,7 @@ const Painel = {
 
     document.getElementById('conteudo').addEventListener('input', function (evento) {
       if (evento.target.id === 'volumeAudio') {
-        Estado.audio.volume = Number(evento.target.value);
-        Memoria.salvar();
+        Acoes.executar('ajustarAudio', { volume: Number(evento.target.value) });
         Som.ajustarVolume();
         const mostrador = document.querySelector('.valor-volume');
         if (mostrador) mostrador.textContent = Estado.audio.volume + '%';
@@ -776,9 +775,7 @@ const Painel = {
     /* Escolher uma pista é querer ouvi-la: por isso liga o som também. */
     document.getElementById('conteudo').addEventListener('change', function (evento) {
       if (evento.target.id !== 'pistaAudio') return;
-      Estado.audio.pista = evento.target.value;
-      Estado.audio.tocando = true;
-      Memoria.salvar();
+      if (Acoes.executar('ajustarAudio', { pista: evento.target.value, tocando: true }).erro) return;
       Som.liberar();
       Som.aplicar();
       Layout.recado('Tocando: ' + Estado.audio.pista + '.');
@@ -834,12 +831,11 @@ const Painel = {
         break;
 
       case 'gerar-npc':
-        Estado.npc = {
+        Acoes.executar('guardarNpcSorteado', { npc: {
           nome: Layout.sortear(GERADOR.nomes) + ', ' + Layout.sortear(GERADOR.epitetos),
           traco: Layout.sortear(GERADOR.racas) + ' · ' + Layout.sortear(GERADOR.tracos),
           segredo: Layout.sortear(GERADOR.segredos)
-        };
-        Memoria.salvar();
+        } });
         this.render();
         break;
 
@@ -852,8 +848,7 @@ const Painel = {
         const ouro = Layout.dado(6) * 10 + Layout.dado(20);
         const prata = Layout.dado(10) * 20;
         const itens = ['poção de cura', 'pergaminho de Identificação', 'adaga bem-feita', 'anel de sinete gasto', 'frasco de óleo alquímico', 'mapa rasgado'];
-        Estado.tesouro = ouro + ' PO · ' + prata + ' PP · ' + Layout.sortear(itens);
-        Memoria.salvar();
+        Acoes.executar('guardarTesouro', { texto: ouro + ' PO · ' + prata + ' PP · ' + Layout.sortear(itens) });
         this.render();
         Layout.recado('Saque rolado: ' + Estado.tesouro);
         break;
@@ -907,9 +902,7 @@ const Painel = {
   /* Grava e mostra: com a animação (dados3d.js) ou, desligada, com o
      recado de sempre. O resultado é gravado ANTES de ser mostrado. */
   registrarRolagem: function (rolagem, cena) {
-    Estado.rolagens.unshift(rolagem);
-    Estado.rolagens = Estado.rolagens.slice(0, 8);
-    Memoria.salvar();
+    Acoes.executar('registrarRolagemMestre', { rolagem: rolagem });
     this.render();
     if (cena && Dados3D.mostrar(cena)) return;
 
@@ -919,26 +912,17 @@ const Painel = {
   },
 
 
-  /* Mexer no PV aqui também mexe no combate, se o herói estiver nele.
-     O PV mora na ficha; o combate só reflete. */
+  /* Mexer no PV aqui também mexe no combate, se o herói estiver nele —
+     a regra está na ação mudarPVHeroi (acoes.js). */
   mudarPV: function (id, quanto) {
-    const heroi = Estado.herois.find(function (h) { return h.id === id; });
-    if (!heroi) return;
-
-    const antes = heroi.pv;
-    heroi.pv = Math.max(0, Math.min(heroi.pvMax, heroi.pv + quanto));
-    if (heroi.pv === antes) return;
-
-    const combatente = Estado.combate.combatentes.find(function (c) { return c.heroiId === id; });
-    if (combatente) combatente.pv = heroi.pv;
-
-    Memoria.salvar();
+    const r = Acoes.executar('mudarPVHeroi', { id: id, delta: quanto });
+    if (r.erro || !r.mudou) return;
     this.render();
 
-    if (heroi.pv === 0) {
-      Layout.recado(heroi.nome + ' caiu a 0 PV — testes de morte a partir do próximo turno.', true);
+    if (r.depois === 0) {
+      Layout.recado(r.nome + ' caiu a 0 PV — testes de morte a partir do próximo turno.', true);
     } else {
-      Layout.recado(heroi.nome + ': ' + antes + ' → ' + heroi.pv + ' PV.');
+      Layout.recado(r.nome + ': ' + r.antes + ' → ' + r.depois + ' PV.');
     }
   }
 };

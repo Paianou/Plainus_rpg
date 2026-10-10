@@ -371,18 +371,11 @@ const Compendio = {
 
 
   alternarFixada: function (nome) {
-    if (!Estado.fixadas) Estado.fixadas = [];
-
-    const posicao = Estado.fixadas.indexOf(nome);
-    if (posicao === -1) {
-      Estado.fixadas.push(nome);
-      Layout.recado('"' + nome + '" fixada. Ela vai aparecer no acesso rápido do painel.');
-    } else {
-      Estado.fixadas.splice(posicao, 1);
-      Layout.recado('"' + nome + '" desafixada.');
-    }
-
-    Memoria.salvar();
+    const r = Acoes.executar('alternarFixada', { nome: nome });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
+    Layout.recado(r.fixada
+      ? '"' + nome + '" fixada. Ela vai aparecer no acesso rápido do painel.'
+      : '"' + nome + '" desafixada.');
     this.render();
   },
 

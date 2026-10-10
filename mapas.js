@@ -683,11 +683,15 @@ const Mapa = {
         return;
       }
 
-      /* Salva só ao soltar: gravar a campanha inteira a cada célula
-         pintada seria gravar dezenas de vezes por segundo. */
+      /* Grava só ao soltar: a pincelada inteira vira UMA ação
+         (definirParedes). Durante a pincelada, as paredes mudam só na
+         memória desta tela, para o desenho acompanhar o mouse — com
+         servidor, os outros veem a pincelada pronta, e não dezenas de
+         pedidos por segundo. Se a ação recusar, volta ao gravado. */
       if (self.pintura) {
         self.pintura = null;
-        Memoria.salvar();
+        const cena = self.cena();
+        if (Acoes.executar('definirParedes', { cenaId: cena.id, paredes: cena.paredes }).erro) Memoria.carregar();
         self.render();
         return;
       }
@@ -711,10 +715,7 @@ const Mapa = {
         y: ponto.y - arrasto.dy
       });
 
-      token.col = celula.col;
-      token.lin = celula.lin;
-
-      Memoria.salvar();
+      Acoes.executar('moverToken', { cenaId: self.cena().id, id: token.id, col: celula.col, lin: celula.lin });
       self.render();
     }
 
@@ -739,115 +740,41 @@ const Mapa = {
   /* ---------- Ações ---------- */
 
   criarMarcador: function (celula) {
-    const cena = this.cena();
-
-    cena.marcadores.push({
-      id: 'm' + Date.now(),
-      col: celula.col,
-      lin: celula.lin,
-      tipo: 'nota',
-      texto: 'Novo marcador'
-    });
-
-    Memoria.salvar();
+    const r = Acoes.executar('criarMarcador', { cenaId: this.cena().id, col: celula.col, lin: celula.lin });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
     this.render();
     Layout.recado('Marcador criado. Escreva o que ele é na lista ao lado.');
   },
 
 
-  /* Traz para o mapa quem está no combate e ainda não tem token. */
+  /* Traz para o mapa quem está no combate e ainda não tem token —
+     onde cada um cai é regra da ação (celulaLivre, no acoes.js). */
   trazerCombatentes: function () {
-    const self = this;
-    const cena = this.cena();
-    let entraram = 0;
-
-    Estado.combate.combatentes.forEach(function (combatente) {
-      if (combatente.pv <= 0) return;
-
-      const jaTem = cena.tokens.some(function (t) { return t.nome === combatente.nome; });
-      if (jaTem) return;
-
-      const livre = self.celulaLivre();
-      if (!livre) return;
-
-      cena.tokens.push({
-        id: 't' + Date.now() + Math.floor(Math.random() * 1000),
-        nome: combatente.nome,
-        inicial: combatente.nome.charAt(0).toUpperCase(),
-        tipo: combatente.tipo === 'heroi' ? 'heroi' : 'inimigo',
-        col: livre.col,
-        lin: livre.lin
-      });
-
-      entraram += 1;
-    });
-
-    if (entraram === 0) {
-      Layout.recado('Todo mundo do combate já está no mapa.');
-      return;
-    }
-
-    Memoria.salvar();
+    const r = Acoes.executar('trazerCombatentesAoMapa', { cenaId: this.cena().id });
+    if (r.erro) { Layout.recado(r.erro); return; }
     this.render();
-    Layout.recado(entraram + (entraram === 1 ? ' token entrou' : ' tokens entraram') + ' no mapa.');
-  },
-
-
-  /* Procura uma célula sem parede e sem token. Varre de dentro para
-     fora, começando perto do meio. */
-  celulaLivre: function () {
-    const cena = this.cena();
-
-    function ocupada(col, lin) {
-      const temParede = cena.paredes.some(function (p) {
-        return col >= p[0] && col < p[0] + p[2] && lin >= p[1] && lin < p[1] + p[3];
-      });
-      if (temParede) return true;
-
-      return cena.tokens.some(function (t) { return t.col === col && t.lin === lin; });
-    }
-
-    const meioCol = Math.floor(cena.colunas / 2);
-    const meioLin = Math.floor(cena.linhas / 2);
-
-    for (let raio = 0; raio < Math.max(cena.colunas, cena.linhas); raio++) {
-      for (let dc = -raio; dc <= raio; dc++) {
-        for (let dl = -raio; dl <= raio; dl++) {
-          const col = meioCol + dc;
-          const lin = meioLin + dl;
-
-          if (col < 0 || lin < 0 || col >= cena.colunas || lin >= cena.linhas) continue;
-          if (!ocupada(col, lin)) return { col: col, lin: lin };
-        }
-      }
-    }
-
-    return null;
+    Layout.recado(r.entraram + (r.entraram === 1 ? ' token entrou' : ' tokens entraram') + ' no mapa.');
   },
 
 
   trocarCena: function (id) {
-    Estado.cenaAtual = id;
+    const r = Acoes.executar('escolherCena', { id: id });
+    if (r.erro) return;
     this.selecionado = null;
     this.regua = null;
-
-    Memoria.salvar();
     this.render();
-    Layout.recado('Cena: ' + this.cena().nome + '.');
+    Layout.recado('Cena: ' + r.nome + '.');
   },
 
 
   tirarToken: function () {
-    const cena = this.cena();
     const token = this.token(this.selecionado);
     if (!token) return;
-
-    cena.tokens = cena.tokens.filter(function (t) { return t.id !== token.id; });
+    const r = Acoes.executar('tirarToken', { cenaId: this.cena().id, id: token.id });
+    if (r.erro) return;
     this.selecionado = null;
-
-    Memoria.salvar();
     this.render();
-    Layout.recado(token.nome + ' saiu do mapa.');
+    Layout.recado(r.nome + ' saiu do mapa.');
   },
 
 
@@ -855,20 +782,13 @@ const Mapa = {
     const cena = this.cena();
     const token = this.token(this.selecionado);
     if (!token) return;
-
-    token.col = Math.floor(cena.colunas / 2);
-    token.lin = Math.floor(cena.linhas / 2);
-
-    Memoria.salvar();
+    Acoes.executar('moverToken', { cenaId: cena.id, id: token.id, col: Math.floor(cena.colunas / 2), lin: Math.floor(cena.linhas / 2) });
     this.render();
   },
 
 
   tirarMarcador: function (id) {
-    const cena = this.cena();
-    cena.marcadores = cena.marcadores.filter(function (m) { return m.id !== id; });
-
-    Memoria.salvar();
+    Acoes.executar('tirarMarcador', { cenaId: this.cena().id, id: id });
     this.render();
   },
 
@@ -934,15 +854,6 @@ const Mapa = {
     cena.paredes = this.paredesDeCelulas(p.celulas, cena);
     this.renderMapa();
   },
-
-  /* As quatro paredes de borda de uma cena nova. */
-  contorno: function (colunas, linhas) {
-    return [
-      [0, 0, colunas, 1], [0, linhas - 1, colunas, 1],
-      [0, 1, 1, linhas - 2], [colunas - 1, 1, 1, linhas - 2]
-    ];
-  },
-
 
   /* ===================================================================
      A JANELA DE CENA (criar e editar)
@@ -1041,10 +952,8 @@ const Mapa = {
   },
 
 
-  /* Salvar da janela. Se o navegador recusar a gravação (espaço
-     cheio — quase sempre por causa de imagem), DESFAZ a mudança na
-     memória e avisa: melhor perder a imagem do que a campanha ficar
-     diferente na tela e no armazenamento. */
+  /* Salvar da janela. A tela confere os campos para mostrar o erro no
+     lugar certo; a ação confere de novo (no servidor, é a que vale). */
   salvarJanela: function () {
     const erro = document.getElementById('erroCena');
     const nome = document.getElementById('cenaNome').value.trim();
@@ -1063,40 +972,18 @@ const Mapa = {
     if (!Number.isInteger(colunas) || colunas < 5 || colunas > 60) return falha('Colunas: um número inteiro de 5 a 60.', 'cenaColunas');
     if (!Number.isInteger(linhas) || linhas < 5 || linhas > 40) return falha('Linhas: um número inteiro de 5 a 40.', 'cenaLinhas');
 
-    const antes = JSON.stringify({ cenas: Estado.cenas, cenaAtual: Estado.cenaAtual });
+    /* A mudança em si é a ação salvarCena (acoes.js): nova ou editada,
+       com o redimensionamento. Se o navegador recusar a gravação (espaço
+       cheio, quase sempre por causa de imagem), o Acoes.executar desfaz
+       e devolve o erro. */
     const nova = this.janela === 'nova';
-
-    if (nova) {
-      const cena = {
-        id: 'cena' + Date.now(),
-        nome: nome,
-        visibilidade: visibilidade,
-        colunas: colunas,
-        linhas: linhas,
-        paredes: document.getElementById('cenaContorno').checked ? this.contorno(colunas, linhas) : [],
-        tokens: [],
-        marcadores: []
-      };
-      if (this.imagemEscolhida) cena.imagem = this.imagemEscolhida;
-
-      Estado.cenas.push(cena);
-      Estado.cenaAtual = cena.id;
-    } else {
-      const cena = this.cena();
-      cena.nome = nome;
-      cena.visibilidade = visibilidade;
-      if (colunas !== cena.colunas || linhas !== cena.linhas) this.redimensionar(cena, colunas, linhas);
-
-      if (this.imagemEscolhida === null) delete cena.imagem;
-      else if (this.imagemEscolhida) cena.imagem = this.imagemEscolhida;
-    }
-
-    if (!Memoria.salvar({ silencioso: true })) {
-      const volta = JSON.parse(antes);
-      Estado.cenas = volta.cenas;
-      Estado.cenaAtual = volta.cenaAtual;
-      return falha('Não coube no armazenamento do navegador. Tente uma imagem menor, ou tire a imagem de outra cena.');
-    }
+    const r = Acoes.executar('salvarCena', {
+      id: nova ? null : this.cena().id,
+      nome: nome, visibilidade: visibilidade, colunas: colunas, linhas: linhas,
+      contorno: nova && document.getElementById('cenaContorno').checked,
+      imagem: this.imagemEscolhida
+    });
+    if (r.erro) return falha(r.erro);
 
     this.selecionado = null;
     this.regua = null;
@@ -1106,25 +993,8 @@ const Mapa = {
   },
 
 
-  /* Mudar o tamanho de uma cena que já tem coisas dentro. Encolher
-     corta as paredes que passariam da borda e puxa para dentro os
-     tokens e marcadores que ficariam fora — nada some sem aviso
-     visível, só muda de casa. */
-  redimensionar: function (cena, colunas, linhas) {
-    cena.paredes = cena.paredes
-      .map(function (p) {
-        return [p[0], p[1], Math.min(p[2], colunas - p[0]), Math.min(p[3], linhas - p[1])];
-      })
-      .filter(function (p) { return p[2] > 0 && p[3] > 0; });
-
-    cena.tokens.concat(cena.marcadores).forEach(function (coisa) {
-      coisa.col = Math.min(coisa.col, colunas - 1);
-      coisa.lin = Math.min(coisa.lin, linhas - 1);
-    });
-
-    cena.colunas = colunas;
-    cena.linhas = linhas;
-  },
+  /* (O redimensionar de uma cena com coisas dentro mora na ação
+     salvarCena, no acoes.js.) */
 
 
   apagarCena: function () {
@@ -1134,18 +1004,14 @@ const Mapa = {
     /* Apaga na hora e oferece desfazer (Layout.recadoDesfazer). A cena
        volta com paredes, tokens e marcadores — e volta a ser a atual. */
     const self = this;
-    const posicao = Estado.cenas.indexOf(cena);
-    Estado.cenas = Estado.cenas.filter(function (c) { return c.id !== cena.id; });
-    Estado.cenaAtual = Estado.cenas.length ? Estado.cenas[0].id : null;
+    const r = Acoes.executar('apagarCena', { id: cena.id });
+    if (r.erro) return;
     this.selecionado = null;
     this.regua = null;
-
-    Memoria.salvar();
     this.render();
+
     Layout.recadoDesfazer('Cena "' + cena.nome + '" apagada.', function () {
-      if (!Layout.devolver(Estado.cenas, cena, posicao)) return;
-      Estado.cenaAtual = cena.id;
-      Memoria.salvar();
+      if (Acoes.executar('devolverCena', { item: r.item, posicao: r.posicao }).erro) return;
       self.render();
       Layout.recado('Cena "' + cena.nome + '" de volta.');
     });
@@ -1193,16 +1059,9 @@ function ligarPainel() {
     const campo = evento.target.closest('[data-marcador]');
     if (!campo) return;
 
-    const marcador = Mapa.cena().marcadores.find(function (m) {
-      return m.id === campo.dataset.marcador;
-    });
-    if (!marcador) return;
-
-    marcador.texto = campo.value.trim() || 'Marcador';
-    /* Um marcador que fala de armadilha vira vermelho sozinho. */
-    marcador.tipo = /armadilha|perigo|glifo|veneno|fogo/i.test(marcador.texto) ? 'perigo' : 'nota';
-
-    Memoria.salvar();
+    /* (Um marcador que fala de armadilha vira vermelho sozinho — regra
+       da ação editarMarcador.) */
+    Acoes.executar('editarMarcador', { cenaId: Mapa.cena().id, id: campo.dataset.marcador, texto: campo.value });
     Mapa.render();
   });
 

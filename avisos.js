@@ -100,7 +100,7 @@ const Avisos = {
   },
 
 
-  /* Só salva se a lista mudou. Não é economia: Memoria.salvar()
+  /* Só salva se a lista mudou. Não é economia: salvar (Acoes.executar)
      dispara 'plainus:mudou', que chama atualizar(), que chama esta
      função de novo. Sem a comparação, seria um laço infinito; com
      ela, a segunda volta encontra tudo igual e para. */
@@ -109,8 +109,7 @@ const Avisos = {
     const antes = Estado.avisosVistos || [];
     if (agora.join('|') === antes.join('|')) return;
 
-    Estado.avisosVistos = agora;
-    Memoria.salvar();
+    Acoes.executar('marcarAvisosVistos', { chaves: agora });
   },
 
 

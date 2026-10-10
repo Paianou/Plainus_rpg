@@ -28,11 +28,12 @@
 
 
    COMO AS TELAS USAM
-   Ninguém manda "toque isto". A tela muda Estado.audio e chama
-   Som.aplicar(), que faz o som bater com o Estado. É o mesmo padrão do
-   resto do projeto: o Estado manda, a saída obedece.
+   Ninguém manda "toque isto". A tela muda Estado.audio (pela ação
+   ajustarAudio, no acoes.js) e chama Som.aplicar(), que faz o som bater
+   com o Estado. É o mesmo padrão do resto do projeto: o Estado manda,
+   a saída obedece.
 
-     Estado.audio.tocando = false;
+     Acoes.executar('ajustarAudio', { tocando: false });
      Som.aplicar();
 
    Depois de aplicar(), dispara o evento 'plainus:audio' no document,

@@ -717,20 +717,15 @@ const Bestiario = {
     const ficha = this.validar();
     if (!ficha) return;
 
-    const posicao = Estado.monstrosMeus.findIndex(function (m) { return m.id === ficha.id; });
-    if (posicao === -1) {
-      Estado.monstrosMeus.push(ficha);
-      Layout.recado('"' + ficha.nome + '" entrou no bestiário.');
-    } else {
-      Estado.monstrosMeus[posicao] = ficha;
-      Layout.recado('"' + ficha.nome + '" atualizado.');
-    }
+    /* A mudança em si é uma ação com nome (acoes.js). */
+    const r = Acoes.executar('salvarItem', { lista: 'monstrosMeus', item: ficha });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
+    Layout.recado(r.novo ? '"' + ficha.nome + '" entrou no bestiário.' : '"' + ficha.nome + '" atualizado.');
 
     this.selecionado = ficha.nome;
     this.modo = 'leitura';
     this.rascunho = null;
 
-    Memoria.salvar();
     this.montarFiltros();       /* um tipo novo vira filtro novo */
     this.render();
   },
@@ -749,21 +744,18 @@ const Bestiario = {
     const ficha = acharMonstro(this.selecionado);
     if (!ficha || !ficha.meu) return;
 
-    const posicao = Estado.monstrosMeus.findIndex(function (m) { return m.id === ficha.id; });
-    const original = Estado.monstrosMeus[posicao];
-    Estado.monstrosMeus = Estado.monstrosMeus.filter(function (m) { return m.id !== ficha.id; });
+    const r = Acoes.executar('apagarItem', { lista: 'monstrosMeus', id: ficha.id });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
     this.selecionado = null;
-
-    Memoria.salvar();
     this.montarFiltros();
     this.render();
+
     Layout.recadoDesfazer('"' + ficha.nome + '" foi apagado.', function () {
-      if (!Layout.devolver(Estado.monstrosMeus, original, posicao)) return;
-      self.selecionado = original.id;
-      Memoria.salvar();
+      if (Acoes.executar('devolverItem', { lista: 'monstrosMeus', item: r.item, posicao: r.posicao }).erro) return;
+      self.selecionado = r.item.nome;
       self.montarFiltros();
       self.render();
-      Layout.recado('"' + original.nome + '" está de volta.');
+      Layout.recado('"' + r.item.nome + '" está de volta.');
     });
   },
 
@@ -784,30 +776,15 @@ const Bestiario = {
   },
 
 
-  /* A foto de um monstro. Do seu: vai na ficha dele. Do livro: vai
-     para Estado.fotosMonstros, porque o livro (regras.js) não muda. Se
-     o navegador recusar por falta de espaço, desfaz e avisa. */
+  /* A foto de um monstro (do seu, na ficha; do livro, por nome) — a
+     regra está na ação mudarFotoMonstro. Se o navegador recusar por
+     falta de espaço, o Acoes.executar desfaz e devolve o erro. */
   mudarFoto: function (nome, dados) {
     const ficha = acharMonstro(nome);
     if (!ficha) return;
 
-    const antes = JSON.stringify({ meus: Estado.monstrosMeus, fotos: Estado.fotosMonstros || {} });
-
-    if (ficha.meu) {
-      const meu = Estado.monstrosMeus.find(function (m) { return m.id === ficha.id; });
-      if (dados) meu.foto = dados; else delete meu.foto;
-    } else {
-      Estado.fotosMonstros = Estado.fotosMonstros || {};
-      if (dados) Estado.fotosMonstros[nome] = dados; else delete Estado.fotosMonstros[nome];
-    }
-
-    if (!Memoria.salvar({ silencioso: true })) {
-      const volta = JSON.parse(antes);
-      Estado.monstrosMeus = volta.meus;
-      Estado.fotosMonstros = volta.fotos;
-      Layout.recado('Não coube no armazenamento do navegador. Tente uma imagem menor.', true);
-      return;
-    }
+    const r = Acoes.executar('mudarFotoMonstro', { meuId: ficha.meu ? ficha.id : null, nome: nome, foto: dados || null });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
     this.render();
     Layout.recado(dados ? 'Foto de ' + nome + ' atualizada.' : 'Foto de ' + nome + ' removida.');
   },

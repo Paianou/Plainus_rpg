@@ -184,8 +184,8 @@ const Layout = {
 
     this.ligarSom();
 
-    /* Toda mudança no Estado passa por Memoria.salvar(), que avisa
-       'plainus:mudou'. O sino escuta para acender o ponto na hora. */
+    /* Toda mudança no Estado passa por Memoria.salvar() (chamado pelo
+       Acoes.executar), que avisa 'plainus:mudou'. O sino escuta para acender o ponto na hora. */
     document.addEventListener('plainus:mudou', function () {
       Avisos.atualizar();
     });
@@ -592,38 +592,14 @@ const Layout = {
 
   /* ---------- As duas ações ---------- */
 
+  /* As regras (o número que já existe, a sessão que deixa de estar
+     aberta, a entrada nova no diário) moram nas ações do acoes.js:
+     salvarSessao, comecarSessao e irParaSessao. Aqui só se lê o menu. */
   salvarSessao: function () {
     const numero = parseInt(document.getElementById('sessaoNumero').value, 10);
     const titulo = document.getElementById('sessaoTitulo').value.trim();
-
-    if (!numero || numero < 1) {
-      this.recado('O número da sessão precisa ser 1 ou mais.', true);
-      return;
-    }
-
-    const anterior = Estado.campanha.sessao;
-    Estado.campanha.sessao = numero;
-
-    /* Se já havia entrada para esta sessão, atualiza; senão, cria uma
-       nova — assim nomear pela barra também registra no Diário. */
-    let entrada = (Estado.diario || []).find(function (e) { return e.sessao === anterior; });
-
-    if (entrada) {
-      entrada.sessao = numero;
-      entrada.titulo = titulo;
-    } else {
-      if (!Estado.diario) Estado.diario = [];
-      entrada = {
-        id: 'd' + Date.now(),
-        sessao: numero,
-        data: this.hojeISO(),
-        titulo: titulo,
-        resumo: '',
-        notas: '',
-        emAberto: true
-      };
-      Estado.diario.push(entrada);
-    }
+    const r = Acoes.executar('salvarSessao', { numero: numero, titulo: titulo });
+    if (r.erro) { this.recado(r.erro, true); return; }
 
     this.depoisDeMudarSessao(titulo
       ? 'Sessão ' + numero + ' agora se chama "' + titulo + '".'
@@ -634,34 +610,8 @@ const Layout = {
   comecarSessao: function () {
     const numero = parseInt(document.getElementById('novaSessaoNumero').value, 10);
     const titulo = document.getElementById('novaSessaoTitulo').value.trim();
-
-    if (!numero || numero < 1) {
-      this.recado('O número da sessão precisa ser 1 ou mais.', true);
-      return;
-    }
-
-    const jaExiste = (Estado.diario || []).some(function (e) { return e.sessao === numero; });
-    if (jaExiste) {
-      this.recado('Já existe uma sessão ' + numero + '. Escolha outro número.', true);
-      return;
-    }
-
-    /* A sessão que estava em jogo deixa de estar aberta. */
-    const corrente = this.sessaoCorrente();
-    if (corrente) corrente.emAberto = false;
-
-    if (!Estado.diario) Estado.diario = [];
-    Estado.diario.push({
-      id: 'd' + Date.now(),
-      sessao: numero,
-      data: this.hojeISO(),
-      titulo: titulo,
-      resumo: '',
-      notas: '',
-      emAberto: true
-    });
-
-    Estado.campanha.sessao = numero;
+    const r = Acoes.executar('comecarSessao', { numero: numero, titulo: titulo });
+    if (r.erro) { this.recado(r.erro, true); return; }
 
     this.depoisDeMudarSessao('Sessão ' + numero
       + (titulo ? ' — "' + titulo + '"' : '') + ' começou.');
@@ -670,28 +620,25 @@ const Layout = {
 
   /* Voltar para uma sessão já registrada, caso tenha se enganado. */
   irParaSessao: function (numero) {
-    const alvo = parseInt(numero, 10);
-    if (!alvo || alvo === Estado.campanha.sessao) {
+    const r = Acoes.executar('irParaSessao', { numero: numero });
+    if (r.erro || r.mesma) {
       this.fecharMenuSessao();
       return;
     }
 
-    Estado.campanha.sessao = alvo;
-    const entrada = this.sessaoCorrente();
-
-    this.depoisDeMudarSessao('Agora em jogo: sessão ' + alvo
-      + (entrada && entrada.titulo ? ' — "' + entrada.titulo + '"' : '') + '.');
+    this.depoisDeMudarSessao('Agora em jogo: sessão ' + parseInt(numero, 10)
+      + (r.titulo ? ' — "' + r.titulo + '"' : '') + '.');
   },
 
 
-  /* Salva, redesenha a barra e avisa a tela.
+  /* Redesenha a barra e avisa a tela.
 
      O aviso é um evento no document, e não uma chamada direta, porque
      o layout.js não sabe em qual tela está rodando. Quem se importa
      escuta 'plainus:sessao' e se redesenha — hoje o Diário,
      amanhã quem mais precisar. */
   depoisDeMudarSessao: function (mensagem) {
-    Memoria.salvar();
+    /* (A ação já salvou — Acoes.executar.) */
     this.fecharMenuSessao();
 
     this.montarTopo();
@@ -862,8 +809,7 @@ const Layout = {
       return;
     }
 
-    Estado.audio.tocando = !Som.tocando();
-    Memoria.salvar();
+    Acoes.executar('ajustarAudio', { tocando: !Som.tocando() });
     Som.liberar();            /* este clique já é o gesto que o navegador exige */
     Som.aplicar();            /* aplicar() avisa 'plainus:audio', e a barra se redesenha */
 
