@@ -495,58 +495,8 @@ function estadoDeExemplo() {
 
 
 /* ---------- O molde de uma campanha vazia ----------
-   Tem TODAS as chaves que as telas leem, só que sem conteúdo. Ele é
-   também o "formato oficial" do Estado: ao carregar uma campanha, o
-   salvo é aplicado POR CIMA deste molde (ver Memoria.carregar). Assim,
-   se um dia uma chave nova entrar aqui, as campanhas antigas ganham o
-   valor vazio dela em vez de quebrar a tela. */
-function estadoVazio() {
-  return {
-    campanha: {
-      nome: '', sistema: '', codigo: '',
-      premissa: '', cenario: '', tom: '',
-      /* Ferramenta de segurança da mesa. Linhas: o que nunca entra no
-         jogo. Véus: o que pode acontecer, mas "fora de cena", sem
-         descrição. Campanhas antigas têm só 'limites', que a edição
-         trata como linhas. */
-      linhas: '', veus: '',
-      nivelInicial: 1, jogadores: 4,
-      regra: '',                 /* as regras da casa — o códice mostra */
-      /* Como os jogadores criam o personagem. Lido pela ficha do
-         jogador sempre através de regrasPersonagem(), que completa o
-         que faltar — campanhas antigas não têm este campo. */
-      regrasPersonagem: { atributos: 'compra', pv: 'media', talentos: true, multiclasse: false },
-      sessao: 1, capitulo: 'I', nivelMedio: 1
-    },
-    mestre: { nome: '' },
-    grupo: { nome: 'A party' },
-    herois: [],
-    cenaAtual: null,
-    cenas: [],
-    combate: {
-      ativo: false, rodada: 1, encontro: '', dificuldade: '', nd: '',
-      combatentes: [], registro: []
-    },
-    acoesDaVez: [],
-    rolagens: [],
-    npc: null,                   /* o gerador da Visão Geral sorteia na hora */
-    diario: [],
-    segredos: [],
-    pendencias: [],
-    faccoes: [],
-    npcs: [],
-    tesouro: '',
-    fixadas: [],
-    audio: { pista: 'Cripta dos Ancestrais (loop)', volume: 42, tocando: false },
-    tabelasMinhas: [],
-    monstrosMeus: [],
-    fotosMonstros: {},           /* nome do monstro do livro → retrato */
-    rolagensTabela: [],
-    rolagensMesa: [],            /* as rolagens dos jogadores (visao.js) */
-    mensagens: [],               /* o chat: da mesa e privadas (visao.js, chat.js) */
-    avisosVistos: []
-  };
-}
+   estadoVazio() mora no modelo.js, que o servidor também usa (e que
+   entra antes deste arquivo em todas as páginas). */
 
 
 /* As regras de criação de personagem da campanha, sempre completas.

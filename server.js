@@ -45,10 +45,19 @@ const fs = require('fs');
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
+const { criarArmazem, ID_CAMPANHA } = require('./servidor/armazem.js');
 
 const RAIZ = __dirname;
 const PORTA = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
+/* Onde as campanhas ficam no disco. A pasta data/ está no .gitignore:
+   campanha de verdade (com os segredos do Mestre) nunca sobe pro Git. */
+const PASTA_DADOS = process.env.DATA_DIR || path.join(RAIZ, 'data');
+
+
+/* ---------- As campanhas (servidor/armazem.js) ---------- */
+const armazem = criarArmazem(PASTA_DADOS, function (texto) { console.log(texto); });
+const quantas = armazem.carregar();
 
 
 /* ---------- A lista branca ---------- */
@@ -169,9 +178,6 @@ const presenca = new Map();
 const LIMITE_POR_SALA = 20;
 const LIMITE_ENTRADAS_POR_MINUTO = 10;
 
-/* O id de campanha que o site gera ('c' + 16 letras de 0-9a-f). */
-const ID_CAMPANHA = /^c[0-9a-f]{16}$/;
-
 function quemEstaNaSala(sala) {
   const lista = [];
   presenca.forEach(function (p) { if (p.sala === sala) lista.push({ nome: p.nome, papel: p.papel }); });
@@ -232,5 +238,20 @@ servidor.listen(PORTA, HOST, function () {
   /* 127.0.0.1 e 0.0.0.0 abrem no navegador como "localhost". */
   const nome = HOST === '127.0.0.1' || HOST === '0.0.0.0' ? 'localhost' : HOST;
   console.log('Plainus no ar em http://' + nome + ':' + PORTA);
-  console.log('Entregando ' + ARQUIVOS_DO_SITE.size + ' arquivos do site. Ctrl+C para desligar.');
+  console.log('Entregando ' + ARQUIVOS_DO_SITE.size + ' arquivos do site.');
+  console.log(quantas + (quantas === 1 ? ' campanha guardada' : ' campanhas guardadas') + ' em ' + PASTA_DADOS + '. Ctrl+C para desligar.');
 });
+
+/* Desligar com calma: Ctrl+C (SIGINT) ou o sistema pedindo (SIGTERM).
+   Antes de sair, grava o que ainda estava esperando a gravação agrupada
+   — sem isto, a última mudança antes do Ctrl+C se perderia. */
+function desligar() {
+  armazem.gravarPendentes();
+  console.log('Campanhas gravadas. Até a próxima sessão.');
+  process.exit(0);
+}
+process.on('SIGINT', desligar);
+process.on('SIGTERM', desligar);
+
+/* Para os testes (e o que mais precisar do servidor por dentro). */
+module.exports = { armazem };

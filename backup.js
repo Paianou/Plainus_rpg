@@ -31,7 +31,7 @@
    Um backup pode ter sido editado à mão, cortado no meio, ou ser outro
    .json qualquer. Por isso validar() confere tudo antes de gravar:
    o envelope, e cada parte do Estado contra o molde de estadoVazio()
-   (dados.js) — o que tiver o tipo errado é descartado e o painel
+   (modelo.js, conferirCampanha) — o que tiver o tipo errado é descartado e o painel
    recebe o valor vazio no lugar, em vez de quebrar ao abrir.
 
    E nada do arquivo vira HTML: o resto do site já escreve nomes e
@@ -197,46 +197,11 @@ const Backup = {
       return 'Esse backup foi feito por uma versão mais nova do site. Atualize os arquivos e tente de novo.';
     }
 
-    const salvo = dados.estado;
-    if (!salvo || typeof salvo !== 'object' || Array.isArray(salvo)
-        || !salvo.campanha || typeof salvo.campanha !== 'object'
-        || typeof salvo.campanha.nome !== 'string' || !salvo.campanha.nome.trim()) {
-      return 'O backup está incompleto: falta a campanha dentro dele.';
-    }
-
-    /* Cada parte do Estado tem de ter o MESMO tipo que tem no molde:
-       lista onde é lista, texto onde é texto. O que não bater fica
-       com o valor do molde. Chaves que o molde não conhece são
-       descartadas — não há por que guardar o que nenhuma tela lê. */
-    const molde = estadoVazio();
-    const limpo = {};
-    Object.keys(molde).forEach(function (chave) {
-      const valor = salvo[chave];
-      limpo[chave] = Backup.mesmoTipo(valor, molde[chave]) ? valor : molde[chave];
-    });
-
-    /* Dentro de "campanha", o mesmo cuidado com os campos principais:
-       o índice e a entrada leem estes direto. */
-    limpo.campanha.nome = limpo.campanha.nome.trim().slice(0, 60);
-    if (typeof limpo.campanha.sistema !== 'string') limpo.campanha.sistema = '';
-    if (typeof limpo.campanha.codigo !== 'string') limpo.campanha.codigo = '';
-    if (!(limpo.campanha.sessao >= 1)) limpo.campanha.sessao = 1;
-    if (typeof limpo.mestre.nome !== 'string') limpo.mestre.nome = '';
-
-    return limpo;
+    /* O que é uma campanha válida mora no modelo.js — a mesma regra
+       que o servidor usa para os arquivos dele. */
+    return conferirCampanha(dados.estado);
   },
 
-  /* null e undefined contam como "não veio"; lista não passa por
-     objeto (typeof [] também é 'object'). */
-  mesmoTipo: function (valor, modelo) {
-    if (valor === null || valor === undefined) return modelo === null;
-    /* No molde, null quer dizer "ainda nada": cenaAtual guarda o id da
-       cena (texto), npc guarda um objeto. Lista não serve a nenhum. */
-    if (modelo === null) return typeof valor === 'string' || (typeof valor === 'object' && !Array.isArray(valor));
-    if (Array.isArray(modelo)) return Array.isArray(valor);
-    if (typeof modelo === 'object') return typeof valor === 'object' && !Array.isArray(valor);
-    return typeof valor === typeof modelo;
-  },
 
   /* Sempre cria uma campanha NOVA (id novo): restaurar nunca passa por
      cima do que existe. Se já há uma campanha com o mesmo código — é a

@@ -18,6 +18,7 @@ const status = async (caminho) => (await fetch(SITE + caminho)).status;
 /* a lista branca, de novo, de fora */
 ok(await status('') === 200 && await status('jogador.html') === 200 && await status('vendor/three.min.js') === 200, 'entrega as páginas, os scripts e o vendor/');
 ok(await status('server.js') === 404 && await status('package.json') === 404 && await status('.git/config') === 404 && await status('testes/rodar.mjs') === 404, 'não entrega server.js, package.json, .git nem os testes');
+ok(await status('servidor/armazem.js') === 404 && await status('data/campanhas/c0000000000000000.json') === 404 && await status('modelo.js') === 200, 'não entrega o código do servidor (servidor/) nem as campanhas (data/); entrega o modelo.js, que o site usa');
 
 /* o Mestre cria a campanha pelo http:// */
 await irHttp('');

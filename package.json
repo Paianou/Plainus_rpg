@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node testes/rodar.mjs",
-    "test:acoes": "node testes/rodar.mjs acoes"
+    "test:node": "node testes/rodar.mjs node"
   },
   "engines": {
     "node": ">=20"

@@ -2,16 +2,17 @@
    testes/rodar.mjs — roda os testes do site e mostra o resumo
 
    COMO USAR (na pasta minha-mesa):
-     node testes/rodar.mjs              tudo: acoes.js no Node + navegador
-     node testes/rodar.mjs acoes        só os testes do acoes.js (segundos)
+     node testes/rodar.mjs              tudo: os testes no Node + o navegador
+     node testes/rodar.mjs node         só os testes no Node (segundos)
      node testes/rodar.mjs 08 15        só os roteiros que começam com 08 e 15
      node testes/rodar.mjs dados        só os roteiros com "dados" no nome
 
-   DUAS FAMÍLIAS DE TESTE
-     testes/acoes/*.test.cjs   o acoes.js direto no Node, sem navegador —
-                               do mesmo jeito que o servidor vai usá-lo.
-     testes/roteiros/*.mjs     o site de verdade num Edge sem janela,
-                               clicando como as pessoas clicam (base.mjs).
+   AS FAMÍLIAS DE TESTE
+     testes/acoes/*.test.cjs     o acoes.js direto no Node, sem navegador —
+                                 do mesmo jeito que o servidor o usa.
+     testes/servidor/*.test.cjs  as peças do servidor (servidor/*.js).
+     testes/roteiros/*.mjs       o site de verdade num Edge sem janela,
+                                 clicando como as pessoas clicam (base.mjs).
 
    Cada roteiro imprime uma linha por verificação ("OK" ou "FALHA") e,
    no fim, "ERROS DE JS: nenhum" — erro de JavaScript na página conta
@@ -32,7 +33,8 @@ const SAIDA = path.join(TESTES, 'saida');
 const LIMITE_ROTEIRO = 10 * 60 * 1000;   /* o mais longo (o do chat) leva uns 3 minutos */
 
 const filtros = process.argv.slice(2);
-const soAcoes = filtros.length === 1 && filtros[0] === 'acoes';
+/* 'acoes' era o nome antigo deste atalho; continua valendo. */
+const soNode = filtros.length === 1 && (filtros[0] === 'node' || filtros[0] === 'acoes');
 const quer = (nome) => !filtros.length || filtros.some((f) => nome.startsWith(f) || nome.includes(f));
 
 
@@ -99,17 +101,19 @@ const mostrar = (nome, r, extra) => {
 };
 
 
-/* ---------- 1. O acoes.js no Node ---------- */
+/* ---------- 1. Os testes no Node (sem navegador) ---------- */
 
-const pastaAcoes = path.join(TESTES, 'acoes');
-const testesAcoes = readdirSync(pastaAcoes).filter((f) => f.endsWith('.test.cjs')).sort();
-if (soAcoes || !filtros.length) {
-  console.log('\nacoes.js no Node');
-  for (const f of testesAcoes) {
-    const r = await rodar(path.join(pastaAcoes, f), {});
-    const conta = resumo(r.saida);
-    if (!mostrar(f.replace('.test.cjs', ''), Object.assign({ codigo: r.codigo }, conta))) {
-      console.log(r.saida.split('\n').filter((l) => !l.startsWith('OK')).map((l) => '      ' + l).join('\n'));
+if (soNode || !filtros.length) {
+  for (const [pasta, titulo] of [['acoes', 'acoes.js no Node'], ['servidor', 'O servidor por dentro']]) {
+    const dir = path.join(TESTES, pasta);
+    if (!existsSync(dir)) continue;
+    console.log('\n' + titulo);
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.test.cjs')).sort()) {
+      const r = await rodar(path.join(dir, f), {});
+      const conta = resumo(r.saida);
+      if (!mostrar(f.replace('.test.cjs', ''), Object.assign({ codigo: r.codigo }, conta))) {
+        console.log(r.saida.split('\n').filter((l) => !l.startsWith('OK')).map((l) => '      ' + l).join('\n'));
+      }
     }
   }
 }
@@ -117,7 +121,7 @@ if (soAcoes || !filtros.length) {
 
 /* ---------- 2. O site no navegador ---------- */
 
-if (!soAcoes) {
+if (!soNode) {
   const navegador = acharNavegador();
   const base = readFileSync(path.join(TESTES, 'base.mjs'), 'utf8');
   const roteiros = readdirSync(path.join(TESTES, 'roteiros')).filter((f) => f.endsWith('.mjs')).sort()
