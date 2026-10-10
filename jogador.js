@@ -76,6 +76,9 @@ const Jogador = {
        atualiza a lista; a navegação só precisa refazer o contador. */
     Chat.ligar();
     const self = this;
+
+    /* A ligação com o servidor (conexao.js): quem está na mesa. */
+    Conexao.ligar({ campanhaId: sessao.campanhaId, nome: sessao.nome || 'Jogador', papel: 'jogador' });
     Chat.aoMudarLidas = function () {
       if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') self.montarNav(self.abasVisiveis());
       if (self.visao) self.vigiarMesa(self.visao);
@@ -378,6 +381,7 @@ const Jogador = {
     barra.appendChild(criar('div.espaco'));
 
     /* Atalhos e ajuda (atalhos.js) — e, de lá, o "Rever o tour". */
+    barra.appendChild(Conexao.indicador());
     barra.appendChild(Atalhos.botao());
 
     const sair = criar('button.icone-botao');

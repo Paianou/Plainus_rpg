@@ -184,6 +184,12 @@ const Layout = {
 
     this.ligarSom();
 
+    /* A ligação com o servidor (conexao.js): quem está na mesa. Só liga
+       quando o site foi aberto pelo servidor (npm start). */
+    if (typeof Conexao !== 'undefined') {
+      Conexao.ligar({ campanhaId: sessao.campanhaId, nome: Estado.mestre.nome || 'Mestre', papel: 'mestre' });
+    }
+
     /* Toda mudança no Estado passa por Memoria.salvar() (chamado pelo
        Acoes.executar), que avisa 'plainus:mudou'. O sino escuta para acender o ponto na hora. */
     document.addEventListener('plainus:mudou', function () {
@@ -401,6 +407,9 @@ const Layout = {
     barra.appendChild(convite);
 
     /* ajuda — a lista de atalhos (atalhos.js) */
+    /* quem está na mesa (conexao.js) — some sem servidor */
+    if (typeof Conexao !== 'undefined') barra.appendChild(Conexao.indicador());
+
     if (typeof Atalhos !== 'undefined') barra.appendChild(Atalhos.botao());
 
     /* sair — volta para a entrada, onde estão as outras campanhas e o

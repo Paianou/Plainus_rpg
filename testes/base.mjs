@@ -70,6 +70,7 @@ function cmd(method, params = {}) {
 }
 async function js(expr) {
   const r = await cmd('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+  if (!r.result) throw new Error(expr + ' => o navegador respondeu com erro: ' + JSON.stringify(r.error));
   if (r.result.exceptionDetails) throw new Error(expr + ' => ' + r.result.exceptionDetails.exception?.description);
   return r.result.result.value;
 }
@@ -106,7 +107,7 @@ async function novaAba() {
   const c = (method, params = {}) => { const id = ++n; s.send(JSON.stringify({ id, method, params })); return new Promise((r) => p.set(id, r)); };
   await c('Page.enable'); await c('Runtime.enable');
   const aba = {
-    js: async (e) => { const r = await c('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true }); if (r.result.exceptionDetails) throw new Error(e + ' => ' + r.result.exceptionDetails.exception?.description); return r.result.result.value; },
+    js: async (e) => { const r = await c('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true }); if (!r.result) throw new Error(e + ' => o navegador respondeu com erro: ' + JSON.stringify(r.error)); if (r.result.exceptionDetails) throw new Error(e + ' => ' + r.result.exceptionDetails.exception?.description); return r.result.result.value; },
     ir: async (f) => { const w = new Promise((r) => { pronto = r; }); await c('Page.navigate', { url: url(f) }); await w; await espera(300); },
     navegarPor: async (e) => { const w = new Promise((r) => { pronto = r; }); await aba.js(e); await w; await espera(300); },
     foto: async (nome) => { const r = await comLimite(c('Page.captureScreenshot', { format: 'png' })); if (r) writeFileSync(path.join(AQUI, 'fotos', nome + '.png'), Buffer.from(r.result.data, 'base64')); },

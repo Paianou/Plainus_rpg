@@ -7,6 +7,7 @@ let falaDoServidor = '';
 servidor.stdout.on('data', (d) => { falaDoServidor += d; });
 servidor.stderr.on('data', (d) => { falaDoServidor += d; });
 for (let i = 0; i < 40 && !falaDoServidor.includes('no ar'); i++) await espera(100);
+process.on('exit', () => { try { servidor.kill(); } catch (erro) { /* já tinha saído */ } });
 ok(falaDoServidor.includes('Plainus no ar em http://localhost:' + PORTA_TESTE), 'npm start: o servidor liga e diz o endereço');
 
 const irHttp = async (caminho) => { const p = new Promise((r) => { carregou = r; }); await cmd('Page.navigate', { url: SITE + caminho }); await p; await espera(300); };
