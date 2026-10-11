@@ -73,7 +73,7 @@ const LISTAS_DO_MESTRE = {
 const LIMITE_RETRATO = 160000;
 function retratoValido(imagem) {
   return typeof imagem === 'string' && imagem.length <= LIMITE_RETRATO
-    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem);
+    && /^(data:image\/jpeg;base64,[A-Za-z0-9+/=]+|img\/[0-9a-f]{64}\.jpg)$/.test(imagem);
 }
 
 /* O histórico de rolagens de tabela guarda só as últimas. */
@@ -235,7 +235,7 @@ const LIMITE_IMAGEM_CENA = 700000;   /* o mesmo do imagemDaCena() do dados.js */
 
 function imagemDeCenaValida(imagem) {
   return typeof imagem === 'string' && imagem.length <= LIMITE_IMAGEM_CENA
-    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem);
+    && /^(data:image\/jpeg;base64,[A-Za-z0-9+/=]+|img\/[0-9a-f]{64}\.jpg)$/.test(imagem);
 }
 
 function acharCena(estado, id) {

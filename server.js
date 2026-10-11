@@ -105,6 +105,18 @@ app.get('/:arquivo', function (pedido, resposta, seguir) {
   resposta.sendFile(path.join(RAIZ, pedido.params.arquivo));
 });
 
+/* As imagens das campanhas (servidor/imagens.js). O nome do arquivo é o
+   resumo do conteúdo: o arquivo nunca muda, então o navegador pode
+   guardá-lo para sempre ("immutable") — cada mapa é baixado uma vez.
+   "private": só o navegador guarda, nenhum cache no meio do caminho. */
+app.get('/img/:arquivo', function (pedido, resposta, seguir) {
+  const arquivo = armazem.arquivoDeImagem(pedido.params.arquivo);
+  if (!arquivo) return seguir();
+  resposta.sendFile(arquivo, { headers: { 'Cache-Control': 'private, max-age=31536000, immutable' } }, function (erro) {
+    if (erro && !resposta.headersSent) seguir();
+  });
+});
+
 /* As pastas do site (vendor/). express.static já recusa "../" para
    sair da pasta e, com dotfiles: 'deny', arquivos escondidos. */
 PASTAS_DO_SITE.forEach(function (pasta) {

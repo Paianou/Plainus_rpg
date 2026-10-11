@@ -151,11 +151,13 @@ function ligarMesa(servidorHttp, armazem, log) {
       if (!sessao || sessao.papel !== 'mestre') return responder(cb, { erro: 'Só o Mestre faz isso.' });
       pedido = pedido && typeof pedido === 'object' ? pedido : {};
 
-      const estado = armazem.ler(sessao.campanhaId);
-      if (!estado) return responder(cb, { erro: 'Campanha não encontrada.' });
+      if (!armazem.ler(sessao.campanhaId)) return responder(cb, { erro: 'Campanha não encontrada.' });
       let resultado;
       try {
-        resultado = aplicarAcao(String(pedido.nome || ''), estado, pedido.dados && typeof pedido.dados === 'object' ? pedido.dados : {}, pedido.semente);
+        /* armazem.aplicar: a ação, as imagens para fora e os limites. */
+        resultado = armazem.aplicar(sessao.campanhaId, function (estado) {
+          return aplicarAcao(String(pedido.nome || ''), estado, pedido.dados && typeof pedido.dados === 'object' ? pedido.dados : {}, pedido.semente);
+        });
       } catch (erro) {
         avisar('Ação ' + pedido.nome + ' quebrou: ' + erro.message);
         resultado = { erro: 'O servidor não conseguiu fazer isso.' };
@@ -167,7 +169,6 @@ function ligarMesa(servidorHttp, armazem, log) {
         enviarVista(socket, armazem.ler(sessao.campanhaId));
         return responder(cb, { erro: resultado.erro });
       }
-      armazem.mudou(sessao.campanhaId);
       responder(cb, { resultado: resultado });
       espalhar(sessao.campanhaId);
     });
@@ -179,17 +180,23 @@ function ligarMesa(servidorHttp, armazem, log) {
       if (!sessao) return responder(cb, { erro: 'Entre na mesa primeiro.' });
       pedido = pedido && typeof pedido === 'object' ? pedido : {};
 
-      const estado = armazem.ler(sessao.campanhaId);
-      if (!estado) return responder(cb, { erro: 'Campanha não encontrada.' });
+      if (!armazem.ler(sessao.campanhaId)) return responder(cb, { erro: 'Campanha não encontrada.' });
       let resultado;
       try {
-        resultado = aplicarAcaoJogador(String(pedido.nome || ''), estado, sessao, pedido.dados && typeof pedido.dados === 'object' ? pedido.dados : {});
+        resultado = armazem.aplicar(sessao.campanhaId, function (estado) {
+          return aplicarAcaoJogador(String(pedido.nome || ''), estado, sessao, pedido.dados && typeof pedido.dados === 'object' ? pedido.dados : {});
+        });
       } catch (erro) {
         avisar('Ação de jogador ' + pedido.nome + ' quebrou: ' + erro.message);
         resultado = { erro: 'O servidor não conseguiu fazer isso.' };
       }
-      if (resultado.erro) return responder(cb, { erro: resultado.erro });
-      armazem.mudou(sessao.campanhaId);
+      if (resultado.erro) {
+        /* O jogador já tinha mudado a própria ficha na tela: a visão
+           oficial vai de novo, para a tela voltar a ela. */
+        socket.data.ultimaVista = null;
+        enviarVista(socket, armazem.ler(sessao.campanhaId));
+        return responder(cb, { erro: resultado.erro });
+      }
       responder(cb, { resultado: resultado });
       espalhar(sessao.campanhaId);
     });

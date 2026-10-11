@@ -17,12 +17,14 @@ await js(`document.querySelector('[data-acao="salvar"]').click()`); await espera
 ok(await js(gravado(`e.monstrosMeus.length===1 && e.monstrosMeus[0].nome==='Lobo das Sombras'`)), 'editar troca no lugar (um monstro só)');
 
 /* foto */
-await js(`(()=>{const c=document.createElement('canvas'); c.width=30; c.height=30; c.getContext('2d').fillRect(0,0,30,30); window._foto=c.toDataURL('image/jpeg',.8);})()`);
+await js(`(()=>{const c=document.createElement('canvas'); c.width=30; c.height=30; c.getContext('2d').fillRect(0,0,30,30); window._foto=c.toDataURL('image/jpeg',.8); window._mesma=async(ref)=>{ if(!String(ref).startsWith('img/')) return false; const b=new Uint8Array(await (await fetch(ref)).arrayBuffer()); let x=''; b.forEach(n=>{x+=String.fromCharCode(n);}); return 'data:image/jpeg;base64,'+btoa(x)===window._foto; };})()`);
+/* O servidor guarda a foto fora da campanha: o gravado é o endereço
+   img/<resumo>.jpg, e o arquivo nele é a mesma foto (_mesma). */
 await js(`Bestiario.mudarFoto('Lobo das Sombras', window._foto)`); await espera(80);
-ok(await js(gravado(`e.monstrosMeus[0].foto===window._foto`)), 'foto do monstro próprio: gravada na ficha dele');
+ok(await js(gravado(`await window._mesma(e.monstrosMeus[0].foto)`)), 'foto do monstro próprio: gravada na ficha dele');
 const livro = await js(`todosMonstros().find(m=>!m.meu).nome`);
 await js(`Bestiario.mudarFoto(${JSON.stringify(livro)}, window._foto)`); await espera(80);
-ok(await js(gravado(`(e.fotosMonstros||{})[${JSON.stringify(livro)}]===window._foto`)), 'foto de monstro do livro (' + livro + '): gravada pelo nome');
+ok(await js(gravado(`await window._mesma((e.fotosMonstros||{})[${JSON.stringify(livro)}])`)), 'foto de monstro do livro (' + livro + '): gravada pelo nome');
 await js(`Bestiario.mudarFoto(${JSON.stringify(livro)}, null)`); await espera(80);
 ok(await js(gravado(`!((e.fotosMonstros||{})[${JSON.stringify(livro)}])`)), 'tirar a foto');
 
@@ -37,7 +39,7 @@ ok(await aguardar(`[...document.querySelectorAll('.recado-flutuante.erro')].some
 await js(`Bestiario.selecionado='Lobo das Sombras'; Bestiario.render(); document.querySelector('[data-acao="apagar"]').click()`); await espera(100);
 ok(await js(gravado(`e.monstrosMeus.length===0`)), 'apagar: sai do gravado');
 await js(`document.querySelector('.desfazer-recado').click()`); await espera(100);
-ok(await js(gravado(`e.monstrosMeus.length===1 && e.monstrosMeus[0].foto===window._foto`)), '"Desfazer": volta, com a foto');
+ok(await js(gravado(`e.monstrosMeus.length===1 && await window._mesma(e.monstrosMeus[0].foto)`)), '"Desfazer": volta, com a foto');
 ok(await js(`Bestiario.selecionado==='Lobo das Sombras' && !!document.querySelector('#detalhe') && document.querySelector('#detalhe').textContent.includes('Lobo das Sombras')`), '…e a ficha dele abre (antes o Desfazer selecionava pelo id e não achava)');
 
 console.log('\nERROS DE JS:', erros.length ? erros : 'nenhum');
