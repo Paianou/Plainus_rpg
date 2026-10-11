@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+  ACESSOS DA MESA — o Mestre cuida de quem entra.
+
+  Aqui ficam as três coisas que TIRAM acesso de alguém:
+    - liberar o lugar de um jogador (ele perdeu o navegador: a chave
+      dele sai, o nome fica livre, o personagem continua na campanha);
+    - desconectar os outros computadores do Mestre (um computador
+      perdido, uma senha que vazou);
+    - apagar a campanha.
+
+  Por que uma página só para isso, e não um cartão no painel: o painel
+  se redesenha a cada mudança que chega do servidor — uma senha pela
+  metade num campo de lá sumiria no meio da digitação. E coisa que não
+  tem volta merece uma página quieta, longe dos botões de todo dia.
+
+  Os arquivos desta tela:
+    acessos.html   o esqueleto (o que você está lendo)
+    acessos.js     pede a lista ao servidor e manda as três ações
+    campanhas.js   a sessão (a chave do Mestre) e as perguntas HTTP
+    backup.js      o "Baixar backup antes de apagar"
+-->
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+  <title>Acessos da mesa — Plainus RPG</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="pagina-entrada">
+    <div class="entrada-caixa acessos-caixa">
+
+      <header class="entrada-marca">
+        <svg class="arco-gotico" viewBox="0 0 74 58" aria-hidden="true">
+          <path class="brilho" d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M18 57 L18 30 Q37 10 56 30 L56 57" opacity="0.45" />
+          <path d="M28 57 L28 35 Q37 24 46 35 L46 57" opacity="0.28" />
+          <path d="M37 14 L37 57" opacity="0.22" />
+        </svg>
+        <h1 class="titulo">Acessos da mesa</h1>
+        <p class="subtitulo" id="nomeMesa">Carregando…</p>
+      </header>
+
+      <!-- Sem sessão de Mestre (ou a chave não abre mais): só isto aparece. -->
+      <p class="campo dica-backup" id="semAcesso" hidden></p>
+
+      <div id="conteudo" hidden>
+
+        <!-- ============ JOGADORES ============ -->
+        <section class="secao-acessos">
+          <h2>Jogadores</h2>
+          <p class="campo ajuda-campo">Alguém perdeu o navegador ou trocou de computador? Libere o lugar dele: a entrada antiga para de valer, e ele entra de novo pela entrada, com o código e o mesmo nome — e volta para o mesmo personagem.</p>
+          <ul class="campo lista-acessos" id="listaJogadores"></ul>
+        </section>
+
+        <!-- ============ COMPUTADORES DO MESTRE ============ -->
+        <section class="secao-acessos">
+          <h2>Seus computadores</h2>
+          <p class="campo ajuda-campo" id="textoComputadores"></p>
+          <div class="campo">
+            <button class="botao fantasma" type="button" id="btnSairOutros">Desconectar os outros computadores</button>
+          </div>
+        </section>
+
+        <!-- ============ APAGAR ============
+          Com senha, a senha confirma; sem senha, o nome da campanha
+          digitado. O acessos.js mostra um dos dois campos. -->
+        <section class="secao-acessos perigo-acessos">
+          <h2>Apagar a campanha</h2>
+          <p class="campo ajuda-campo">Apaga a campanha do servidor, para todo mundo, e não tem volta. Antes, baixe um backup: com ele dá para restaurar depois.</p>
+          <div class="campo">
+            <button class="botao fantasma" type="button" id="btnBackup">Baixar backup</button>
+          </div>
+          <div class="campo" id="campoSenhaApagar" hidden>
+            <label for="senhaApagar">Senha do Mestre</label>
+            <input type="password" id="senhaApagar" maxlength="100" autocomplete="current-password">
+          </div>
+          <div class="campo" id="campoNomeApagar" hidden>
+            <label for="nomeApagar" id="rotuloNomeApagar">Digite o nome da campanha</label>
+            <input type="text" id="nomeApagar" maxlength="60" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="campo">
+            <button class="botao perigo" type="button" id="btnApagar">Apagar a campanha</button>
+          </div>
+        </section>
+      </div>
+
+      <p class="erro-entrada" id="erro" role="alert"></p>
+      <p class="aviso-entrada" id="aviso" role="status"></p>
+
+      <div class="campo">
+        <a class="link-porta" id="linkVoltar" href="mestre.html">Voltar ao painel do Mestre</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="campanhas.js"></script>
+  <script src="modelo.js"></script>
+  <script src="backup.js"></script>
+  <script src="acessos.js"></script>
+</body>
+</html>

@@ -134,6 +134,9 @@ function ligarMesa(servidorHttp, armazem, log) {
       }
 
       socket.data.sessao = { campanhaId: campanhaId, papel: papel, jogadorId: jogadorId, nome: nome };
+      /* A chave fica guardada na conexão (só na memória do servidor) para
+         reconferir() — o acesso pode deixar de valer com a mesa aberta. */
+      socket.data.chave = dados.chave;
       socket.data.ultimaVista = null;
       socket.join(sala(campanhaId));
       responder(cb, { ok: true, papel: papel, nome: nome });
@@ -199,7 +202,26 @@ function ligarMesa(servidorHttp, armazem, log) {
     });
   });
 
-  return { io: io, espalhar: espalhar };
+  /* Depois de uma mudança de acesso (o Mestre liberou um jogador, tirou
+     os outros computadores dele, apagou a campanha): cada conexão aberta
+     desta mesa é conferida de novo, com a chave que ela usou. Quem não
+     passa recebe o motivo e é desconectado — e, desconectado pelo
+     servidor, o navegador não tenta voltar sozinho. */
+  function reconferir(campanhaId, motivo) {
+    const conexoes = Array.from(io.sockets.adapter.rooms.get(sala(campanhaId)) || []);
+    conexoes.forEach(function (sid) {
+      const s = io.sockets.sockets.get(sid);
+      const sessao = s && s.data.sessao;
+      if (!sessao) return;
+      if (armazem.conferirAcesso(campanhaId, sessao.papel, sessao.jogadorId, s.data.chave)) return;
+      s.emit('fora', { motivo: String(motivo || 'O seu acesso a esta mesa não vale mais.') });
+      s.data.sessao = null;
+      s.disconnect(true);
+    });
+    io.to(sala(campanhaId)).emit('presenca', presentes(campanhaId));
+  }
+
+  return { io: io, espalhar: espalhar, reconferir: reconferir };
 }
 
 module.exports = { ligarMesa };

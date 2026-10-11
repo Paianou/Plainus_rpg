@@ -19,6 +19,12 @@
    rede) e o servidor devolve a campanha com ela. Se o que chegou é
    igual ao que a tela já tem, nada é redesenhado.
 
+   TIRADO DA MESA
+   O Mestre liberou o seu lugar, desconectou os outros computadores
+   dele, ou apagou a campanha: o servidor manda 'fora' com o motivo e
+   desconecta. A chave não vale mais — sai deste navegador — e o painel
+   dá lugar ao aviso.
+
    CAIU A CONEXÃO
    O indicador fica vermelho ("Sem conexão") e o Socket.IO reconecta
    sozinho. As ações feitas nesse meio-tempo esperam numa fila e seguem
@@ -119,6 +125,7 @@ const Conexao = {
     this.socket.on('connect_error', function () { self.mudarEstado('caiu'); });
 
     this.socket.on('mesa', function (pacote) { self.receber(pacote); });
+    this.socket.on('fora', function (pacote) { self.foraDaMesa(pacote && pacote.motivo); });
 
     this.socket.on('presenca', function (lista) {
       /* O que vem do servidor também é conferido antes de ir para a tela. */
@@ -158,6 +165,24 @@ const Conexao = {
       document.dispatchEvent(new CustomEvent('plainus:externo'));
       document.dispatchEvent(new CustomEvent('plainus:mudou'));
     }
+  },
+
+  foraDaMesa: function (motivo) {
+    const texto = String(motivo || 'O seu acesso a esta mesa não vale mais.').slice(0, 300);
+    if (this.socket) this.socket.io.reconnection(false);
+    const s = this.sessao;
+    if (s) Acessos.esquecer(s.campanhaId, s.papel, s.jogadorId);
+    Sessao.limpar();
+    this.fila = [];
+    this.pendentes = 0;
+    if (this.primeira) { this.primeira.recusar(texto); this.primeira = null; return; }
+    /* O que estiver pela metade não tem mais para onde ir: sair sem perguntar. */
+    if (typeof AvisoSaida !== 'undefined') AvisoSaida.liberar();
+    const app = document.getElementById('app');
+    if (app) app.hidden = true;
+    if (document.querySelector('.tela-restrita')) return;
+    if (typeof Jogador !== 'undefined' && Jogador.mostrarRestrito) Jogador.mostrarRestrito(texto);
+    else if (typeof Layout !== 'undefined' && Layout.mostrarRestrito) Layout.mostrarRestrito(null, texto);
   },
 
   /* A campanha oficial (a última que veio do servidor), de volta para a

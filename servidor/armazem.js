@@ -403,16 +403,13 @@ function criarArmazem(pastaDados, avisar) {
   /* id → { erros, desde }: as tentativas erradas recentes de cada campanha. */
   const errosDeSenha = new Map();
 
-  /* Entrar como Mestre num computador novo: código de convite + senha.
-     Devolve uma Promise com { campanhaId, chave, nome } ou { erro }. A
-     mensagem de erro é a mesma para "código errado" e "senha errada":
-     não conta a quem tenta qual dos dois acertou. */
-  function entrarComoMestre(codigo, senha) {
-    const recusa = { erro: 'Código ou senha não conferem.' };
-    const id = acharPorCodigo(codigo);
-    if (!id || typeof senha !== 'string' || !senha || senha.length > SENHA_MAX) return Promise.resolve(recusa);
+  /* A senha confere? Conta os erros e trava depois de muitos seguidos.
+     Devolve uma Promise com { ok: true } ou { erro } — o erro de senha
+     errada é `recusa`, para quem chama escolher as palavras. */
+  function verificarSenha(id, senha, recusa) {
     const c = campanhas.get(id);
-    if (!c.acessos.senha) return Promise.resolve({ erro: 'Esta mesa ainda não tem senha de Mestre. Defina uma em "Editar campanha", no computador onde a mesa foi criada.' });
+    if (!c || !c.acessos.senha) return Promise.resolve(recusa);
+    if (typeof senha !== 'string' || !senha || senha.length > SENHA_MAX) return Promise.resolve(recusa);
 
     const agora = Date.now();
     let conta = errosDeSenha.get(id);
@@ -432,6 +429,23 @@ function criarArmazem(pastaDados, avisar) {
         return recusa;
       }
       errosDeSenha.delete(id);
+      return { ok: true };
+    });
+  }
+
+  /* Entrar como Mestre num computador novo: código de convite + senha.
+     Devolve uma Promise com { campanhaId, chave, nome } ou { erro }. A
+     mensagem de erro é a mesma para "código errado" e "senha errada":
+     não conta a quem tenta qual dos dois acertou. */
+  function entrarComoMestre(codigo, senha) {
+    const recusa = { erro: 'Código ou senha não conferem.' };
+    const id = acharPorCodigo(codigo);
+    if (!id) return Promise.resolve(recusa);
+    const c = campanhas.get(id);
+    if (!c.acessos.senha) return Promise.resolve({ erro: 'Esta mesa ainda não tem senha de Mestre. Defina uma em "Editar campanha", no computador onde a mesa foi criada.' });
+
+    return verificarSenha(id, senha, recusa).then(function (v) {
+      if (v.erro) return v;
       const chave = novaChave();
       c.acessos.mestres = c.acessos.mestres.concat(resumoDaChave(chave)).slice(-LIMITE_CHAVES_MESTRE);
       try {
@@ -441,6 +455,59 @@ function criarArmazem(pastaDados, avisar) {
       }
       return { campanhaId: id, chave: chave, nome: c.estado.mestre.nome };
     });
+  }
+
+  /* ---------- O Mestre cuida dos acessos ---------- */
+
+  /* Quem tem acesso: quantos computadores de Mestre, e cada jogador com
+     o personagem dele. Os resumos das chaves não saem daqui. */
+  function listarAcessos(id) {
+    const c = campanhas.get(id);
+    if (!c) return null;
+    const jogadores = c.acessos.jogadores;
+    return {
+      nome: c.estado.campanha.nome,
+      temSenha: !!c.acessos.senha,
+      computadoresDoMestre: c.acessos.mestres.length,
+      jogadores: Object.keys(jogadores).map(function (jid) {
+        const heroi = (c.estado.herois || []).find(function (h) { return h.dono === jid; });
+        return { jogadorId: jid, nome: jogadores[jid].nome, personagem: heroi ? heroi.nome : null };
+      })
+    };
+  }
+
+  /* Libera o lugar de um jogador (perdeu o navegador, trocou de
+     computador): a chave dele deixa de valer e o nome fica livre. O
+     personagem continua na campanha — e quem entrar de novo com o mesmo
+     nome o reivindica (ver entrarComoJogador). */
+  function liberarJogador(id, jogadorId) {
+    const c = campanhas.get(id);
+    if (!c || !Object.prototype.hasOwnProperty.call(c.acessos.jogadores, jogadorId)) return { erro: 'Esse jogador não está nesta mesa.' };
+    const antes = c.acessos.jogadores[jogadorId];
+    delete c.acessos.jogadores[jogadorId];
+    try {
+      gravarAgora(id);
+    } catch (erro) {
+      c.acessos.jogadores[jogadorId] = antes;
+      return { erro: 'Não consegui gravar no disco.' };
+    }
+    return { nome: antes.nome };
+  }
+
+  /* Só ESTA chave de Mestre continua valendo: os outros computadores do
+     Mestre saem (um computador perdido, uma senha que vazou). */
+  function manterSoEstaChave(id, chave) {
+    const c = campanhas.get(id);
+    if (!c || !conferirAcesso(id, 'mestre', null, chave)) return { erro: 'Só o Mestre desta campanha faz isso.' };
+    const antes = c.acessos.mestres;
+    c.acessos.mestres = [resumoDaChave(chave)];
+    try {
+      gravarAgora(id);
+    } catch (erro) {
+      c.acessos.mestres = antes;
+      return { erro: 'Não consegui gravar no disco.' };
+    }
+    return { sairam: antes.length - 1 };
   }
 
   /* O que vai num backup baixado: a campanha, sem chave nenhuma. */
@@ -460,7 +527,8 @@ function criarArmazem(pastaDados, avisar) {
   }
 
   return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
-    conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre };
+    conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre,
+    verificarSenha, listarAcessos, liberarJogador, manterSoEstaChave };
 }
 
 module.exports = { criarArmazem, ID_CAMPANHA, senhaValida };

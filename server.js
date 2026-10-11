@@ -113,7 +113,7 @@ PASTAS_DO_SITE.forEach(function (pasta) {
 
 /* As perguntas da tela de entrada (criar, entrar, cartões, backup):
    servidor/api.js. */
-app.use('/api', criarApi(armazem, { semLimite: !!rotasDeTeste }));
+app.use('/api', criarApi(armazem, { semLimite: !!rotasDeTeste, mesa: function () { return mesa; } }));
 
 /* Os testes do navegador (testes/rodar.mjs) ligam o servidor com
    PLAINUS_ROTAS_DE_TESTE=1 e ganham duas rotas para ler e trocar uma
