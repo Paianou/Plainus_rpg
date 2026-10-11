@@ -32,11 +32,15 @@ function ligar(app, armazem, mesa) {
     const novo = conferirCampanha(corpo.estado);
     if (typeof novo === 'string') return resposta.status(400).json({ erro: novo });
     /* O mesmo objeto (o armazém e as conexões o seguram), com tudo novo
-       dentro — menos o código de convite, que é do servidor. */
+       dentro — menos o código de convite, que é do servidor. Pelo
+       armazem.aplicar, como qualquer mudança: imagens e limites. */
     novo.campanha.codigo = estado.campanha.codigo;
-    Object.keys(estado).forEach(function (k) { delete estado[k]; });
-    Object.assign(estado, novo);
-    armazem.mudou(corpo.campanhaId);
+    const r = armazem.aplicar(corpo.campanhaId, function (e) {
+      Object.keys(e).forEach(function (k) { delete e[k]; });
+      Object.assign(e, novo);
+      return {};
+    });
+    if (r.erro) return resposta.status(400).json({ erro: r.erro });
     mesa().espalhar(corpo.campanhaId);
     resposta.json({ ok: true });
   });

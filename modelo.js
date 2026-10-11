@@ -111,7 +111,10 @@ function conferirCampanha(salvo) {
 
 /* ---------- As imagens ----------
    Uma imagem guardada só vale se for de confiança — senão, null. O site
-   só grava imagens que ele mesmo recomprimiu em JPEG (imagens.js). Esta
+   só grava imagens que ele mesmo recomprimiu em JPEG (imagens.js). Vale
+   de dois jeitos: o JPEG em texto (como sai do navegador) ou o endereço
+   img/<resumo>.jpg (como fica depois que o servidor a tira da campanha
+   — ver servidor/imagens.js). Esta
    conferência existe porque a imagem vem de fora (do navegador de
    alguém, pela rede) — e um endereço qualquer num <img> ou num <image>
    do SVG não é coisa para aceitar às cegas (um SVG pode levar script).
@@ -122,7 +125,7 @@ const LIMITE_RETRATO = 160000;
 function imagemSegura(imagem, limite) {
   return typeof imagem === 'string'
     && imagem.length <= (limite || LIMITE_IMAGEM_CENA)
-    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem)
+    && /^(data:image\/jpeg;base64,[A-Za-z0-9+/=]+|img\/[0-9a-f]{64}\.jpg)$/.test(imagem)
     ? imagem : null;
 }
 

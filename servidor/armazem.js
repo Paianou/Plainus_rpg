@@ -56,6 +56,13 @@
    seguidas trava a entrada daquela campanha por um tempo.
    A senha nunca entra na campanha (o Estado) nem no backup.
 
+   AS IMAGENS E OS LIMITES
+   Mapas e retratos moram fora da campanha (servidor/imagens.js). Toda
+   mudança passa por aplicar(): ela roda a mudança, tira as imagens de
+   dentro e confere os limites — imagens demais, ou campanha grande
+   demais, e a mudança é DESFEITA, com o motivo. (Problema 4 do
+   CLAUDE.md: sem limite, dava para encher a memória e o disco.)
+
    Este arquivo NÃO sabe nada de rede: só guarda, devolve e confere
    chaves. Quem decide quem pode o quê é o server.js.
    =================================================================== */
@@ -64,6 +71,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { conferirCampanha, sortearCodigo, normalizarCodigo } = require('../modelo.js');
+const { criarImagens } = require('./imagens.js');
 
 const FORMATO = 'plainus-campanha';
 const VERSAO = 1;
@@ -78,6 +86,9 @@ const ESPERA_GRAVAR = Number.isFinite(Number(process.env.PLAINUS_ESPERA_GRAVAR))
 const LIMITE_CAMPANHAS = 200;
 const LIMITE_JOGADORES = 12;
 const LIMITE_CHAVES_MESTRE = 10;
+/* A campanha em texto, SEM as imagens (que já moram fora): uma mesa de
+   verdade, com anos de diário, fica bem abaixo disto. */
+const LIMITE_ESTADO = 3 * 1024 * 1024;
 const SENHA_MIN = 8;
 const SENHA_MAX = 100;
 /* Erros de senha seguidos numa campanha, dentro da janela, travam a
@@ -169,6 +180,15 @@ function criarArmazem(pastaDados, avisar) {
   const aGravar = new Map();
 
   const arquivoDe = function (id) { return path.join(pasta, id + '.json'); };
+  const imagens = criarImagens(pastaDados, log);
+  const todosOsEstados = function () { return Array.from(campanhas.values()).map(function (c) { return c.estado; }); };
+
+  /* Imagem que nenhuma campanha usa: apagada ao ligar, ao apagar uma
+     campanha, e de hora em hora (um mapa trocado deixa o antigo sem uso). */
+  function limparImagens() {
+    try { return imagens.limpar(todosOsEstados()); } catch (erro) { log('Não consegui limpar as imagens: ' + erro.message); return 0; }
+  }
+  setInterval(limparImagens, 60 * 60 * 1000).unref();
 
 
   /* ---------- Ler o disco, ao ligar ---------- */
@@ -190,10 +210,14 @@ function criarArmazem(pastaDados, avisar) {
           criadaEm: Number(envelope.criadaEm) || Date.now(),
           atualizadaEm: Number(envelope.atualizadaEm) || Date.now()
         });
+        /* Campanha de antes das imagens irem para fora: elas saem agora,
+           uma vez, e o arquivo é regravado já leve. */
+        if (imagens.extrair(estado).mudou) gravarAgora(id);
       } catch (erro) {
         log('Deixei de lado ' + nome + ' (' + erro.message + '). O arquivo continua lá.');
       }
     });
+    limparImagens();
     return campanhas.size;
   }
 
@@ -295,6 +319,9 @@ function criarArmazem(pastaDados, avisar) {
     if (campanhas.size >= LIMITE_CAMPANHAS) return { erro: 'Este servidor já tem campanhas demais.' };
     const estado = conferirCampanha(estadoDeFora);
     if (typeof estado === 'string') return { erro: estado };
+    imagens.extrair(estado);
+    const problema = passouDosLimites(estado);
+    if (problema) return { erro: problema };
 
     const codigo = normalizarCodigo(estado.campanha.codigo);
     estado.campanha.codigo = codigo && !acharPorCodigo(codigo) ? codigo : codigoLivre();
@@ -313,6 +340,46 @@ function criarArmazem(pastaDados, avisar) {
     }
     /* A chave sai daqui UMA vez: o servidor não tem como mostrá-la de novo. */
     return { id: id, codigo: estado.campanha.codigo, chave: chave };
+  }
+
+
+  /* ---------- Mudar, com limites ---------- */
+
+  function passouDosLimites(estado) {
+    if (imagens.espacoDe(estado) > imagens.ESPACO_POR_CAMPANHA) {
+      return 'As imagens desta campanha passariam de ' + Math.round(imagens.ESPACO_POR_CAMPANHA / 1048576) + ' MB. Tire mapas ou retratos que não usa mais.';
+    }
+    if (JSON.stringify(estado).length > LIMITE_ESTADO) return 'A campanha ficaria grande demais. Apague o que não usa mais (rolagens antigas, cenas, anotações).';
+    return null;
+  }
+
+  /* O ÚNICO jeito de mudar uma campanha que já existe (as ações do
+     Mestre e dos jogadores, pela mesa). `mudanca(estado)` muda o estado
+     no lugar e devolve o resultado da ação ({ erro } recusa). Depois:
+     as imagens saem para data/imagens, os limites são conferidos e, se
+     algo der errado, o estado volta a ser o de antes. */
+  function aplicar(id, mudanca) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c) return { erro: 'Campanha não encontrada.' };
+    const antes = JSON.stringify(c.estado);
+    const voltar = function () {
+      const velho = JSON.parse(antes);
+      Object.keys(c.estado).forEach(function (k) { delete c.estado[k]; });
+      Object.assign(c.estado, velho);
+    };
+    let resultado;
+    try {
+      resultado = mudanca(c.estado) || {};
+    } catch (erro) {
+      voltar();
+      throw erro;
+    }
+    if (resultado.erro) { voltar(); return resultado; }
+    if (imagens.extrair(c.estado).recusadas) { voltar(); return { erro: 'Essa imagem não foi aceita: o site só guarda JPEG de até ' + Math.round(imagens.TAMANHO_MAXIMO / 1024) + ' KB.' }; }
+    const problema = passouDosLimites(c.estado);
+    if (problema) { voltar(); return { erro: problema }; }
+    mudou(id);
+    return resultado;
   }
 
 
@@ -514,7 +581,8 @@ function criarArmazem(pastaDados, avisar) {
   function envelopeDeBackup(id) {
     const c = campanhas.get(id);
     if (!c) return null;
-    return { formato: FORMATO, versao: VERSAO, exportadoEm: new Date().toISOString(), estado: c.estado };
+    /* As imagens voltam para dentro: o backup é um arquivo só. */
+    return { formato: FORMATO, versao: VERSAO, exportadoEm: new Date().toISOString(), estado: imagens.embutir(c.estado) };
   }
 
   function apagar(id) {
@@ -523,12 +591,13 @@ function criarArmazem(pastaDados, avisar) {
     if (relogio) { clearTimeout(relogio); aGravar.delete(id); }
     campanhas.delete(id);
     try { fs.unlinkSync(arquivoDe(id)); } catch (erro) { /* já não estava lá */ }
+    limparImagens();
     return true;
   }
 
   return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
     conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre,
-    verificarSenha, listarAcessos, liberarJogador, manterSoEstaChave };
+    verificarSenha, listarAcessos, liberarJogador, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
 }
 
 module.exports = { criarArmazem, ID_CAMPANHA, senhaValida };

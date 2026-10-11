@@ -54,6 +54,15 @@ await ir('mapas.html');
 /* a imagem foi para o servidor, e a página recarregada a recebe de lá */
 ok(await js(`T.gravado().then(e=>!!imagemDaCena(e.cenas[0]))`), 'a imagem da cena está no servidor');
 
+/* a imagem mora fora da campanha (servidor/imagens.js) */
+const endereco = await js(`T.gravado().then(e=>e.cenas[0].imagem)`);
+ok(/^img\/[0-9a-f]{64}\.jpg$/.test(endereco) && await js(`Estado.cenas[0].imagem===${JSON.stringify(endereco)}`), 'na campanha, o mapa virou só um endereço: ' + endereco.slice(0, 16) + '…');
+const respostaImg = await fetch(SITE + endereco);
+const corpoImg = Buffer.from(await respostaImg.arrayBuffer());
+ok(respostaImg.status === 200 && respostaImg.headers.get('content-type') === 'image/jpeg' && /immutable/.test(respostaImg.headers.get('cache-control') || '') && corpoImg[0] === 0xFF && corpoImg[1] === 0xD8, 'o servidor entrega o JPEG, com cache longo (o navegador baixa cada mapa uma vez)');
+ok((await fetch(SITE + 'img/' + 'a'.repeat(64) + '.jpg')).status === 404 && (await fetch(SITE + 'img/..%2Fcampanhas')).status === 404, 'imagem que não existe, ou nome que não é de imagem: 404');
+ok(await js(`JSON.stringify(Estado).length < 20000`), 'a campanha que viaja a cada mudança ficou leve: ' + await js(`JSON.stringify(Estado).length`) + ' letras');
+
 /* imagem inválida no estado é ignorada */
 ok(await js(`imagemDaCena({imagem:'javascript:alert(1)'})===null && imagemDaCena({imagem:'data:image/svg+xml;base64,AAAA'})===null`), 'imagem que não é JPEG em base64 é ignorada');
 
