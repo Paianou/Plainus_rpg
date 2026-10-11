@@ -133,9 +133,10 @@
         bloco de convite (código) ou o de mestrar (nome da campanha).
         O app.js mostra um e esconde o outro.
 
-        NÃO há mais "entrar como Mestre" com o código. Era o problema 1
-        do CLAUDE.md: quem soubesse o código virava Mestre. O Mestre
-        volta pela campanha dele, em "Suas mesas".
+        O código SOZINHO não faz Mestre. Era o problema 1 do CLAUDE.md:
+        quem soubesse o código virava Mestre. O Mestre volta pelo cartão
+        em "Suas mesas" — ou, noutro computador, pelo terceiro bloco
+        (blocoVoltaMestre): código + a senha do Mestre.
       -->
       <section class="formulario-porta" id="formPorta" hidden>
         <div class="cabeca-porta">
@@ -147,7 +148,7 @@
              existe aqui, ela vê para ONDE está entrando antes de entrar. -->
         <p class="convite-achado" id="conviteAchado" hidden></p>
 
-        <div class="campo">
+        <div class="campo" id="campoNome">
           <!-- O 'for' do label aponta para o 'id' do input: clicar no
                texto "Seu nome" já foca o campo. -->
           <label for="nome">Seu nome</label>
@@ -179,6 +180,24 @@
           <div class="campo">
             <button class="botao" type="button" id="btnCriar">Criar campanha</button>
           </div>
+          <button class="link-porta" type="button" id="btnVoltaMestre">Já tenho uma mesa: entrar como Mestre neste computador</button>
+        </div>
+
+        <!-- O Mestre noutro computador: o código da mesa + a senha que ele
+             definiu. Sem o nome: o nome do Mestre vem da campanha. -->
+        <div id="blocoVoltaMestre" hidden>
+          <div class="campo">
+            <label for="codigoMestre">Código da campanha</label>
+            <input class="codigo-entrada" type="text" id="codigoMestre" placeholder="K7QM-2XRP-9HVD" maxlength="20" autocomplete="username" spellcheck="false">
+          </div>
+          <div class="campo">
+            <label for="senhaMestre">Senha do Mestre</label>
+            <input type="password" id="senhaMestre" maxlength="100" autocomplete="current-password">
+          </div>
+          <div class="campo">
+            <button class="botao" type="button" id="btnEntrarMestre">Entrar como Mestre</button>
+          </div>
+          <p class="campo ajuda-campo">A senha é a que você definiu ao criar a mesa (ou em "Editar campanha"). Sem senha, a mesa só abre no navegador onde foi criada.</p>
         </div>
       </section>
 

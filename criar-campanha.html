@@ -111,6 +111,29 @@
           <label for="mestre">Seu nome como Mestre</label>
           <input type="text" id="mestre" maxlength="30" placeholder="Como a mesa te chama" autocomplete="nickname">
         </div>
+
+        <!--
+          A senha do Mestre: para abrir o painel em OUTRO computador
+          (entrada → Vou mestrar → "Já tenho uma mesa"). Opcional: sem
+          ela, a mesa só abre neste navegador — seguro, só menos prático.
+          Fica fora da tabela CAMPOS do criar-campanha.js de propósito:
+          a senha não vai para a campanha nem para o resumo, e só sai
+          desta página direto para o servidor.
+          autocomplete="new-password": o gerenciador de senhas do
+          navegador oferece criar e guardar uma.
+        -->
+        <fieldset class="bloco-senha" id="blocoSenha">
+          <legend id="tituloSenha">Senha do Mestre <span class="opcional">(opcional)</span></legend>
+          <p class="ajuda-campo" id="ajudaSenha">Para abrir o painel do Mestre em outro computador. Sem ela, esta mesa só abre neste navegador. Pelo menos 8 caracteres — e não use a senha de outro site.</p>
+          <div class="campo">
+            <label for="senhaMestre" id="rotuloSenha">Senha</label>
+            <input type="password" id="senhaMestre" maxlength="100" autocomplete="new-password">
+          </div>
+          <div class="campo">
+            <label for="senhaMestre2">Repita a senha</label>
+            <input type="password" id="senhaMestre2" maxlength="100" autocomplete="new-password">
+          </div>
+        </fieldset>
       </section>
 
 

@@ -13,6 +13,10 @@
      POST /api/cartoes     o que mostrar em cada cartão de "Suas mesas"
                            (só das mesas cuja chave o navegador tem)
      POST /api/backup      baixar o backup (só o Mestre)
+     POST /api/senha       o Mestre define (ou troca) a senha da mesa
+     POST /api/tem-senha   a mesa já tem senha? (só o Mestre pergunta)
+     POST /api/mestre      entrar como Mestre noutro computador:
+                           código + senha → uma chave de Mestre nova
 
    Tudo é POST com JSON, e nenhuma resposta usa cookie: a "credencial"
    é a chave que vai no corpo do pedido. Por isso um site de fora não
@@ -24,11 +28,14 @@
    Cada endereço (IP) tem um número de pedidos por minuto. O que mais
    importa é o /api/entrar: sem limite, dava para tentar códigos de
    convite em massa (mesmo com 10^18 combinações, não custa fechar a
-   porta). O tamanho do corpo também tem teto — um backup com mapas cabe;
+   porta). O /api/mestre tem o limite mais apertado de todos — é ali que
+   alguém tentaria adivinhar a senha do Mestre (e o armazém ainda trava
+   a campanha depois de muitos erros seguidos). O tamanho do corpo também tem teto — um backup com mapas cabe;
    um arquivo de gigabytes, não.
    =================================================================== */
 
 const express = require('express');
+const { senhaValida } = require('./armazem.js');
 const { imagemDaCena, retratoSeguro } = require('../modelo.js');
 
 /* Um contador por endereço, que zera a cada minuto. Simples e em
@@ -52,11 +59,19 @@ function criarApi(armazem, opcoes) {
   const limite = opcoes && opcoes.semLimite ? function () { return function (p, r, seguir) { seguir(); }; } : limitador;
 
   /* Criar campanha (inclusive de um backup, que pode trazer mapas): 8 MB. */
+  /* A senha do Mestre é opcional: sem ela, a mesa só abre no navegador
+     que a criou (o que é seguro, só menos prático). Vem conferida ANTES
+     de criar — senha recusada não deixa campanha pela metade. */
   api.post('/campanhas', limite(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
-    const estado = pedido.body && pedido.body.estado;
-    const r = armazem.criar(estado);
+    const corpo = pedido.body || {};
+    const comSenha = corpo.senha !== undefined && corpo.senha !== null && corpo.senha !== '';
+    const problema = comSenha ? senhaValida(corpo.senha) : null;
+    if (problema) return resposta.status(400).json({ erro: problema });
+    const r = armazem.criar(corpo.estado);
     if (r.erro) return resposta.status(400).json({ erro: r.erro });
-    resposta.json({ id: r.id, codigo: r.codigo, chave: r.chave });
+    const pronto = function () { resposta.json({ id: r.id, codigo: r.codigo, chave: r.chave, temSenha: armazem.temSenha(r.id) }); };
+    if (!comSenha) return pronto();
+    armazem.definirSenha(r.id, corpo.senha).then(pronto, pronto);
   });
 
   /* O código de convite e a entrada dividem o MESMO limite: é por eles
@@ -109,6 +124,7 @@ function criarApi(armazem, opcoes) {
           atualizadaEm: resumo.atualizadaEm,
           /* O código vai para o Mestre (é ele quem convida). */
           codigo: papel === 'mestre' ? resumo.codigo : null,
+          temSenha: papel === 'mestre' ? armazem.temSenha(m.campanhaId) : null,
           meuNome: papel === 'jogador' ? armazem.nomeDoJogador(m.campanhaId, m.jogadorId) : resumo.mestre,
           party: (estado.herois || []).map(function (h) {
             return { nome: h.nome, dono: papel === 'jogador' && h.dono === m.jogadorId, foto: h.ficha ? retratoSeguro(h.ficha.foto) : null };
@@ -127,6 +143,41 @@ function criarApi(armazem, opcoes) {
       return resposta.status(403).json({ erro: 'Só o Mestre desta campanha baixa o backup.' });
     }
     resposta.json(armazem.envelopeDeBackup(corpo.campanhaId));
+  });
+
+  /* A senha do Mestre: só quem já é Mestre (tem a chave) define ou troca. */
+  api.post('/senha', limite(10), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    if (!armazem.conferirAcesso(corpo.campanhaId, 'mestre', null, corpo.chave)) {
+      return resposta.status(403).json({ erro: 'Só o Mestre desta campanha define a senha.' });
+    }
+    armazem.definirSenha(corpo.campanhaId, corpo.senha).then(function (r) {
+      if (r.erro) return resposta.status(400).json({ erro: r.erro });
+      resposta.json({ ok: true });
+    }, function () {
+      resposta.status(500).json({ erro: 'O servidor não conseguiu guardar a senha.' });
+    });
+  });
+
+  api.post('/tem-senha', limite(60), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    if (!armazem.conferirAcesso(corpo.campanhaId, 'mestre', null, corpo.chave)) {
+      return resposta.status(403).json({ erro: 'Só o Mestre desta campanha pergunta isso.' });
+    }
+    resposta.json({ temSenha: armazem.temSenha(corpo.campanhaId) });
+  });
+
+  /* Entrar como Mestre noutro computador. 5 tentativas por minuto por
+     endereço — com o scrypt e a trava por campanha, adivinhar uma senha
+     razoável leva anos. */
+  api.post('/mestre', limite(5), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    armazem.entrarComoMestre(corpo.codigo, corpo.senha).then(function (r) {
+      if (r.erro) return resposta.status(403).json({ erro: r.erro });
+      resposta.json(r);
+    }, function () {
+      resposta.status(500).json({ erro: 'O servidor não conseguiu conferir a senha.' });
+    });
   });
 
   /* JSON quebrado ou grande demais: uma resposta clara, não uma página de erro. */

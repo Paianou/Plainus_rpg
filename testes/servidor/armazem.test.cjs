@@ -81,7 +81,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const mesa = c.criar(base);
   ok(typeof mesa.chave === 'string' && mesa.chave.length >= 30, 'criar devolve a chave do Mestre (uma vez só)');
   const noDisco = fs.readFileSync(path.join(pasta, 'campanhas', mesa.id + '.json'), 'utf8');
-  ok(!noDisco.includes(mesa.chave) && /"mestre":"[0-9a-f]{64}"/.test(noDisco), 'o disco guarda só o RESUMO da chave, nunca a chave');
+  ok(!noDisco.includes(mesa.chave) && /"mestres":\["[0-9a-f]{64}"\]/.test(noDisco), 'o disco guarda só o RESUMO da chave, nunca a chave');
   ok(c.conferirAcesso(mesa.id, 'mestre', null, mesa.chave), 'a chave certa abre como Mestre');
   ok(!c.conferirAcesso(mesa.id, 'mestre', null, mesa.chave + 'x') && !c.conferirAcesso(mesa.id, 'mestre', null, '') && !c.conferirAcesso(mesa.id, 'mestre', null, undefined), 'chave errada, vazia ou ausente: não abre');
   ok(!c.conferirAcesso(mesa.id, 'jogador', null, mesa.chave), 'a chave do Mestre não abre como jogador sem id');
@@ -102,6 +102,38 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   const d = criarArmazem(pasta);
   d.carregar();
   ok(d.conferirAcesso(mesa.id, 'mestre', null, mesa.chave) && d.conferirAcesso(mesa.id, 'jogador', bruno.jogadorId, bruno.chave), 'servidor reiniciado: as chaves continuam valendo');
+
+  /* ---- a senha do Mestre ---- */
+  const codigoMesa = c.resumo(mesa.id).codigo;
+  ok(!c.temSenha(mesa.id) && (await c.entrarComoMestre(codigoMesa, 'qualquercoisa')).erro.includes('ainda não tem senha'), 'sem senha definida: entrar como Mestre noutro computador explica o que fazer');
+  ok((await c.definirSenha(mesa.id, 'curta')).erro, 'senha com menos de 8 caracteres: recusada');
+  ok(!(await c.definirSenha(mesa.id, 'lua nova sobre Valkoria')).erro && c.temSenha(mesa.id), 'senha definida');
+  const comSenha = fs.readFileSync(path.join(pasta, 'campanhas', mesa.id + '.json'), 'utf8');
+  ok(!comSenha.includes('lua nova') && /"senha":\{"sal":"[0-9a-f]{32}","resumo":"[0-9a-f]{64}"\}/.test(comSenha), 'o disco guarda o sal e o resumo (scrypt), nunca a senha');
+  ok(!JSON.stringify(c.envelopeDeBackup(mesa.id)).includes('"sal"') && !JSON.stringify(c.ler(mesa.id)).includes('"sal"'), 'a senha não entra na campanha nem no backup');
+  const errada = await c.entrarComoMestre(codigoMesa, 'lua cheia sobre Valkoria');
+  const codigoErrado = await c.entrarComoMestre('ZZZZ-ZZZZ-ZZZZ', 'lua nova sobre Valkoria');
+  ok(errada.erro && errada.erro === codigoErrado.erro, 'senha errada e código errado dão a MESMA mensagem: "' + errada.erro + '"');
+  const outroPc = await c.entrarComoMestre(codigoMesa.toLowerCase(), 'lua nova sobre Valkoria');
+  ok(outroPc.campanhaId === mesa.id && outroPc.chave && outroPc.chave !== mesa.chave && outroPc.nome === base.mestre.nome, 'código + senha certos: uma chave de Mestre NOVA, só deste computador');
+  ok(c.conferirAcesso(mesa.id, 'mestre', null, outroPc.chave) && c.conferirAcesso(mesa.id, 'mestre', null, mesa.chave), 'as duas chaves de Mestre valem (a do computador original continua)');
+  const reiniciado = criarArmazem(pasta); reiniciado.carregar();
+  ok(reiniciado.temSenha(mesa.id) && !(await reiniciado.entrarComoMestre(codigoMesa, 'lua nova sobre Valkoria')).erro, 'servidor reiniciado: a senha continua valendo');
+
+  /* errar demais trava */
+  for (let i = 0; i < 10; i++) await c.entrarComoMestre(codigoMesa, 'chute número ' + i);
+  const travada = await c.entrarComoMestre(codigoMesa, 'lua nova sobre Valkoria');
+  ok(travada.erro && /travada/.test(travada.erro), '10 senhas erradas seguidas: a entrada como Mestre daquela mesa trava (até com a senha certa)');
+
+  /* arquivo do formato antigo (uma chave de Mestre só, "mestre") */
+  const antigo = criarArmazem(pasta);
+  const molde = JSON.parse(JSON.stringify(base)); molde.campanha.codigo = ''; const velha = antigo.criar(molde);
+  const arqVelho = path.join(pasta, 'campanhas', velha.id + '.json');
+  const env = JSON.parse(fs.readFileSync(arqVelho, 'utf8'));
+  env.acessos = { mestre: env.acessos.mestres[0], jogadores: {} };
+  fs.writeFileSync(arqVelho, JSON.stringify(env));
+  const lido = criarArmazem(pasta); lido.carregar();
+  ok(lido.conferirAcesso(velha.id, 'mestre', null, velha.chave), 'arquivo de antes da senha ("mestre": um resumo só): a chave continua valendo');
 
   /* apagar */
   ok(b.apagar(r3.id) && !fs.existsSync(path.join(pasta, 'campanhas', r3.id + '.json')) && b.ler(r3.id) === null, 'apagar tira da memória e do disco');

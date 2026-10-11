@@ -187,6 +187,18 @@ const Criacao = {
     document.getElementById('rotuloUltimo').textContent = 'Salvar';
     document.getElementById('escolhaInicio').hidden = true;
 
+    /* A senha na edição: em branco mantém a atual. O texto diz se a mesa
+       já tem uma (o servidor responde; a senha em si nunca volta). */
+    document.getElementById('tituloSenha').textContent = 'Senha do Mestre';
+    document.getElementById('rotuloSenha').textContent = 'Nova senha';
+    const ajuda = document.getElementById('ajudaSenha');
+    Servidor.temSenha(sessao).then(function (r) {
+      if (r.erro) return;
+      ajuda.textContent = r.temSenha
+        ? 'Esta mesa já tem senha. Para trocar, digite a nova duas vezes; em branco, fica a atual.'
+        : 'Esta mesa ainda não tem senha — e só abre neste navegador. Defina uma para abrir o painel do Mestre em outro computador (pelo menos 8 caracteres).';
+    });
+
     const cancelar = document.getElementById('linkCancelar');
     cancelar.textContent = 'Cancelar e voltar ao painel';
     cancelar.href = 'mestre.html';
@@ -356,6 +368,8 @@ const Criacao = {
       }
     }
 
+    if (passo === 1 && !this.validarSenha()) return false;
+
     /* Um prazo sozinho não diz nada: prazo DE QUÊ? */
     if (passo === 5) {
       const ameaca = document.getElementById('ameaca');
@@ -365,6 +379,27 @@ const Criacao = {
       }
     }
 
+    return true;
+  },
+
+
+  /* ---------- A senha do Mestre ----------
+     Em branco vale (criar sem senha; na edição, manter a atual). Se
+     digitou, os dois campos têm de bater — senha errada por um erro de
+     digitação, sem ninguém ver o que foi digitado, trancaria o Mestre
+     para fora. O servidor confere de novo (8 a 100 caracteres). */
+  senhaDigitada: function () {
+    return document.getElementById('senhaMestre').value;
+  },
+
+  validarSenha: function () {
+    const campo = document.getElementById('senhaMestre');
+    const repetida = document.getElementById('senhaMestre2');
+    const senha = campo.value;
+    if (!senha && !repetida.value) return true;
+    if (senha.length < 8) { this.mostrarErro('A senha do Mestre precisa de pelo menos 8 caracteres (ou deixe os dois campos em branco).', campo); return false; }
+    if (senha.length > 100) { this.mostrarErro('A senha pode ter até 100 caracteres.', campo); return false; }
+    if (senha !== repetida.value) { this.mostrarErro('As duas senhas não são iguais.', repetida); return false; }
     return true;
   },
 
@@ -529,10 +564,22 @@ const Criacao = {
      confirmar antes de sair da página. */
   salvarEdicao: function () {
     const self = this;
-    const r = this.respostas();
     const botao = document.getElementById('btnAvancar');
     botao.disabled = true;
 
+    /* A senha vai direto ao servidor (nunca pela ação, que espalha para
+       a mesa) — e antes da ação: se ela for recusada, nada muda. */
+    const senha = this.senhaDigitada();
+    const antes = senha ? Servidor.definirSenha(Sessao.ler(), senha) : Promise.resolve({});
+    antes.then(function (resposta) {
+      if (resposta.erro) { botao.disabled = false; self.mostrarErro(resposta.erro); return; }
+      self.salvarCampos(botao);
+    });
+  },
+
+  salvarCampos: function (botao) {
+    const self = this;
+    const r = this.respostas();
     const feita = Acoes.executar('editarCampanha', {
       campanha: {
         nome: r.nomeCampanha, sistema: r.sistema, premissa: r.premissa, cenario: r.cenario, tom: r.tom,
@@ -559,7 +606,7 @@ const Criacao = {
     const botao = document.getElementById('btnAvancar');
     botao.disabled = true;
 
-    Servidor.criarCampanha(estado).then(function (r) {
+    Servidor.criarCampanha(estado, this.senhaDigitada()).then(function (r) {
       if (r.erro) {
         botao.disabled = false;
         self.mostrarErro(r.erro);
