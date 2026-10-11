@@ -45,13 +45,31 @@ const express = require('express');
 const { senhaValida } = require('./armazem.js');
 const { imagemDaCena, retratoSeguro } = require('../modelo.js');
 
+/* QUEM ESTÁ PEDINDO, ATRÁS DO TÚNEL
+   Pelo Cloudflare Tunnel, todo pedido chega aqui vindo do próprio
+   computador (o cloudflared roda nele): o endereço da conexão é sempre
+   127.0.0.1, e os limites tratariam a mesa inteira como uma pessoa só —
+   cinco senhas erradas de um travariam todo mundo. O Cloudflare conta
+   quem pediu de verdade no cabeçalho CF-Connecting-IP.
+   Só confiamos nele quando a conexão vem do próprio computador (o
+   túnel). Um pedido direto, de outra máquina (HOST=0.0.0.0, na rede de
+   casa), poderia escrever o cabeçalho que quisesse — ali vale o
+   endereço da conexão. */
+const DO_PROPRIO_COMPUTADOR = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+function quemPede(pedido) {
+  const conexao = pedido.socket && pedido.socket.remoteAddress;
+  const real = pedido.headers['cf-connecting-ip'];
+  if (DO_PROPRIO_COMPUTADOR.has(conexao) && typeof real === 'string' && real.length <= 45) return real;
+  return conexao || 'desconhecido';
+}
+
 /* Um contador por endereço, que zera a cada minuto. Simples e em
    memória: para uma mesa de amigos, é o bastante. */
 function limitador(porMinuto) {
   const contas = new Map();
   setInterval(function () { contas.clear(); }, 60 * 1000).unref();
   return function (pedido, resposta, seguir) {
-    const quem = pedido.ip || 'desconhecido';
+    const quem = quemPede(pedido);
     const n = (contas.get(quem) || 0) + 1;
     contas.set(quem, n);
     if (n > porMinuto) return resposta.status(429).json({ erro: 'Pedidos demais. Espere um minuto e tente de novo.' });
@@ -250,4 +268,4 @@ function criarApi(armazem, opcoes) {
   return api;
 }
 
-module.exports = { criarApi };
+module.exports = { criarApi, quemPede };
