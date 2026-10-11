@@ -5341,5 +5341,32 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 }
 .campanhas-antigas .linha-antiga .campanha-nome { font-size: 1rem; margin: 0; }
 
+/* "Já tenho uma mesa": um link discreto, que não disputa com o botão. */
+.link-porta {
+  display: block;
+  margin: 4px auto 0;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--gelo);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-forte);
+  text-underline-offset: 3px;
+}
+.link-porta:hover { text-decoration-color: currentColor; }
+
+/* A senha do Mestre na criação: um bloco com hairline, sem caixa pesada. */
+.bloco-senha {
+  margin: 8px 0 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+}
+.bloco-senha legend { padding: 0; font-size: 14px; color: var(--texto); }
+.bloco-senha .opcional { color: var(--texto-3); font-size: 12px; }
+
 /* Uma mesa que o servidor não abre mais: apagada, sem o mapa. */
 .cartao-mesa.mesa-sem-acesso { opacity: .7; }

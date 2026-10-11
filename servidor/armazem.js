@@ -43,6 +43,19 @@
      2. "Identidade autodeclarada" — dizer "sou a Ana" não basta: a Ana
         é quem tem a chave da Ana.
 
+   A SENHA DO MESTRE
+   A chave de Mestre mora no navegador onde a campanha foi criada. Para
+   o Mestre abrir a mesa de OUTRO computador, ele define uma senha: quem
+   der o código de convite + a senha certa ganha uma chave de Mestre
+   nova, só daquele computador (até 10; a mais antiga sai).
+   A senha, ao contrário das chaves, é inventada por gente — e gente
+   repete senha e usa palavras. Por isso ela é guardada com scrypt: um
+   resumo LENTO e com SAL (bytes sorteados por campanha). Lento, para
+   cada tentativa de adivinhar custar caro; com sal, para a mesma senha
+   em duas campanhas dar resumos diferentes. Errar a senha muitas vezes
+   seguidas trava a entrada daquela campanha por um tempo.
+   A senha nunca entra na campanha (o Estado) nem no backup.
+
    Este arquivo NÃO sabe nada de rede: só guarda, devolve e confere
    chaves. Quem decide quem pode o quê é o server.js.
    =================================================================== */
@@ -64,6 +77,16 @@ const ID_CAMPANHA = /^c[0-9a-f]{16}$/;
 const ESPERA_GRAVAR = Number.isFinite(Number(process.env.PLAINUS_ESPERA_GRAVAR)) ? Number(process.env.PLAINUS_ESPERA_GRAVAR) : 800;
 const LIMITE_CAMPANHAS = 200;
 const LIMITE_JOGADORES = 12;
+const LIMITE_CHAVES_MESTRE = 10;
+const SENHA_MIN = 8;
+const SENHA_MAX = 100;
+/* Erros de senha seguidos numa campanha, dentro da janela, travam a
+   entrada como Mestre daquela campanha até a janela passar. */
+const ERROS_ATE_TRAVAR = 10;
+const JANELA_ERROS = 15 * 60 * 1000;
+/* scrypt: N = 2^14 (custo), r = 8, p = 1 — uns 16 MB e algumas dezenas
+   de milissegundos por tentativa. */
+const SCRYPT = { N: 16384, r: 8, p: 1 };
 
 
 /* ---------- Chaves ---------- */
@@ -86,8 +109,24 @@ function chaveConfere(chave, resumoGuardado) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+/* ---------- Senha ---------- */
+
+function senhaValida(senha) {
+  if (typeof senha !== 'string' || senha.length < SENHA_MIN) return 'A senha precisa de pelo menos ' + SENHA_MIN + ' caracteres.';
+  if (senha.length > SENHA_MAX) return 'A senha pode ter até ' + SENHA_MAX + ' caracteres.';
+  return null;
+}
+
+function resumoDaSenha(senha, salHex) {
+  return new Promise(function (resolver, recusar) {
+    crypto.scrypt(senha.normalize('NFC'), Buffer.from(salHex, 'hex'), 32, SCRYPT, function (erro, chave) {
+      if (erro) recusar(erro); else resolver(chave.toString('hex'));
+    });
+  });
+}
+
 function acessosVazios() {
-  return { mestre: null, jogadores: {} };
+  return { mestres: [], senha: null, jogadores: {} };
 }
 
 /* O que vem do disco também é conferido: só resumos em hexadecimal,
@@ -95,7 +134,13 @@ function acessosVazios() {
 function acessosConferidos(a) {
   const limpo = acessosVazios();
   if (!a || typeof a !== 'object') return limpo;
-  if (typeof a.mestre === 'string' && /^[0-9a-f]{64}$/.test(a.mestre)) limpo.mestre = a.mestre;
+  const hex64 = function (x) { return typeof x === 'string' && /^[0-9a-f]{64}$/.test(x); };
+  /* Arquivos de antes da senha tinham uma chave de Mestre só ("mestre"). */
+  const mestres = Array.isArray(a.mestres) ? a.mestres : [a.mestre];
+  limpo.mestres = mestres.filter(hex64).slice(-LIMITE_CHAVES_MESTRE);
+  if (a.senha && hex64(a.senha.resumo) && typeof a.senha.sal === 'string' && /^[0-9a-f]{32}$/.test(a.senha.sal)) {
+    limpo.senha = { sal: a.senha.sal, resumo: a.senha.resumo };
+  }
   Object.keys(a.jogadores || {}).forEach(function (id) {
     const j = a.jogadores[id];
     if (/^j[0-9a-f]{16}$/.test(id) && j && typeof j.resumo === 'string' && /^[0-9a-f]{64}$/.test(j.resumo)) {
@@ -138,7 +183,7 @@ function criarArmazem(pastaDados, avisar) {
         const estado = conferirCampanha(envelope.estado);
         if (typeof estado === 'string') throw new Error(estado);
         const acessos = acessosConferidos(envelope.acessos);
-        if (!acessos.mestre) log('Aviso: ' + nome + ' não tem chave de Mestre (arquivo copiado à mão?). Traga campanhas pelo "Restaurar backup" da entrada.');
+        if (!acessos.mestres.length) log('Aviso: ' + nome + ' não tem chave de Mestre (arquivo copiado à mão?). Traga campanhas pelo "Restaurar backup" da entrada.');
         campanhas.set(id, {
           estado: estado,
           acessos: acessos,
@@ -258,7 +303,7 @@ function criarArmazem(pastaDados, avisar) {
     const agora = Date.now();
     const chave = novaChave();
     const acessos = acessosVazios();
-    acessos.mestre = resumoDaChave(chave);
+    acessos.mestres = [resumoDaChave(chave)];
     campanhas.set(id, { estado: estado, acessos: acessos, criadaEm: agora, atualizadaEm: agora });
     try {
       gravarAgora(id);          /* criar é raro e importante: grava na hora */
@@ -277,7 +322,7 @@ function criarArmazem(pastaDados, avisar) {
   function conferirAcesso(id, papel, jogadorId, chave) {
     const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
     if (!c) return false;
-    if (papel === 'mestre') return chaveConfere(chave, c.acessos.mestre);
+    if (papel === 'mestre') return c.acessos.mestres.some(function (r) { return chaveConfere(chave, r); });
     if (papel === 'jogador') {
       const j = Object.prototype.hasOwnProperty.call(c.acessos.jogadores, jogadorId) && c.acessos.jogadores[jogadorId];
       return !!j && chaveConfere(chave, j.resumo);
@@ -327,6 +372,77 @@ function criarArmazem(pastaDados, avisar) {
     return { jogadorId: jogadorId, chave: chave, nome: nome, reivindicou: !!semDono };
   }
 
+  /* ---------- A senha do Mestre ---------- */
+
+  function temSenha(id) {
+    const c = campanhas.get(id);
+    return !!(c && c.acessos.senha);
+  }
+
+  /* Define (ou troca) a senha. Quem chama já conferiu que é o Mestre.
+     Devolve uma Promise com {} ou { erro }. */
+  function definirSenha(id, senha) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c) return Promise.resolve({ erro: 'Campanha não encontrada.' });
+    const problema = senhaValida(senha);
+    if (problema) return Promise.resolve({ erro: problema });
+    const sal = crypto.randomBytes(16).toString('hex');
+    return resumoDaSenha(senha, sal).then(function (resumo) {
+      const antes = c.acessos.senha;
+      c.acessos.senha = { sal: sal, resumo: resumo };
+      try {
+        gravarAgora(id);
+      } catch (erro) {
+        c.acessos.senha = antes;
+        return { erro: 'Não consegui gravar a senha no disco.' };
+      }
+      return {};
+    });
+  }
+
+  /* id → { erros, desde }: as tentativas erradas recentes de cada campanha. */
+  const errosDeSenha = new Map();
+
+  /* Entrar como Mestre num computador novo: código de convite + senha.
+     Devolve uma Promise com { campanhaId, chave, nome } ou { erro }. A
+     mensagem de erro é a mesma para "código errado" e "senha errada":
+     não conta a quem tenta qual dos dois acertou. */
+  function entrarComoMestre(codigo, senha) {
+    const recusa = { erro: 'Código ou senha não conferem.' };
+    const id = acharPorCodigo(codigo);
+    if (!id || typeof senha !== 'string' || !senha || senha.length > SENHA_MAX) return Promise.resolve(recusa);
+    const c = campanhas.get(id);
+    if (!c.acessos.senha) return Promise.resolve({ erro: 'Esta mesa ainda não tem senha de Mestre. Defina uma em "Editar campanha", no computador onde a mesa foi criada.' });
+
+    const agora = Date.now();
+    let conta = errosDeSenha.get(id);
+    if (conta && agora - conta.desde > JANELA_ERROS) { errosDeSenha.delete(id); conta = null; }
+    if (conta && conta.erros >= ERROS_ATE_TRAVAR) {
+      return Promise.resolve({ erro: 'Senha errada vezes demais. A entrada como Mestre desta mesa está travada por alguns minutos.' });
+    }
+
+    const guardada = c.acessos.senha;
+    return resumoDaSenha(senha, guardada.sal).then(function (resumo) {
+      const a = Buffer.from(resumo, 'hex');
+      const b = Buffer.from(guardada.resumo, 'hex');
+      if (!crypto.timingSafeEqual(a, b)) {
+        const nova = conta || { erros: 0, desde: agora };
+        nova.erros += 1;
+        errosDeSenha.set(id, nova);
+        return recusa;
+      }
+      errosDeSenha.delete(id);
+      const chave = novaChave();
+      c.acessos.mestres = c.acessos.mestres.concat(resumoDaChave(chave)).slice(-LIMITE_CHAVES_MESTRE);
+      try {
+        gravarAgora(id);
+      } catch (erro) {
+        return { erro: 'Não consegui gravar a entrada no disco.' };
+      }
+      return { campanhaId: id, chave: chave, nome: c.estado.mestre.nome };
+    });
+  }
+
   /* O que vai num backup baixado: a campanha, sem chave nenhuma. */
   function envelopeDeBackup(id) {
     const c = campanhas.get(id);
@@ -344,7 +460,7 @@ function criarArmazem(pastaDados, avisar) {
   }
 
   return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
-    conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup };
+    conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre };
 }
 
-module.exports = { criarArmazem, ID_CAMPANHA };
+module.exports = { criarArmazem, ID_CAMPANHA, senhaValida };

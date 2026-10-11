@@ -26,8 +26,8 @@
    que é o que fecha a porta do script malicioso.
 
    AS PERGUNTAS AO SERVIDOR (Servidor, no fim do arquivo)
-   Criar campanha, entrar com o código, os cartões de "Suas mesas" e o
-   backup são perguntas HTTP (servidor/api.js). A mesa em jogo é pela
+   Criar campanha, entrar com o código, os cartões de "Suas mesas", o
+   backup e a senha do Mestre são perguntas HTTP (servidor/api.js). A mesa em jogo é pela
    conexão em tempo real (conexao.js).
 
    CAMPANHAS DA VERSÃO ANTIGA
@@ -203,11 +203,14 @@ const Servidor = {
     });
   },
 
-  criarCampanha: function (estado) { return this.pedir('campanhas', { estado: estado }); },
+  criarCampanha: function (estado, senha) { return this.pedir('campanhas', { estado: estado, senha: senha || undefined }); },
   convite: function (codigo) { return this.pedir('convite', { codigo: codigo }); },
   entrar: function (codigo, nome) { return this.pedir('entrar', { codigo: codigo, nome: nome }); },
   cartoes: function (acessos) { return this.pedir('cartoes', { mesas: acessos }); },
-  backup: function (campanhaId, chave) { return this.pedir('backup', { campanhaId: campanhaId, chave: chave }); }
+  backup: function (campanhaId, chave) { return this.pedir('backup', { campanhaId: campanhaId, chave: chave }); },
+  definirSenha: function (acesso, senha) { return this.pedir('senha', { campanhaId: acesso.campanhaId, chave: acesso.chave, senha: senha }); },
+  temSenha: function (acesso) { return this.pedir('tem-senha', { campanhaId: acesso.campanhaId, chave: acesso.chave }); },
+  entrarComoMestre: function (codigo, senha) { return this.pedir('mestre', { codigo: codigo, senha: senha }); }
 };
 
 

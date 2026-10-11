@@ -179,6 +179,14 @@ const Entrada = {
     const quando = Backup.quandoFoi(c.campanhaId);
     const meta = el('div', 'campanha-meta', ['Sessão ' + c.sessao, this.haQuanto(c.atualizadaEm)].filter(Boolean).join(' · ') + ' · ');
     meta.appendChild(el('span', 'campanha-backup' + (quando ? '' : ' nunca'), quando ? 'Backup ' + quando : 'Sem backup'));
+    /* Sem senha, a mesa só abre neste navegador: o lembrete fica no
+       cartão até o Mestre definir uma (em "Editar campanha"). */
+    if (c.temSenha === false) {
+      meta.appendChild(document.createTextNode(' · '));
+      const aviso = el('span', 'campanha-backup nunca', 'Sem senha');
+      aviso.title = 'Sem senha, esta mesa só abre neste navegador. Defina uma em "Editar campanha".';
+      meta.appendChild(aviso);
+    }
     cartao.appendChild(meta);
 
     const continuar = this.marcar(el('button', 'botao-mesa', 'Continuar'), c);
@@ -411,8 +419,11 @@ const Entrada = {
 
   /* ---------- As duas portas ---------- */
 
+  /* Três formulários numa porta só: convite, mestrar (criar) e
+     volta-mestre (o Mestre noutro computador, que se chega pelo link
+     dentro de "Vou mestrar"). */
   abrirPorta: function (qual) {
-    this.porta = qual === 'mestrar' ? 'mestrar' : 'convite';
+    this.porta = qual === 'mestrar' || qual === 'volta-mestre' ? qual : 'convite';
     this.limparErro();
 
     document.getElementById('portas').hidden = true;
@@ -422,10 +433,14 @@ const Entrada = {
     form.classList.remove('abrindo'); void form.offsetWidth; form.classList.add('abrindo');
 
     const convite = this.porta === 'convite';
-    document.getElementById('tituloPorta').textContent = convite ? 'Tenho um convite' : 'Vou mestrar';
+    const volta = this.porta === 'volta-mestre';
+    document.getElementById('tituloPorta').textContent = convite ? 'Tenho um convite' : volta ? 'Entrar como Mestre' : 'Vou mestrar';
     document.getElementById('blocoConvite').hidden = !convite;
-    document.getElementById('blocoMestrar').hidden = convite;
+    document.getElementById('blocoMestrar').hidden = this.porta !== 'mestrar';
+    document.getElementById('blocoVoltaMestre').hidden = !volta;
+    document.getElementById('campoNome').hidden = volta;
     if (!convite) document.getElementById('conviteAchado').hidden = true;
+    if (volta) { document.getElementById('codigoMestre').focus(); return; }
 
     /* O foco vai para o primeiro campo vazio: com o nome lembrado, a
        pessoa cai direto no código (ou no nome da campanha). */
@@ -573,6 +588,32 @@ const Entrada = {
   },
 
 
+  /* O Mestre noutro computador: código + senha. O servidor devolve uma
+     chave de Mestre nova, só deste navegador — e a mesa passa a
+     aparecer em "Suas mesas" aqui também. */
+  entrarComoMestre: function () {
+    const self = this;
+    this.limparErro();
+    const campoCodigo = document.getElementById('codigoMestre');
+    const campoSenha = document.getElementById('senhaMestre');
+    const codigo = normalizarCodigo(campoCodigo.value);
+    if (!codigo) { this.mostrarErro('Digite o código da mesa (XXXX-XXXX-XXXX).', campoCodigo); return; }
+    campoCodigo.value = codigo;
+    if (!campoSenha.value) { this.mostrarErro('Digite a senha do Mestre.', campoSenha); return; }
+
+    const botao = document.getElementById('btnEntrarMestre');
+    botao.disabled = true;
+    Servidor.entrarComoMestre(codigo, campoSenha.value).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { campoSenha.value = ''; self.mostrarErro(r.erro, campoSenha); return; }
+      const acesso = { campanhaId: r.campanhaId, papel: 'mestre', chave: r.chave, nome: r.nome };
+      Acessos.lembrar(acesso);
+      if (!Sessao.gravar(acesso)) { self.mostrarErroArmazenamento(); return; }
+      location.href = 'mestre.html';
+    });
+  },
+
+
   /* ---------- Eventos ---------- */
 
   ligar: function () {
@@ -592,13 +633,17 @@ const Entrada = {
 
     document.getElementById('btnCriar').addEventListener('click', function () { self.criar(); });
     document.getElementById('btnEntrar').addEventListener('click', function () { self.entrar(); });
+    document.getElementById('btnVoltaMestre').addEventListener('click', function () { self.abrirPorta('volta-mestre'); });
+    document.getElementById('btnEntrarMestre').addEventListener('click', function () { self.entrarComoMestre(); });
 
     /* Enter confirma o formulário aberto. Sem <form>, o navegador não
        faz isso sozinho. Esc volta às portas. */
     document.getElementById('formPorta').addEventListener('keydown', function (evento) {
       if (evento.key === 'Escape') { self.fecharPorta(); return; }
       if (evento.key !== 'Enter' || evento.target.tagName !== 'INPUT') return;
-      if (self.porta === 'mestrar') self.criar(); else self.entrar();
+      if (self.porta === 'mestrar') self.criar();
+      else if (self.porta === 'volta-mestre') self.entrarComoMestre();
+      else self.entrar();
     });
 
     document.getElementById('listaCampanhas').addEventListener('click', function (evento) {
