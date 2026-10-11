@@ -25,8 +25,8 @@ ok(await js(`Estado.herois.length===5 && document.querySelectorAll('article.hero
 await ir('combate.html');
 await js(`document.querySelector('[data-acao="add-party"]').click()`);
 const lyraId = await js(`Estado.herois.find(h=>h.nome==='Lyra').id`);
-await js(`Estado.combate.combatentes.forEach(c=>{ c.agiu = c.heroiId !== ${JSON.stringify(lyraId)}; }); Memoria.salvar(); Combate.render();`);
-ok(await js(`Campanhas.lerEstado(Sessao.ler().campanhaId).combate.combatentes.some(c=>c.heroiId===${JSON.stringify(lyraId)})`), 'Mestre gravou o combate (a sessão dele não foi trocada)');
+await js(`Estado.combate.combatentes.forEach(c=>{ c.agiu = c.heroiId !== ${JSON.stringify(lyraId)}; }); await T.salvar(); Combate.render();`);
+ok(await js(`(await T.gravado()).combate.combatentes.some(c=>c.heroiId===${JSON.stringify(lyraId)})`), 'Mestre gravou o combate (a sessão dele não foi trocada)');
 await espera(600);
 
 /* ---- Ana vê a mesa ---- */
@@ -38,7 +38,7 @@ ok(!texto.includes('Drenar Vida') && !texto.includes('Garras paralisantes'), 'no
 ok(!texto.includes('38 / 60') && !texto.includes('22 / 22'), 'PV exato de inimigo não aparece');
 ok(texto.includes('Ferido') && texto.includes('Ileso'), 'inimigos aparecem como "Ferido" e "Ileso"');
 ok(!(await ana.js(`document.querySelector('.mapa-jogador svg').textContent`)).includes('Glifo'), 'marcador de armadilha não aparece na planta');
-ok(await ana.js(`JSON.stringify(Object.keys(visaoDoJogador(Estado, Sessao.ler().jogadorId).combate.combatentes.find(c=>c.tipo==='inimigo')).sort())`) === JSON.stringify(['agiu', 'caido', 'condicoes', 'id', 'iniciativa', 'meu', 'nome', 'tipo', 'vez', 'vida']), 'a visão de um inimigo só tem os campos públicos (sem pv, ca, nota)');
+ok(await ana.js(`JSON.stringify(Object.keys(Conexao.visao.combate.combatentes.find(c=>c.tipo==='inimigo')).sort())`) === JSON.stringify(['agiu', 'caido', 'condicoes', 'id', 'iniciativa', 'meu', 'nome', 'tipo', 'vez', 'vida']), 'a visão de um inimigo só tem os campos públicos (sem pv, ca, nota)');
 await ana.foto('k1-mesa');
 
 /* ---- Diário ---- */
@@ -55,13 +55,13 @@ await ana.foto('k2-diario');
 await ana.js(`document.querySelector('[data-aba="ficha"]').click()`);
 await ana.js(`document.querySelector('button.pericia[data-texto="Arcanismo"]').click()`);
 await espera(300);
-ok(await ana.js(`(()=>{const r=Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0]; return r.personagem==='Lyra' && r.autor==='Ana' && r.texto==='Arcanismo' && /\\+ 4$/.test(r.formula);})()`), 'clicar em Arcanismo rola d20 + 4 e vai para o registro da mesa');
+ok(await ana.js(`(async()=>{const r=(await T.gravado()).rolagensMesa[0]; return r.personagem==='Lyra' && r.autor==='Ana' && r.texto==='Arcanismo' && /\\+ 4$/.test(r.formula);})()`), 'clicar em Arcanismo rola d20 + 4 e vai para o registro da mesa');
 await ana.js(`document.querySelector('[data-acao="modo-rolagem"][data-modo="vantagem"]').click(); document.querySelector('[data-acao="rolar-dado"][data-faces="20"]').click();`);
 await espera(300);
-ok(await ana.js(`/vantagem$/.test(Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0].formula)`), 'd20 com vantagem rola dois');
+ok(await ana.js(`/vantagem$/.test((await T.gravado()).rolagensMesa[0].formula)`), 'd20 com vantagem rola dois');
 await ana.js(`document.querySelector('[data-acao="rolar-dado"][data-faces="8"]').click()`);
 await espera(300);
-ok(await ana.js(`(()=>{const r=Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0]; return r.texto==='d8' && r.total>=1 && r.total<=8;})()`), 'd8 rola de 1 a 8');
+ok(await ana.js(`(async()=>{const r=(await T.gravado()).rolagensMesa[0]; return r.texto==='d8' && r.total>=1 && r.total<=8;})()`), 'd8 rola de 1 a 8');
 ok(await ana.js(`document.querySelectorAll('.rolagem-mesa').length`) === 3, 'as 3 rolagens aparecem no cartão');
 await ana.foto('k3-ficha-rolador');
 
@@ -71,7 +71,7 @@ ok(await js(`(Estado.rolagensMesa||[]).length===3`), 'a memória do Mestre receb
 await ir('mestre.html');
 await js(`document.querySelector('[data-faces="20"]').click()`);
 await espera(200);
-ok(await js(`(()=>{const e=Campanhas.lerEstado(Sessao.ler().campanhaId); return e.rolagensMesa.length===3 && e.rolagens[0].texto.startsWith('Rolagem livre');})()`), 'ação do Mestre grava e preserva as rolagens dos jogadores');
+ok(await js(`(async()=>{const e=(await T.gravado()); return e.rolagensMesa.length===3 && e.rolagens[0].texto.startsWith('Rolagem livre');})()`), 'ação do Mestre grava e preserva as rolagens dos jogadores');
 
 /* ---- celular ---- */
 await ana.js(`document.querySelector('[data-aba="mesa"]').click()`);
@@ -79,9 +79,8 @@ await cmd('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, devic
 await ana.fechar();
 const ana2 = await novaAba();
 await ana2.ir('index.html');
-await ana2.js(`document.getElementById('nome').value='Ana'; document.getElementById('codigo').value=${JSON.stringify(codigo)};`);
-await ana2.navegarPor(`document.getElementById('btnEntrar').click()`);
-ok(await ana2.js(`document.querySelector('.nome-ficha')?.textContent==='Lyra'`), 'Ana numa aba nova volta para a mesma ficha');
+await ana2.navegarPor(`document.querySelector('.mesa-jogador [data-acao="voltar-mesa"]').click()`);
+ok(await ana2.js(`document.querySelector('.nome-ficha')?.textContent==='Lyra'`), 'Ana numa aba nova volta pelo cartão para a mesma ficha');
 await ana2.fechar();
 
 console.log('\nERROS DE JS:', erros.length ? erros : 'nenhum');

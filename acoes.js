@@ -53,7 +53,7 @@
    combateDe...) são só deste arquivo. Para fora saem apenas a tabela
    ACOES e a LISTAS_DO_MESTRE. (O conteúdo não foi reindentado de
    propósito, para a mudança ficar fácil de ler no histórico.) */
-const { ACOES, LISTAS_DO_MESTRE } = (function () {
+const { ACOES, LISTAS_DO_MESTRE, aplicarAcao, novaSemente } = (function () {
 
 const LISTAS_DO_MESTRE = {
   npcs:          { limite: 20000, obrigatorio: 'nome' },
@@ -118,10 +118,46 @@ function texto(valor, limite) {
   return typeof valor === 'string' ? valor.trim().slice(0, limite) : '';
 }
 
-/* O sorteio dos dados que as AÇÕES rolam (a iniciativa, por exemplo).
-   crypto, quando existe — o navegador e o Node 18+ têm —, porque no
-   servidor é ele quem sorteia, e Math.random é previsível. */
+/* ---------- O sorteio, com SEMENTE ----------
+   Uma ação roda DUAS vezes: no navegador do Mestre (para a tela
+   responder na hora, sem esperar a rede) e no servidor (a que vale).
+   Se cada lado sorteasse por conta própria, a tela diria "Goblin entrou
+   com iniciativa 14" e o servidor gravaria 9. Por isso cada ação leva
+   uma SEMENTE (aplicarAcao, logo abaixo): os dois lados geram a MESMA
+   sequência de sorteios a partir dela e chegam ao mesmo resultado.
+
+   A sequência vem do sfc32, um gerador pequeno e bem conhecido, com
+   128 bits de semente. Quem sorteia a semente é o navegador do Mestre
+   — e são os dados DELE (iniciativa dos monstros, ids novos): não há o
+   que trapacear. Os dados dos jogadores não passam por aqui.
+
+   Sem semente (fora de uma ação), sorteia com crypto, como antes. */
+let gerador = null;
+
+function sfc32(a, b, c, d) {
+  return function () {
+    a |= 0; b |= 0; c |= 0; d |= 0;
+    const t = (((a + b) | 0) + d) | 0;
+    d = (d + 1) | 0;
+    a = b ^ (b >>> 9);
+    b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11);
+    c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  };
+}
+
+const SEMENTE = /^[0-9a-f]{32}$/;
+
+function geradorDaSemente(semente) {
+  const parte = function (i) { return parseInt(semente.slice(i * 8, i * 8 + 8), 16); };
+  const g = sfc32(parte(0), parte(1), parte(2), parte(3));
+  for (let i = 0; i < 12; i++) g();   /* aquece: os primeiros números de um sfc32 recém-semeado são fracos */
+  return g;
+}
+
 function sortear(faces) {
+  if (gerador) return Math.floor(gerador() * faces) + 1;
   const cripto = typeof globalThis !== 'undefined' && globalThis.crypto;
   if (cripto && cripto.getRandomValues) {
     /* Descarta os valores do fim da faixa que dariam mais chance a
@@ -300,8 +336,13 @@ function cenaValida(c) {
   return cena;
 }
 
+/* Um id novo: o prefixo e 12 letras sorteadas (36^12 ≈ 4,7 × 10^18).
+   Só sorteio, nada de relógio: o relógio do navegador e o do servidor
+   não batem no milissegundo, e o id tem de sair igual nos dois. */
 function novoId(prefixo) {
-  return prefixo + Date.now().toString(36) + sortear(1e6).toString(36);
+  let id = prefixo;
+  for (let i = 0; i < 12; i++) id += (sortear(36) - 1).toString(36);
+  return id;
 }
 
 
@@ -566,7 +607,7 @@ const ACOES = {
     if (combate.combatentes.length >= 60) return { erro: 'O combate já tem gente demais.' };
 
     const combatente = Object.assign({
-      id: 'c' + Date.now().toString(36) + sortear(1e6).toString(36),
+      id: novoId('c'),
       iniciativa: sortear(20) + novo.bonusIniciativa,
       agiu: false,
       condicoes: []
@@ -708,6 +749,41 @@ const ACOES = {
     estado.campanha.sessao = numero;
     const entrada = (estado.diario || []).find(function (e) { return e.sessao === numero; });
     return { titulo: entrada ? entrada.titulo : '' };
+  },
+
+
+  /* ----- A campanha (criar-campanha.js, modo editar) ----- */
+
+  /* Os campos que a criação em etapas edita. Texto cortado no tamanho,
+     número preso na faixa — o resto da campanha não é tocado. */
+  editarCampanha: function (estado, dados) {
+    const c = dados.campanha || {};
+    const nome = texto(c.nome, 60);
+    if (!nome) return { erro: 'Dê um nome à campanha.' };
+    const regras = c.regrasPersonagem || {};
+    Object.assign(estado.campanha, {
+      nome: nome,
+      sistema: texto(c.sistema, 60),
+      premissa: texto(c.premissa, 2000),
+      cenario: texto(c.cenario, 2000),
+      tom: texto(c.tom, 200),
+      linhas: texto(c.linhas, 1000),
+      veus: texto(c.veus, 1000),
+      nivelInicial: inteiro(c.nivelInicial, 1, 20, 1),
+      jogadores: inteiro(c.jogadores, 1, 12, 4),
+      regra: texto(c.regra, 4000),
+      regrasPersonagem: {
+        atributos: texto(regras.atributos, 20) || 'compra',
+        pv: texto(regras.pv, 20) || 'media',
+        talentos: !!regras.talentos,
+        multiclasse: !!regras.multiclasse
+      }
+    });
+    delete estado.campanha.limites;          /* migrado para 'linhas' */
+    estado.mestre = Object.assign({}, estado.mestre, { nome: texto(dados.mestre, 30) || 'Mestre' });
+    estado.grupo = Object.assign({ nome: 'A party' }, estado.grupo);
+    if (texto(dados.grupo, 60)) estado.grupo.nome = texto(dados.grupo, 60);
+    return {};
   },
 
 
@@ -918,11 +994,31 @@ function hojeISO() {
 }
 
 function novaEntradaDeDiario(numero, titulo) {
-  return { id: 'd' + Date.now().toString(36) + sortear(1e6).toString(36), sessao: numero, data: hojeISO(), titulo: titulo, resumo: '', notas: '', emAberto: true };
+  return { id: novoId('d'), sessao: numero, data: hojeISO(), titulo: titulo, resumo: '', notas: '', emAberto: true };
 }
 
 
-return { ACOES: ACOES, LISTAS_DO_MESTRE: LISTAS_DO_MESTRE };
+/* Roda uma ação com a semente dela. É o que o navegador E o servidor
+   chamam — nunca ACOES[nome] direto —, para os sorteios saírem iguais. */
+function aplicarAcao(nome, estado, dados, semente) {
+  if (!Object.prototype.hasOwnProperty.call(ACOES, nome)) return { erro: 'Ação desconhecida: ' + nome };
+  if (!SEMENTE.test(String(semente))) return { erro: 'Pedido sem semente.' };
+  gerador = geradorDaSemente(semente);
+  try {
+    return ACOES[nome](estado, dados || {}) || {};
+  } finally {
+    gerador = null;
+  }
+}
+
+/* 16 bytes sorteados, em hexadecimal: a semente de uma ação nova. */
+function novaSemente() {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.prototype.map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+}
+
+return { ACOES: ACOES, LISTAS_DO_MESTRE: LISTAS_DO_MESTRE, aplicarAcao: aplicarAcao, novaSemente: novaSemente };
 })();
 
 
@@ -932,25 +1028,30 @@ return { ACOES: ACOES, LISTAS_DO_MESTRE: LISTAS_DO_MESTRE };
 
 const Acoes = {
 
-  /* Roda a ação no Estado deste navegador e salva. Com servidor, é
-     esta função — e só ela — que passa a mandar o pedido pela rede. */
-  executar: function (nome, dados) {
-    const acao = ACOES[nome];
-    if (!acao) return { erro: 'Ação desconhecida: ' + nome };
+  /* Roda a ação aqui, na hora (a tela responde sem esperar a rede), e
+     manda a MESMA ação, com a MESMA semente, para o servidor — que roda
+     na cópia oficial, grava e espalha para a mesa. Os dois chegam ao
+     mesmo resultado (ver aplicarAcao); se o servidor recusar, ele
+     manda de volta a campanha oficial e a tela volta a ela.
 
-    const copia = dados === undefined ? {} : JSON.parse(JSON.stringify(dados));
-    const resultado = acao(Estado, copia) || {};
+     Devolve o resultado daqui, na hora — as telas usam (o item novo, o
+     que foi apagado...). Quem precisa da CONFIRMAÇÃO do servidor (antes
+     de sair da página, por exemplo) usa confirmar(). */
+  executar: function (nome, dados) {
+    const texto = JSON.stringify(dados === undefined ? {} : dados);
+    const semente = novaSemente();
+    const resultado = aplicarAcao(nome, Estado, JSON.parse(texto), semente);
     if (resultado.erro) return resultado;
 
-    /* O navegador pode recusar a gravação (espaço cheio — uma foto
-       grande, por exemplo). Aí a mudança é desfeita: o Estado volta a
-       ser o último que foi gravado, e a tela recebe um erro como
-       qualquer outro. Nenhuma tela precisa desfazer à mão. */
-    if (!Memoria.salvar({ silencioso: true })) {
-      Memoria.carregar();
-      return { erro: 'Não coube no armazenamento do navegador — nada foi mudado. Se for uma imagem, tente uma menor.' };
-    }
+    this.ultimaConfirmacao = Conexao.acao(nome, JSON.parse(texto), semente);
+    document.dispatchEvent(new CustomEvent('plainus:mudou'));
     return resultado;
+  },
+
+  /* Uma Promise que se cumpre quando o servidor confirmar a última ação
+     ({ resultado } ou { erro }). */
+  confirmar: function () {
+    return this.ultimaConfirmacao || Promise.resolve({});
   }
 };
 
@@ -960,5 +1061,5 @@ const Acoes = {
    esta linha não faz nada. É o que deixa o MESMO arquivo servir aos
    dois lados. */
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ACOES: ACOES, LISTAS_DO_MESTRE: LISTAS_DO_MESTRE };
+  module.exports = { ACOES: ACOES, LISTAS_DO_MESTRE: LISTAS_DO_MESTRE, aplicarAcao: aplicarAcao, novaSemente: novaSemente };
 }

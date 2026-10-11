@@ -28,8 +28,23 @@
    conferirCampanha() do backup (modelo.js). Arquivo que não se salva é
    avisado e deixado de lado — nunca apagado: pode ser recuperado à mão.
 
-   Este arquivo NÃO sabe nada de rede, de quem é Mestre ou de senha:
-   só guarda e devolve. Quem decide quem pode o quê é o server.js.
+   AS CHAVES DE ACESSO
+   Quem CRIA a campanha recebe a chave do Mestre; quem ENTRA com o código
+   recebe a chave dele, de jogador. As chaves são sorteadas aqui (24
+   bytes de crypto) e entregues uma única vez — ao navegador da pessoa.
+   O arquivo guarda só o RESUMO de cada chave (sha256), nunca a chave:
+   quem copiar a pasta data/ não consegue se passar por ninguém. (Uma
+   chave sorteada de 24 bytes não precisa do "sal lento" que uma senha
+   inventada por gente precisa — não há dicionário que a adivinhe.)
+
+   Isto resolve dois problemas da lista do CLAUDE.md:
+     1. "Qualquer um vira Mestre" — Mestre é quem tem a chave de quem
+        criou; o código de convite só faz jogador.
+     2. "Identidade autodeclarada" — dizer "sou a Ana" não basta: a Ana
+        é quem tem a chave da Ana.
+
+   Este arquivo NÃO sabe nada de rede: só guarda, devolve e confere
+   chaves. Quem decide quem pode o quê é o server.js.
    =================================================================== */
 
 const fs = require('fs');
@@ -45,8 +60,57 @@ const VERSAO = 1;
    '../../algo' nunca chega a virar caminho no disco. */
 const ID_CAMPANHA = /^c[0-9a-f]{16}$/;
 
-const ESPERA_GRAVAR = 800;          /* ms entre a mudança e a gravação */
+/* A espera da gravação agrupada; os testes usam 0 (grava na hora). */
+const ESPERA_GRAVAR = Number.isFinite(Number(process.env.PLAINUS_ESPERA_GRAVAR)) ? Number(process.env.PLAINUS_ESPERA_GRAVAR) : 800;
 const LIMITE_CAMPANHAS = 200;
+const LIMITE_JOGADORES = 12;
+
+
+/* ---------- Chaves ---------- */
+
+function novaChave() {
+  return crypto.randomBytes(24).toString('base64url');
+}
+
+function resumoDaChave(chave) {
+  return crypto.createHash('sha256').update(String(chave)).digest('hex');
+}
+
+/* Compara em tempo constante: uma comparação comum para no primeiro
+   caractere diferente, e o tempo da resposta contaria quantos acertos
+   o atacante já tem. */
+function chaveConfere(chave, resumoGuardado) {
+  if (typeof chave !== 'string' || !chave || typeof resumoGuardado !== 'string') return false;
+  const a = Buffer.from(resumoDaChave(chave), 'hex');
+  const b = Buffer.from(resumoGuardado, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function acessosVazios() {
+  return { mestre: null, jogadores: {} };
+}
+
+/* O que vem do disco também é conferido: só resumos em hexadecimal,
+   ids de jogador no formato do site, nomes curtos. */
+function acessosConferidos(a) {
+  const limpo = acessosVazios();
+  if (!a || typeof a !== 'object') return limpo;
+  if (typeof a.mestre === 'string' && /^[0-9a-f]{64}$/.test(a.mestre)) limpo.mestre = a.mestre;
+  Object.keys(a.jogadores || {}).forEach(function (id) {
+    const j = a.jogadores[id];
+    if (/^j[0-9a-f]{16}$/.test(id) && j && typeof j.resumo === 'string' && /^[0-9a-f]{64}$/.test(j.resumo)) {
+      limpo.jogadores[id] = { nome: String(j.nome || '').slice(0, 30), resumo: j.resumo };
+    }
+  });
+  return limpo;
+}
+
+/* Nomes comparados sem maiúscula, acento nem espaço sobrando: "Ana",
+   "ana " e "Ána" são a mesma pessoa na mesa. */
+function mesmoNome(a, b) {
+  const n = function (x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase(); };
+  return n(a) === n(b);
+}
 
 
 function criarArmazem(pastaDados, avisar) {
@@ -73,8 +137,11 @@ function criarArmazem(pastaDados, avisar) {
         if (!envelope || envelope.formato !== FORMATO) throw new Error('não é uma campanha do Plainus');
         const estado = conferirCampanha(envelope.estado);
         if (typeof estado === 'string') throw new Error(estado);
+        const acessos = acessosConferidos(envelope.acessos);
+        if (!acessos.mestre) log('Aviso: ' + nome + ' não tem chave de Mestre (arquivo copiado à mão?). Traga campanhas pelo "Restaurar backup" da entrada.');
         campanhas.set(id, {
           estado: estado,
+          acessos: acessos,
           criadaEm: Number(envelope.criadaEm) || Date.now(),
           atualizadaEm: Number(envelope.atualizadaEm) || Date.now()
         });
@@ -93,7 +160,9 @@ function criarArmazem(pastaDados, avisar) {
     if (relogio) { clearTimeout(relogio); aGravar.delete(id); }
     const c = campanhas.get(id);
     if (!c) return;
-    const envelope = { formato: FORMATO, versao: VERSAO, criadaEm: c.criadaEm, atualizadaEm: c.atualizadaEm, estado: c.estado };
+    /* O envelope do disco leva os RESUMOS das chaves; o backup que a
+       pessoa baixa (envelopeDeBackup) não leva nem isso. */
+    const envelope = { formato: FORMATO, versao: VERSAO, criadaEm: c.criadaEm, atualizadaEm: c.atualizadaEm, acessos: c.acessos, estado: c.estado };
     const final = arquivoDe(id);
     const temporario = final + '.tmp';
     fs.writeFileSync(temporario, JSON.stringify(envelope));
@@ -187,14 +256,82 @@ function criarArmazem(pastaDados, avisar) {
 
     const id = novoId();
     const agora = Date.now();
-    campanhas.set(id, { estado: estado, criadaEm: agora, atualizadaEm: agora });
+    const chave = novaChave();
+    const acessos = acessosVazios();
+    acessos.mestre = resumoDaChave(chave);
+    campanhas.set(id, { estado: estado, acessos: acessos, criadaEm: agora, atualizadaEm: agora });
     try {
       gravarAgora(id);          /* criar é raro e importante: grava na hora */
     } catch (erro) {
       campanhas.delete(id);
       return { erro: 'Não consegui gravar a campanha no disco: ' + erro.message };
     }
-    return { id: id, codigo: estado.campanha.codigo };
+    /* A chave sai daqui UMA vez: o servidor não tem como mostrá-la de novo. */
+    return { id: id, codigo: estado.campanha.codigo, chave: chave };
+  }
+
+
+  /* ---------- Acesso ---------- */
+
+  /* Esta chave abre esta campanha neste papel? */
+  function conferirAcesso(id, papel, jogadorId, chave) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c) return false;
+    if (papel === 'mestre') return chaveConfere(chave, c.acessos.mestre);
+    if (papel === 'jogador') {
+      const j = Object.prototype.hasOwnProperty.call(c.acessos.jogadores, jogadorId) && c.acessos.jogadores[jogadorId];
+      return !!j && chaveConfere(chave, j.resumo);
+    }
+    return false;
+  }
+
+  function nomeDoJogador(id, jogadorId) {
+    const c = campanhas.get(id);
+    const j = c && Object.prototype.hasOwnProperty.call(c.acessos.jogadores, jogadorId) && c.acessos.jogadores[jogadorId];
+    return j ? j.nome : null;
+  }
+
+  /* Entrar com o código como jogador. Devolve { jogadorId, chave, nome }
+     ou { erro }.
+       - Nome que já tem dono (outra chave) nesta mesa: recusado. Quem é
+         dono de verdade volta pelo cartão em "Suas mesas".
+       - Personagem que veio de um backup (já existe, mas ninguém tem a
+         chave dele ainda): quem entra com o nome do jogador daquele
+         personagem o reivindica, uma vez — e daí ele fica protegido.
+       - Senão: jogador novo, chave nova. */
+  function entrarComoJogador(id, nomeDigitado) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c) return { erro: 'Campanha não encontrada.' };
+    const nome = String(nomeDigitado || '').trim().slice(0, 30);
+    if (!nome) return { erro: 'Diga como a mesa te chama.' };
+
+    const jogadores = c.acessos.jogadores;
+    const jaTemDono = Object.keys(jogadores).some(function (jid) { return mesmoNome(jogadores[jid].nome, nome); });
+    if (jaTemDono) return { erro: 'Já tem alguém com esse nome nesta mesa. Se é você, volte pelo cartão da mesa em "Suas mesas", no navegador onde entrou da primeira vez.' };
+    if (Object.keys(jogadores).length >= LIMITE_JOGADORES) return { erro: 'Esta mesa já está cheia.' };
+
+    const semDono = (c.estado.herois || []).find(function (h) {
+      return h.dono && mesmoNome(h.jogador, nome) && !Object.prototype.hasOwnProperty.call(jogadores, h.dono) && /^j[0-9a-f]{16}$/.test(h.dono);
+    });
+    let jogadorId = semDono ? semDono.dono : null;
+    while (!jogadorId || Object.prototype.hasOwnProperty.call(jogadores, jogadorId)) jogadorId = 'j' + crypto.randomBytes(8).toString('hex');
+
+    const chave = novaChave();
+    jogadores[jogadorId] = { nome: nome, resumo: resumoDaChave(chave) };
+    try {
+      gravarAgora(id);
+    } catch (erro) {
+      delete jogadores[jogadorId];
+      return { erro: 'Não consegui gravar a entrada no disco.' };
+    }
+    return { jogadorId: jogadorId, chave: chave, nome: nome, reivindicou: !!semDono };
+  }
+
+  /* O que vai num backup baixado: a campanha, sem chave nenhuma. */
+  function envelopeDeBackup(id) {
+    const c = campanhas.get(id);
+    if (!c) return null;
+    return { formato: FORMATO, versao: VERSAO, exportadoEm: new Date().toISOString(), estado: c.estado };
   }
 
   function apagar(id) {
@@ -206,7 +343,8 @@ function criarArmazem(pastaDados, avisar) {
     return true;
   }
 
-  return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora };
+  return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
+    conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup };
 }
 
 module.exports = { criarArmazem, ID_CAMPANHA };

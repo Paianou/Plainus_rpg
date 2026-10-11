@@ -15,7 +15,7 @@ await js(`document.getElementById('salvarCena').click()`);
 ok(await js(`document.getElementById('erroCena').textContent==='Dê um nome à cena.'`), 'cena sem nome recusada');
 await js(`document.getElementById('cenaNome').value='Torre'; document.getElementById('cenaColunas').value='10'; document.getElementById('cenaLinhas').value='8'; document.getElementById('cenaLinhas').dispatchEvent(new Event('input')); document.getElementById('salvarCena').click()`);
 ok(await js(`!document.getElementById('dialogoCena').open && Estado.cenas.length===1 && Estado.cenaAtual===Estado.cenas[0].id && Estado.cenas[0].paredes.length===4`), 'cena criada, aberta, com contorno');
-ok(await js(`Campanhas.lerEstado(Sessao.ler().campanhaId).cenas.length===1`), 'cena gravada no armazenamento');
+ok(await js(`T.gravado().then(e=>e.cenas.length===1)`), 'cena gravada no servidor');
 
 /* pintar com o mouse de verdade */
 await js(`document.querySelector('[data-valor="parede"]').click()`);
@@ -30,7 +30,7 @@ const d = await centro(4, 3);
 await mouse('mousePressed', d, 1); await mouse('mouseReleased', d, 0); await espera(200);
 const linha3b = await js(`JSON.stringify(Estado.cenas[0].paredes.filter(p=>p[1]===3))`);
 ok(linha3b === '[[0,3,1,1],[3,3,1,1],[5,3,1,1],[9,3,1,1]]', 'clicar numa parede tira só aquela célula ' + linha3b);
-ok(await js(`Campanhas.lerEstado(Sessao.ler().campanhaId).cenas[0].paredes.length===Estado.cenas[0].paredes.length`), 'paredes salvas ao soltar');
+ok(await js(`T.gravado().then(e=>JSON.stringify(e.cenas[0].paredes)===JSON.stringify(Estado.cenas[0].paredes))`), 'paredes salvas no servidor ao soltar');
 await foto('m1-paredes');
 
 /* redimensionar */
@@ -51,10 +51,8 @@ await ir('mestre.html');
 ok(await js(`!!document.querySelector('.mapa svg image')`), 'Visão Geral mostra a imagem na miniatura');
 await ir('mapas.html');
 
-/* falta de espaço: simula o navegador recusando */
-await js(`window._orig=Campanhas.salvarEstado; Campanhas.salvarEstado=()=>false; document.querySelector('[data-acao="nova-cena"]').click(); document.getElementById('cenaNome').value='Não cabe'; document.getElementById('salvarCena').click()`);
-ok(await js(`Estado.cenas.length===1 && document.getElementById('erroCena').textContent.startsWith('Não coube') && document.getElementById('dialogoCena').open`), 'sem espaço: desfaz e avisa, janela continua aberta');
-await js(`Campanhas.salvarEstado=window._orig; document.getElementById('cancelarCena').click()`);
+/* a imagem foi para o servidor, e a página recarregada a recebe de lá */
+ok(await js(`T.gravado().then(e=>!!imagemDaCena(e.cenas[0]))`), 'a imagem da cena está no servidor');
 
 /* imagem inválida no estado é ignorada */
 ok(await js(`imagemDaCena({imagem:'javascript:alert(1)'})===null && imagemDaCena({imagem:'data:image/svg+xml;base64,AAAA'})===null`), 'imagem que não é JPEG em base64 é ignorada');

@@ -42,21 +42,29 @@ ok(env.formato === 'plainus-campanha' && env.versao === 1 && env.estado.herois.l
 ok(await js(`document.querySelector('.campanha-backup').textContent`) === 'Backup hoje' && /Backup baixado/.test(await js(`document.getElementById('aviso').textContent`)), 'depois de baixar: "Backup hoje" e o aviso azul');
 await foto('b2-baixado');
 
-/* restaurar o mesmo arquivo com a campanha ainda aqui: vira cópia */
+/* As mesas de Mestre deste navegador, com o que o servidor tem de cada uma. */
+const mesasDoMestre = () => js(`(async()=>{const r=[]; for (const a of Acessos.listar().filter(a=>a.papel==='mestre')) { const e=await T.gravado(a.campanhaId); r.push({id:a.campanhaId, nome:e.campanha.nome, codigo:e.campanha.codigo, herois:e.herois, diario:e.diario, inventada:'chaveInventada' in e}); } return r;})()`);
+
+/* restaurar o mesmo arquivo com a campanha ainda no servidor: outra campanha, outro código */
 const arq = path.join(PASTA, baixados[0]);
 await escolher(arq);
-const lista1 = await js(`Campanhas.listar().map(c=>({nome:c.nome,codigo:c.codigo}))`);
-ok(lista1.length === 2 && lista1.some(c => /\(backup de /.test(c.nome) && c.codigo !== codigoOriginal), 'restaurar com a original presente cria uma CÓPIA com outro código — nada é sobrescrito');
-ok(/já estava aqui/.test(await js(`document.getElementById('aviso').textContent`)), 'o aviso explica que entrou como cópia');
+await aguardar(`/restaurada/.test(document.getElementById('aviso').textContent)`);
+const lista1 = await mesasDoMestre();
+ok(lista1.length === 2 && lista1.every(c => c.nome === 'Teste dados') && lista1.some(c => c.codigo === codigoOriginal) && lista1.some(c => c.codigo !== codigoOriginal), 'restaurar com a original no servidor cria OUTRA campanha, com outro código — nada é sobrescrito');
+ok(/já estava em uso aqui/.test(await js(`document.getElementById('aviso').textContent`)), 'o aviso explica que o código de convite mudou');
 await foto('b3-copia');
 
-/* o caso real: perdeu tudo */
-await js(`document.querySelectorAll('[data-acao="esquecer"]').forEach(()=>document.querySelector('[data-acao="esquecer"]').click())`); await espera(300);
-ok(await js(`Campanhas.listar().length===0 && document.getElementById('campanhasSalvas').hidden && !!document.getElementById('btnRestaurar').offsetParent`), 'sem campanhas: a lista some, mas o "Restaurar backup" continua à vista');
-ok(await js(`localStorage.getItem('plainus:backups')`) === '{}', 'esquecer a campanha apaga também a data do backup dela');
+/* tirar tudo da lista: um cartão de cada vez (a lista se redesenha pelo servidor) */
+for (let i = 0; i < 6 && await js(`!!document.querySelector('[data-acao="esquecer"], [data-acao="tirar-mesa"]')`); i++) {
+  const antes = await js(`document.querySelectorAll('.cartao-mesa').length`);
+  await js(`document.querySelector('[data-acao="esquecer"], [data-acao="tirar-mesa"]').click()`);
+  await aguardar(`document.querySelectorAll('.cartao-mesa').length < ${antes} || document.getElementById('campanhasSalvas').hidden`);
+}
+ok(await js(`Acessos.listar().length===0 && document.getElementById('campanhasSalvas').hidden && !!document.getElementById('btnRestaurar').offsetParent`), 'sem mesas na lista: ela some, mas o "Restaurar backup" continua à vista');
 await escolher(arq);
-const lista2 = await js(`Campanhas.listar()`);
-ok(lista2.length === 1 && lista2[0].nome === 'Teste dados' && lista2[0].codigo === codigoOriginal, 'restaurou com o MESMO nome e o MESMO código de convite');
+await aguardar(`!document.getElementById('campanhasSalvas').hidden`);
+const lista2 = await mesasDoMestre();
+ok(lista2.length === 1 && lista2[0].nome === 'Teste dados' && lista2[0].herois.length === 1, 'restaurou a campanha (com a Lyra), e este navegador é o Mestre dela');
 ok(await js(`document.querySelector('.campanha-backup').textContent`) === 'Backup hoje', 'a campanha restaurada já conta como tendo backup');
 await js(`document.getElementById('btnRestaurar').scrollIntoView()`);
 await foto('b4-restaurada');
@@ -73,8 +81,9 @@ const ruins = [
 ];
 for (const [nome, conteudo, esperado] of ruins) {
   await escolher(gravarTeste(nome, conteudo));
+  await aguardar(`!!document.getElementById('erro').textContent`);
   const msg = await js(`document.getElementById('erro').textContent`);
-  ok(esperado.test(msg) && (await js(`Campanhas.listar().length`)) === 1, nome + ': recusado — "' + msg.slice(0, 60) + '…"');
+  ok(esperado.test(msg) && (await js(`Acessos.listar().length`)) === 1, nome + ': recusado — "' + msg.slice(0, 60) + '…"');
 }
 
 /* tipos errados e nome com HTML: entra, mas limpo */
@@ -85,7 +94,9 @@ malvado.herois = 'não sou lista';
 malvado.diario = { a: 1 };
 malvado.chaveInventada = 'lixo';
 await escolher(gravarTeste('malvado.json', JSON.stringify({ formato: 'plainus-campanha', versao: 1, estado: malvado })));
-const nova = await js(`(()=>{const c=Campanhas.listar().find(c=>c.nome.startsWith('<img')); const e=Campanhas.lerEstado(c.id); return {codigo:c.codigo, herois:e.herois, diario:e.diario, inventada:'chaveInventada' in e, valido: !!Campanhas.normalizarCodigo(c.codigo)};})()`);
+await aguardar(`/restaurada/.test(document.getElementById('aviso').textContent) && document.querySelectorAll('.campanha-salva').length===2`);
+const nova = (await mesasDoMestre()).find((c) => c.nome.startsWith('<img'));
+nova.valido = await js(`!!normalizarCodigo(${JSON.stringify(nova.codigo)})`);
 ok(Array.isArray(nova.herois) && nova.herois.length === 0 && Array.isArray(nova.diario) && !nova.inventada, 'partes com tipo errado viram o valor vazio; chave desconhecida é descartada');
 ok(nova.valido && nova.codigo !== 'nada', 'código inválido no arquivo: ganha um código novo (' + nova.codigo + ')');
 ok(await js(`!document.querySelector('.lista-campanhas img') && !window.pegou && [...document.querySelectorAll('.campanha-nome')].some(e=>e.textContent.startsWith('<img'))`), 'nome com HTML aparece como texto e não executa nada');

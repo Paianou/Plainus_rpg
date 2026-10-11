@@ -1,25 +1,19 @@
 /* ===================================================================
    server.js — o servidor da mesa
 
-   Passo 1: entregar o site (a lista branca, logo abaixo).
-   Passo 2: o tempo real com Socket.IO — por enquanto, quem está na mesa.
+   Entrega o site (a lista branca, logo abaixo), guarda as campanhas
+   (servidor/armazem.js, na pasta data/), responde às perguntas da
+   entrada (servidor/api.js) e mantém a mesa em tempo real
+   (servidor/mesa.js).
 
    COMO RODAR
      npm install     uma vez (baixa o Express e o Socket.IO)
      npm start       liga o servidor
      abra http://localhost:3000
 
-   O QUE ELE FAZ POR ENQUANTO
-   Entrega os arquivos do site — o mesmo que o duplo clique fazia, mas
-   por http:// — e mantém uma ligação em tempo real com cada painel
-   aberto, para mostrar quem está na mesa. Ainda não guarda campanha
-   nenhuma: cada navegador continua com a sua cópia no localStorage.
-   O próximo passo traz a campanha para cá.
-
-   Por que já vale a pena: com http://, o navegador trata o site como
-   um site de verdade — o "Copiar convite" passa a copiar um LINK, a
-   área de transferência funciona, e o Cloudflare Tunnel tem para onde
-   apontar.
+   A campanha mora aqui: o servidor tem a cópia oficial, confere cada
+   ação (só o Mestre mexe na campanha; cada jogador, só no que é dele),
+   grava no disco e espalha para a mesa — a cada um, só o que ele vê.
 
 
    SÓ ENTREGA O QUE É DO SITE (uma lista branca)
@@ -44,8 +38,9 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const express = require('express');
-const { Server } = require('socket.io');
-const { criarArmazem, ID_CAMPANHA } = require('./servidor/armazem.js');
+const { criarArmazem } = require('./servidor/armazem.js');
+const { criarApi } = require('./servidor/api.js');
+const { ligarMesa } = require('./servidor/mesa.js');
 
 const RAIZ = __dirname;
 const PORTA = Number(process.env.PORT) || 3000;
@@ -53,6 +48,9 @@ const HOST = process.env.HOST || '127.0.0.1';
 /* Onde as campanhas ficam no disco. A pasta data/ está no .gitignore:
    campanha de verdade (com os segredos do Mestre) nunca sobe pro Git. */
 const PASTA_DADOS = process.env.DATA_DIR || path.join(RAIZ, 'data');
+
+const rotasDeTeste = process.env.PLAINUS_ROTAS_DE_TESTE === '1' && HOST === '127.0.0.1'
+  ? require('./testes/rotas-de-teste.cjs') : null;
 
 
 /* ---------- As campanhas (servidor/armazem.js) ---------- */
@@ -113,6 +111,16 @@ PASTAS_DO_SITE.forEach(function (pasta) {
   app.use('/' + pasta, express.static(path.join(RAIZ, pasta), { dotfiles: 'deny', index: false }));
 });
 
+/* As perguntas da tela de entrada (criar, entrar, cartões, backup):
+   servidor/api.js. */
+app.use('/api', criarApi(armazem, { semLimite: !!rotasDeTeste }));
+
+/* Os testes do navegador (testes/rodar.mjs) ligam o servidor com
+   PLAINUS_ROTAS_DE_TESTE=1 e ganham duas rotas para ler e trocar uma
+   campanha por inteiro. Sem essa variável — o npm start de sempre —
+   elas não existem. E nunca fora do 127.0.0.1. */
+if (rotasDeTeste) rotasDeTeste.ligar(app, armazem, function () { return mesa; });
+
 /* Todo o resto: não existe. */
 app.use(function (pedido, resposta) {
   resposta.status(404).type('text').send('Não encontrado.');
@@ -120,118 +128,15 @@ app.use(function (pedido, resposta) {
 
 
 /* ===================================================================
-   O TEMPO REAL (Socket.IO) — passo 2: quem está na mesa
+   O TEMPO REAL — servidor/mesa.js
 
-   Uma conexão aberta entre cada navegador e o servidor, que fica ligada
-   enquanto a página está aberta. Por ela o servidor AVISA os navegadores
-   na hora — sem eles ficarem perguntando "mudou algo?".
-
-   Por enquanto ela carrega uma coisa só: a PRESENÇA. Cada navegador diz
-   em que campanha está e quem é; o servidor junta todo mundo da mesma
-   campanha numa "sala" e manda para a sala a lista de quem está lá.
-   A campanha em si continua no navegador — trazê-la para cá é o
-   próximo passo.
-
-   O QUE AINDA É CONFIANÇA (e deixa de ser no passo da segurança)
-   O nome e o papel vêm do navegador, como hoje vêm do sessionStorage:
-   quem quiser mentir, mente. Para a PRESENÇA isso é inofensivo (no
-   máximo aparece um nome errado na lista); para mexer na campanha,
-   não será — lá entra o token assinado pelo servidor.
+   Cada painel aberto mantém uma conexão (Socket.IO, só WebSocket) com
+   o servidor. Por ela entra quem tem a chave, e por ela passam as ações
+   do Mestre e dos jogadores — conferidas, aplicadas na cópia oficial,
+   gravadas, e espalhadas para a mesa (a cada um, só o que ele vê).
    =================================================================== */
-
 const servidor = http.createServer(app);
-
-/* Uma página de OUTRO site, aberta no seu navegador, poderia abrir uma
-   conexão com a sua mesa (o navegador deixa — é o "Cross-Site WebSocket
-   Hijacking"). O navegador sempre manda o cabeçalho Origin dizendo de
-   que site a página veio: só aceitamos quando é este mesmo endereço.
-   Sem Origin (um programa, não um navegador), não há vítima a proteger. */
-function origemConfere(pedido) {
-  const origem = pedido.headers.origin;
-  if (!origem) return true;
-  try {
-    return new URL(origem).host === pedido.headers.host;
-  } catch (erro) {
-    return false;
-  }
-}
-
-const io = new Server(servidor, {
-  /* Só WebSocket. O Socket.IO também sabe conversar por "long-polling"
-     (uma requisição HTTP que fica aberta esperando novidade), mas o
-     navegador só abre 6 conexões por endereço — com algumas abas da
-     mesa abertas, essas requisições presas enchiam a fila e as páginas
-     novas esperavam segundos para carregar um script. WebSocket é uma
-     conexão à parte, todo navegador atual tem, e o Cloudflare Tunnel
-     também. De quebra, uma porta de entrada a menos no servidor. */
-  transports: ['websocket'],
-  /* Nenhuma mensagem nossa passa de alguns KB; 100 KB é folga e corta
-     de cara quem tentar mandar megabytes para encher a memória. */
-  maxHttpBufferSize: 100 * 1024,
-  allowRequest: function (pedido, responder) {
-    responder(null, origemConfere(pedido));
-  }
-});
-
-/* Quem está em cada conexão: socket.id → { sala, nome, papel }. */
-const presenca = new Map();
-const LIMITE_POR_SALA = 20;
-const LIMITE_ENTRADAS_POR_MINUTO = 10;
-
-function quemEstaNaSala(sala) {
-  const lista = [];
-  presenca.forEach(function (p) { if (p.sala === sala) lista.push({ nome: p.nome, papel: p.papel }); });
-  /* O Mestre primeiro; os jogadores em ordem alfabética. */
-  return lista.sort(function (a, b) {
-    if (a.papel !== b.papel) return a.papel === 'mestre' ? -1 : 1;
-    return a.nome.localeCompare(b.nome);
-  });
-}
-
-function avisarSala(sala) {
-  io.to(sala).emit('presenca', quemEstaNaSala(sala));
-}
-
-io.on('connection', function (socket) {
-  let entradas = 0;
-  const contagem = setInterval(function () { entradas = 0; }, 60 * 1000);
-
-  /* "Estou na campanha X, sou fulano." Tudo é conferido: o que chega
-     pela conexão é entrada de usuário, como um formulário. */
-  socket.on('entrar', function (dados) {
-    entradas += 1;
-    if (entradas > LIMITE_ENTRADAS_POR_MINUTO) return;
-    if (!dados || typeof dados !== 'object') return;
-
-    const campanhaId = dados.campanhaId;
-    const nome = typeof dados.nome === 'string' ? dados.nome.trim().slice(0, 30) : '';
-    const papel = dados.papel === 'mestre' ? 'mestre' : 'jogador';
-    if (typeof campanhaId !== 'string' || !ID_CAMPANHA.test(campanhaId) || !nome) return;
-
-    const sala = 'campanha:' + campanhaId;
-    if (quemEstaNaSala(sala).length >= LIMITE_POR_SALA) return;
-
-    /* Trocou de campanha na mesma conexão: sai da sala antiga. */
-    const antes = presenca.get(socket.id);
-    if (antes && antes.sala !== sala) {
-      socket.leave(antes.sala);
-      presenca.delete(socket.id);
-      avisarSala(antes.sala);
-    }
-
-    presenca.set(socket.id, { sala: sala, nome: nome, papel: papel });
-    socket.join(sala);
-    avisarSala(sala);
-  });
-
-  /* Fechou a aba, caiu a internet: sai da lista, e a sala fica sabendo. */
-  socket.on('disconnect', function () {
-    clearInterval(contagem);
-    const quem = presenca.get(socket.id);
-    presenca.delete(socket.id);
-    if (quem) avisarSala(quem.sala);
-  });
-});
+const mesa = ligarMesa(servidor, armazem, function (texto) { console.log(texto); });
 
 
 servidor.listen(PORTA, HOST, function () {

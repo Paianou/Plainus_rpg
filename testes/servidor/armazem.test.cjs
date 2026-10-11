@@ -72,6 +72,37 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(avisos2.length === 2 && fs.existsSync(path.join(pasta, 'campanhas', 'c0000000000000000.json')), 'arquivo corrompido: avisado e deixado de lado — não apagado');
   ok(b.listar()[0].nome && b.listar().every((x) => x.id && x.codigo), 'listar: um resumo por campanha (nome, código, sessão...)');
 
+  /* ---------- as chaves ---------- */
+  const c = criarArmazem(pasta);
+  c.carregar();
+  const base = estadoVazio(); base.campanha.nome = 'Mesa com chave'; base.mestre.nome = 'Thiago';
+  /* um personagem que veio de um backup: tem dono, mas ninguém tem a chave dele */
+  base.herois.push({ id: 'h1', nome: 'Lyra', jogador: 'Ana', dono: 'jaaaaaaaaaaaaaaaa', pv: 9, pvMax: 9 });
+  const mesa = c.criar(base);
+  ok(typeof mesa.chave === 'string' && mesa.chave.length >= 30, 'criar devolve a chave do Mestre (uma vez só)');
+  const noDisco = fs.readFileSync(path.join(pasta, 'campanhas', mesa.id + '.json'), 'utf8');
+  ok(!noDisco.includes(mesa.chave) && /"mestre":"[0-9a-f]{64}"/.test(noDisco), 'o disco guarda só o RESUMO da chave, nunca a chave');
+  ok(c.conferirAcesso(mesa.id, 'mestre', null, mesa.chave), 'a chave certa abre como Mestre');
+  ok(!c.conferirAcesso(mesa.id, 'mestre', null, mesa.chave + 'x') && !c.conferirAcesso(mesa.id, 'mestre', null, '') && !c.conferirAcesso(mesa.id, 'mestre', null, undefined), 'chave errada, vazia ou ausente: não abre');
+  ok(!c.conferirAcesso(mesa.id, 'jogador', null, mesa.chave), 'a chave do Mestre não abre como jogador sem id');
+
+  const bruno = c.entrarComoJogador(mesa.id, 'Bruno');
+  ok(/^j[0-9a-f]{16}$/.test(bruno.jogadorId) && bruno.chave && !bruno.reivindicou, 'Bruno entra: jogador novo, chave nova');
+  ok(c.conferirAcesso(mesa.id, 'jogador', bruno.jogadorId, bruno.chave) && !c.conferirAcesso(mesa.id, 'mestre', null, bruno.chave), 'a chave do Bruno abre o Bruno — e não o Mestre');
+  ok(c.entrarComoJogador(mesa.id, '  bruno ').erro && c.entrarComoJogador(mesa.id, 'BRUNO').erro, '"bruno" e "BRUNO" de novo: recusado (o nome já tem dono)');
+  const ana = c.entrarComoJogador(mesa.id, 'Ána');
+  ok(ana.reivindicou && ana.jogadorId === 'jaaaaaaaaaaaaaaaa', 'a Ana (escrito "Ána") reivindica a Lyra que veio do backup — mesmo jogadorId do personagem');
+  ok(c.entrarComoJogador(mesa.id, 'Ana').erro, '…e depois disso ninguém mais entra como Ana');
+  ok(c.nomeDoJogador(mesa.id, bruno.jogadorId) === 'Bruno' && c.nomeDoJogador(mesa.id, 'jinventado000000') === null, 'o nome de cada jogador vem do servidor');
+  ok(c.entrarComoJogador(mesa.id, '').erro && c.entrarComoJogador('c' + '0'.repeat(16), 'X').erro, 'nome vazio ou campanha que não existe: recusado');
+  const backup = c.envelopeDeBackup(mesa.id);
+  ok(backup.formato === 'plainus-campanha' && !('acessos' in backup) && !JSON.stringify(backup).includes('"resumo"'), 'o backup baixado leva a campanha e nenhuma chave (nem resumo)');
+
+  /* reiniciar não perde as chaves */
+  const d = criarArmazem(pasta);
+  d.carregar();
+  ok(d.conferirAcesso(mesa.id, 'mestre', null, mesa.chave) && d.conferirAcesso(mesa.id, 'jogador', bruno.jogadorId, bruno.chave), 'servidor reiniciado: as chaves continuam valendo');
+
   /* apagar */
   ok(b.apagar(r3.id) && !fs.existsSync(path.join(pasta, 'campanhas', r3.id + '.json')) && b.ler(r3.id) === null, 'apagar tira da memória e do disco');
 

@@ -18,7 +18,7 @@
    no bloco abaixo, e só saem os dois nomes.
    =================================================================== */
 
-const { estadoVazio, conferirCampanha, sortearCodigo, normalizarCodigo } = (function () {
+const { estadoVazio, conferirCampanha, sortearCodigo, normalizarCodigo, imagemSegura, imagemDaCena, retratoSeguro, regrasPersonagem, LIMITE_RETRATO } = (function () {
 
 function estadoVazio() {
   return {
@@ -109,6 +109,45 @@ function conferirCampanha(salvo) {
   return limpo;
 }
 
+/* ---------- As imagens ----------
+   Uma imagem guardada só vale se for de confiança — senão, null. O site
+   só grava imagens que ele mesmo recomprimiu em JPEG (imagens.js). Esta
+   conferência existe porque a imagem vem de fora (do navegador de
+   alguém, pela rede) — e um endereço qualquer num <img> ou num <image>
+   do SVG não é coisa para aceitar às cegas (um SVG pode levar script).
+   `limite` é o tamanho máximo do texto (ver Imagens.PERFIS). */
+const LIMITE_IMAGEM_CENA = 700000;
+const LIMITE_RETRATO = 160000;
+
+function imagemSegura(imagem, limite) {
+  return typeof imagem === 'string'
+    && imagem.length <= (limite || LIMITE_IMAGEM_CENA)
+    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem)
+    ? imagem : null;
+}
+
+/* A imagem de fundo de uma cena (Mapas e a planta.js). */
+function imagemDaCena(cena) {
+  return imagemSegura(cena && cena.imagem, LIMITE_IMAGEM_CENA);
+}
+
+/* O retrato de um personagem ou de um monstro. */
+function retratoSeguro(imagem) {
+  return imagemSegura(imagem, LIMITE_RETRATO);
+}
+
+/* As regras de criação de personagem da campanha, sempre completas:
+   campanhas criadas antes desta regra existir não têm o objeto, e quem
+   lê não deve ter de lembrar disso. */
+function regrasPersonagem(estado) {
+  const campanha = (estado && estado.campanha) || {};
+  return Object.assign(
+    { atributos: 'compra', pv: 'media', talentos: true, multiclasse: false },
+    campanha.regrasPersonagem
+  );
+}
+
+
 /* ---------- O código de convite ----------
    "K7QM-2XRP-9HVD": 12 sorteios num alfabeto de 32 = 32^12 ≈ 10^18
    combinações (a mesa-virtual usava 3 letras + 4 dígitos, adivinhável
@@ -138,10 +177,10 @@ function normalizarCodigo(texto) {
   return limpo.slice(0, 4) + '-' + limpo.slice(4, 8) + '-' + limpo.slice(8, 12);
 }
 
-return { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo };
+return { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO };
 })();
 
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo };
+  module.exports = { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO };
 }

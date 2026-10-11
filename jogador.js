@@ -60,12 +60,25 @@ const Jogador = {
       this.mostrarRestrito('Você entrou nesta campanha como Mestre. O seu painel é o outro.', 'mestre.html', 'Ir para o painel do Mestre');
       return;
     }
-    if (typeof sessao.jogadorId !== 'string' || !Campanhas.achar(sessao.campanhaId)) {
-      this.mostrarRestrito('Esta campanha não está guardada neste navegador. Entre de novo com o código.');
-      return;
-    }
 
+    /* A chave da sessão tem de abrir a mesa no servidor (conexao.js).
+       Enquanto a visão não chega, "Abrindo a mesa…"; se não abrir, o
+       motivo — e o caminho de volta. */
+    const self = this;
     this.sessao = sessao;
+    Layout.mostrarCarregando();
+    Conexao.abrir(sessao).then(function () {
+      Layout.tirarCarregando();
+      self.montarPainel();
+    }, function (motivo) {
+      Layout.tirarCarregando();
+      self.mostrarRestrito(motivo);
+    });
+  },
+
+
+  montarPainel: function () {
+    const sessao = this.sessao;
     document.getElementById('app').hidden = false;
 
     /* Abriu com #aba=inventario no endereço (F5, link, voltar do
@@ -76,9 +89,6 @@ const Jogador = {
        atualiza a lista; a navegação só precisa refazer o contador. */
     Chat.ligar();
     const self = this;
-
-    /* A ligação com o servidor (conexao.js): quem está na mesa. */
-    Conexao.ligar({ campanhaId: sessao.campanhaId, nome: sessao.nome || 'Jogador', papel: 'jogador' });
     Chat.aoMudarLidas = function () {
       if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') self.montarNav(self.abasVisiveis());
       if (self.visao) self.vigiarMesa(self.visao);
@@ -117,7 +127,9 @@ const Jogador = {
   /* ---------- Desenho ---------- */
 
   render: function () {
-    this.visao = visaoDoJogador(Estado, this.sessao.jogadorId);
+    /* A visão vem PRONTA do servidor (visao.js roda lá): o que ela não
+       traz — PV dos monstros, segredos, notas — nem chegou a este navegador. */
+    this.visao = Conexao.visao;
     this.vigiarMesa(this.visao);
 
     this.renderBarra();
@@ -1326,14 +1338,14 @@ const Jogador = {
       evento.preventDefault();
     });
 
-    /* O Mestre mexeu na campanha em outra aba (dados.js já recarregou
-       o Estado). Só redesenha se não houver formulário aberto — senão
-       apagaria o que está sendo digitado. */
+    /* Chegou uma visão nova do servidor (o Mestre mexeu na mesa, alguém
+       rolou um dado). Só redesenha se não houver formulário aberto —
+       senão apagaria o que está sendo digitado. */
     document.addEventListener('plainus:externo', function () {
       /* A vez e o título são conferidos SEMPRE — mesmo com a pessoa
          digitando, quando o redesenho espera (ver ocupado). Senão o
          sino só tocaria depois que ela parasse de digitar. */
-      self.vigiarMesa(visaoDoJogador(Estado, self.sessao.jogadorId));
+      self.vigiarMesa(Conexao.visao);
       if (self.ocupado()) return;
       self.render();
     });

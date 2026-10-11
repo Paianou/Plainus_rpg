@@ -13,16 +13,15 @@
 
    O OBJETO ABAIXO É SÓ O EXEMPLO
    O Estado literal deste arquivo é a campanha de demonstração (A Queda
-   de Valkoria). Ao abrir uma página, Memoria.carregar() — no fim do
-   arquivo — troca tudo pela campanha da sessão, guardada pelo
-   campanhas.js. Por isso este arquivo precisa do campanhas.js
-   carregado ANTES dele. Uma campanha nova nasce de estadoVazio() ou
-   de estadoDeExemplo(), também definidos aqui.
+   de Valkoria) — dele sai a opção "começar com o exemplo" da criação
+   de campanha. Logo depois de copiado (EXEMPLO), o Estado é esvaziado:
+   a campanha de verdade chega pelo servidor (conexao.js), que a põe
+   aqui com Memoria.substituir(). Uma campanha nova nasce de
+   estadoVazio() (modelo.js) ou de estadoDeExemplo().
 
-   Como cada submenu é uma página de verdade, navegar entre elas
-   recarrega o JavaScript; é o salvar/carregar que faz o PV tirado no
-   Combate continuar tirado na Visão Geral. Quem vai guardar o estado
-   de verdade é o servidor — e aí só o campanhas.js muda.
+   Quem guarda a campanha é o servidor (data/campanhas/). Cada mudança
+   do Mestre é uma ação (acoes.js) mandada pela conexão; cada mudança
+   que alguém faz volta para todos pela mesma conexão.
    =================================================================== */
 
 
@@ -34,30 +33,8 @@
 const CELULA = 40;
 const METROS_POR_CELULA = 1.5;
 
-/* Uma imagem guardada, se for de confiança — senão, null.
-   O site só grava imagens que ele mesmo recomprimiu em JPEG
-   (imagens.js). Esta checagem existe porque o Estado vem do
-   localStorage, que qualquer um edita — e um endereço qualquer num
-   <img> ou num <image> do SVG não é coisa para aceitar às cegas.
-   `limite` é o tamanho máximo do texto (ver Imagens.PERFIS). */
-function imagemSegura(imagem, limite) {
-  return typeof imagem === 'string'
-    && imagem.length <= (limite || 700000)
-    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(imagem)
-    ? imagem : null;
-}
-
-/* A imagem de fundo de uma cena. Usada pelas duas telas que desenham
-   a planta (Mapas e a planta.js). */
-function imagemDaCena(cena) {
-  return imagemSegura(cena && cena.imagem, 700000);
-}
-
-/* O retrato de um personagem ou de um monstro. */
-const LIMITE_RETRATO = 160000;
-function retratoSeguro(imagem) {
-  return imagemSegura(imagem, LIMITE_RETRATO);
-}
+/* imagemSegura(), imagemDaCena() e retratoSeguro() moram no modelo.js:
+   o servidor confere as imagens com a mesma regra. */
 
 
 const Estado = {
@@ -480,9 +457,9 @@ const Estado = {
 
 
 /* ---------- O exemplo, guardado à parte ----------
-   Uma cópia do objeto acima, tirada ANTES de Memoria.carregar() (lá
-   embaixo) trocar o Estado pela campanha aberta. É dela que sai a
-   opção "começar com o exemplo" da criação de campanha.
+   Uma cópia do objeto acima, tirada ANTES de o Estado ser esvaziado
+   (Memoria, lá embaixo). É dela que sai a opção "começar com o
+   exemplo" da criação de campanha.
 
    JSON.parse(JSON.stringify(...)) é a cópia profunda mais simples:
    sem ela, mexer no herói da campanha nova mexeria também no exemplo,
@@ -504,13 +481,8 @@ function estadoDeExemplo() {
    (Estado.campanha inteiro vem do salvo), então uma campanha criada
    antes desta regra existir não tem o objeto — e quem lê não deve
    ter de lembrar disso. */
-function regrasPersonagem(estado) {
-  const campanha = (estado || Estado).campanha || {};
-  return Object.assign(
-    { atributos: 'compra', pv: 'media', talentos: true, multiclasse: false },
-    campanha.regrasPersonagem
-  );
-}
+/* (regrasPersonagem() mora no modelo.js: o servidor monta a visão do
+   jogador com ela.) */
 
 
 /* ---------- O bestiário inteiro: o do livro + os seus ----------
@@ -572,95 +544,32 @@ const GERADOR = {
 
 
 /* ===================================================================
-   GUARDAR O ESTADO NA CAMPANHA ABERTA
+   Memoria — o Estado desta página
 
-   Antes isto ia para o sessionStorage e sumia ao fechar a aba. Agora
-   o Estado pertence a uma CAMPANHA, guardada pelo campanhas.js no
-   localStorage. A sessão diz qual campanha está aberta.
+   A campanha não é mais guardada no navegador: ela chega do servidor
+   (conexao.js) e é posta aqui. Ninguém mais "salva" — as mudanças são
+   ações (acoes.js) que vão pela conexão.
 
-   Quem grava é só o Mestre. Um jogador abre a mesma campanha para
-   LER; se o navegador dele também gravasse, qualquer jogador poderia
-   reescrever a campanha inteira. Quando houver servidor, essa regra
-   passa para ele (só o Mestre manda certas ações).
+     substituir(estado)  troca o Estado inteiro pelo que chegou, aplicado
+                         POR CIMA do molde vazio: chave que faltar fica
+                         vazia, e não com o exemplo de Valkoria.
+     esvaziar()          o Estado de uma página que ainda não recebeu
+                         nada (nenhuma página mostra o exemplo como se
+                         fosse a sua campanha).
    =================================================================== */
-
 const Memoria = {
 
-  /* Chamado depois de toda mudança.
-
-     Além de guardar, avisa ('plainus:mudou') que o Estado mudou. Toda
-     tela já chama salvar() depois de mexer em algo, então este é o
-     único ponto por onde TODA mudança passa — é aqui que o sino fica
-     sabendo que um herói caiu, sem cada tela ter que lembrar dele. */
-  /* Devolve true se gravou. Quem precisa reagir a uma falha (a janela
-     de cena, que pode desfazer uma imagem grande demais) passa
-     { silencioso: true } e dá o próprio recado. */
-  salvar: function (opcoes) {
-    const sessao = Sessao.ler();
-    let ok = true;
-
-    if (sessao && sessao.papel === 'mestre') {
-      ok = Campanhas.salvarEstado(sessao.campanhaId, Estado);
-
-      /* Falhar em silêncio aqui seria o pior dos mundos: o mestre
-         jogaria a sessão inteira achando que estava salvo. */
-      if (!ok && !(opcoes && opcoes.silencioso) && typeof Layout !== 'undefined') {
-        Layout.recado('Não consegui salvar a campanha — o armazenamento do navegador recusou. O que você mudar agora pode se perder.', true);
-      }
-    }
-
-    /* Avisa mesmo se a gravação falhou: o Estado na memória mudou, e
-       o sino deve refletir o que está na tela. */
-    document.dispatchEvent(new CustomEvent('plainus:mudou'));
-    return ok;
+  substituir: function (novo) {
+    Object.keys(Estado).forEach(function (chave) { delete Estado[chave]; });
+    Object.assign(Estado, estadoVazio(), novo);
   },
 
-  /* Chamado uma vez, ao abrir a página. Troca o exemplo pela campanha
-     da sessão.
-
-     O salvo é aplicado POR CIMA do molde vazio, e não do exemplo:
-     se o salvo não tiver alguma chave, ela fica vazia — e não com os
-     heróis de Valkoria vazando para dentro da sua campanha. */
-  carregar: function () {
-    const sessao = Sessao.ler();
-    if (!sessao) return;
-
-    const salvo = Campanhas.lerEstado(sessao.campanhaId);
-    if (!salvo) return;
-
-    Object.keys(Estado).forEach(function (chave) { delete Estado[chave]; });
-    Object.assign(Estado, estadoVazio(), salvo);
+  esvaziar: function () {
+    this.substituir({});
   }
 };
 
-Memoria.carregar();
-
-
-/* ===================================================================
-   QUANDO OUTRA ABA MUDA A CAMPANHA
-
-   Sem servidor, Mestre e jogador dividem o mesmo localStorage — quase
-   sempre em abas diferentes. O perigo: o jogador cria o personagem na
-   aba dele; o Mestre, com o painel aberto, clica em qualquer coisa; o
-   painel grava o Estado que tem NA MEMÓRIA, que não conhece o
-   personagem novo — e o apaga.
-
-   O navegador avisa as OUTRAS abas quando o localStorage muda: é o
-   evento 'storage' (a aba que gravou não recebe). Ao ouvir que a
-   campanha aberta mudou, recarregamos o Estado e avisamos
-   'plainus:externo', para a tela que quiser se redesenhar.
-
-   Com o servidor, este papel passa para o Socket.IO: é ele que vai
-   empurrar o estado novo para cada navegador.
-   =================================================================== */
-window.addEventListener('storage', function (evento) {
-  const sessao = Sessao.ler();
-  if (!sessao || evento.key !== PREFIXO_CAMPANHA + sessao.campanhaId) return;
-
-  Memoria.carregar();
-  document.dispatchEvent(new CustomEvent('plainus:externo'));
-  document.dispatchEvent(new CustomEvent('plainus:mudou'));
-});
+Memoria.esvaziar();
 
 
 /* ===================================================================

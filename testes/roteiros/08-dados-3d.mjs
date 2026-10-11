@@ -28,7 +28,7 @@ await espera(350);
 ok(await ana.js(`!!document.querySelector('.palco-dados.d20 canvas') && !document.querySelector('.palco-dados.pousou')`), 'clicar na perícia abre o palco e o d20 está rolando');
 await ana.foto('d1-rolando');
 await espera(1500);
-const r1 = await ana.js(`Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0]`);
+const r1 = await ana.js(`(await T.gravado()).rolagensMesa[0]`);
 const f1 = await ana.js(faceDeFrente(0));
 const dado1 = Number(/d20 \((\d+)\)/.exec(r1.formula)[1]);
 ok(f1.valor === dado1 && f1.z > 0.999, 'o d20 parou com a face sorteada virada para a câmera (' + dado1 + ', z=' + f1.z.toFixed(4) + ')');
@@ -49,7 +49,7 @@ ok(await ana.js(`Dados3D.dados[0].faces.every(f=>{const o=Dados3D.dados[0].faces
 await ana.js(`document.querySelector('[data-acao="modo-rolagem"][data-modo="vantagem"]').click()`);
 await ana.js(`(()=>{const c=document.getElementById('cdTeste'); c.value='15'; c.dispatchEvent(new Event('input',{bubbles:true}));})()`);
 await ana.js(`document.querySelector('button.pericia[data-texto="Acrobacia"]').click()`); await espera(1900);
-const r2 = await ana.js(`Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0]`);
+const r2 = await ana.js(`(await T.gravado()).rolagensMesa[0]`);
 const [a2, b2] = /d20 \((\d+), (\d+)\)/.exec(r2.formula).slice(1).map(Number);
 const fa = await ana.js(faceDeFrente(0)); const fb = await ana.js(faceDeFrente(1));
 ok(fa.valor === a2 && fb.valor === b2, 'vantagem: dois d20, cada um parado no seu valor (' + a2 + ' e ' + b2 + ')');
@@ -81,7 +81,7 @@ await ana.js(`document.querySelector('.palco-dados').click()`); await espera(350
 await ana.js(`document.querySelector('[data-acao="dano"]').click()`); await espera(250);
 ok(await ana.js(`!!document.querySelector('.palco-dados.bandeja') && !document.querySelector('.palco-dados.bandeja .parou')`), 'dano abre a bandeja, com os dados embaralhando');
 await espera(900);
-const r3 = await ana.js(`Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0]`);
+const r3 = await ana.js(`(await T.gravado()).rolagensMesa[0]`);
 const mostrados = await ana.js(`[...document.querySelectorAll('.dado-2d.parou')].map(e=>Number(e.textContent))`);
 const gravados = /\(([\d, ]+)\)/.exec(r3.formula)[1].split(',').map(Number);
 ok(mostrados.length === 2 && JSON.stringify(mostrados) === JSON.stringify(gravados), 'a bandeja mostra os 2d8 do crítico com os valores gravados: ' + mostrados.join(', '));

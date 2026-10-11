@@ -777,8 +777,8 @@ const Bestiario = {
 
 
   /* A foto de um monstro (do seu, na ficha; do livro, por nome) — a
-     regra está na ação mudarFotoMonstro. Se o navegador recusar por
-     falta de espaço, o Acoes.executar desfaz e devolve o erro. */
+     regra está na ação mudarFotoMonstro. Imagem inválida: nada muda,
+     e o erro aparece num recado. */
   mudarFoto: function (nome, dados) {
     const ficha = acharMonstro(nome);
     if (!ficha) return;

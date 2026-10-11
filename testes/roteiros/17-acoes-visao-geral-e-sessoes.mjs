@@ -1,5 +1,5 @@
 /* Visão Geral, menu de sessão, som, sino de avisos e compêndio — clicando. */
-const gravado = (expr) => `(()=>{const e=Campanhas.lerEstado(Sessao.ler().campanhaId); return ${expr};})()`;
+const gravado = (expr) => `(async()=>{const e=(await T.gravado()); return ${expr};})()`;
 
 await ir('index.html');
 await js(`document.querySelector('[data-porta="mestrar"]').click(); document.getElementById('nome').value='Thiago'; document.getElementById('campanha').value='Teste geral'`);

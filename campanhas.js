@@ -1,86 +1,61 @@
 /* ===================================================================
-   campanhas.js — onde as campanhas e a sessão ficam guardadas
+   campanhas.js — o que este navegador lembra, e como ele pede ao servidor
 
-   Até aqui o Estado vivia no sessionStorage e morria com a aba. Agora
-   existe "campanha": cada uma com id, código de convite e os próprios
-   dados, guardados no localStorage — que sobrevive a fechar o
-   navegador. É o que permite ter mais de uma campanha e continuar
-   amanhã de onde parou.
+   A CAMPANHA MORA NO SERVIDOR
+   Desde a parte 2 do servidor, a campanha não fica mais guardada no
+   navegador: ela mora no servidor (data/campanhas/), que é a cópia
+   única e oficial. O navegador lembra só o necessário para voltar à
+   mesa — as CHAVES:
 
-   Este arquivo é o ÚNICO que sabe os nomes das chaves e o formato do
-   que está guardado. A entrada (app.js), a criação de campanha e o
-   painel (dados.js, layout.js) só chamam as funções daqui. Quando o
-   servidor chegar, é este arquivo que troca o localStorage por
-   pedidos ao servidor — e o resto do site nem percebe.
+     plainus:acessos     as mesas deste navegador: uma linha por mesa
+     (localStorage)        { campanhaId, papel, jogadorId, chave, nome, em }
+                           A chave é o que prova ao servidor que você é o
+                           Mestre (quem criou) ou aquele jogador (quem
+                           entrou com aquele nome). Sem ela, o servidor
+                           não abre a mesa.
 
+     plainus:sessao      quem está usando ESTA ABA — a mesma linha, mais
+     (sessionStorage)      nada. Por aba: o Mestre numa, a Ana noutra.
 
-   O QUE FICA GUARDADO
+     plainus:meu-nome    o último nome digitado na entrada, só para já
+                           vir preenchido.
 
-     plainus:sessao            quem está usando ESTA ABA
-     (sessionStorage)            { papel: 'mestre', campanhaId }
-                                 { papel: 'jogador', campanhaId, nome, jogadorId }
+   Guardar a chave no navegador tem um preço honesto: quem tiver acesso
+   a este navegador (ou a um script malicioso na página) tem a chave.
+   O site nunca põe texto de usuário como HTML (problema 5 do CLAUDE.md),
+   que é o que fecha a porta do script malicioso.
 
-     A sessão fica no sessionStorage, que é POR ABA. Antes ela ficava
-     no localStorage, que é um só para o navegador inteiro — e aí um
-     jogador entrando numa aba trocava a sessão do Mestre aberto na
-     outra, que passava a não gravar mais nada, em silêncio. Por aba,
-     cada aba é uma pessoa: o Mestre numa, a Ana noutra, o Bruno noutra.
-     O preço: fechar a aba encerra a sessão (o Mestre volta pelo
-     "Continuar" da entrada; o jogador, pelo código).
+   AS PERGUNTAS AO SERVIDOR (Servidor, no fim do arquivo)
+   Criar campanha, entrar com o código, os cartões de "Suas mesas" e o
+   backup são perguntas HTTP (servidor/api.js). A mesa em jogo é pela
+   conexão em tempo real (conexao.js).
 
-     As campanhas, abaixo, ficam no localStorage, que todas as abas
-     dividem: é assim que o Mestre e os jogadores veem a mesma mesa.
-
-     plainus:campanhas         o ÍNDICE: uma lista curta, uma linha por
-                               campanha (nome, sistema, mestre, código,
-                               sessão). É o que a tela de entrada lista.
-
-     plainus:campanha:<id>     o Estado inteiro de UMA campanha.
-
-     plainus:minhas-mesas      as mesas em que alguém deste navegador
-                               entrou como JOGADOR: { campanhaId, nome,
-                               jogadorId, em }. É o que deixa a Ana
-                               voltar para a Lyra com um clique, sem
-                               digitar nome e código toda sessão.
-
-     plainus:meu-nome          o último nome digitado na entrada, só
-                               para já vir preenchido.
-
-   Por que separar índice e Estado: para listar as campanhas na
-   entrada não é preciso abrir o Estado de todas — que tem heróis,
-   NPCs, diário, mapas. A lista lê uma chave pequena.
-
-   O índice é DERIVADO do Estado (ver resumoDe): ele é atualizado toda
-   vez que o Estado é salvo. Assim o nome na lista nunca discorda do
-   nome dentro da campanha.
-
-
-   LIMITE HONESTO
-   localStorage é do navegador, não da mesa. A campanha criada neste
-   computador só existe neste computador — o código de convite só
-   funciona aqui. É andaime: o passo do servidor (CLAUDE.md, passo 8)
-   leva isto para o disco dele, e aí o código vale para todo mundo.
+   CAMPANHAS DA VERSÃO ANTIGA
+   Quem usou o site antes desta mudança tem campanhas guardadas no
+   navegador (plainus:campanhas, plainus:campanha:<id>). Elas não são
+   apagadas: Antigas.listar() as encontra, e a tela de entrada oferece
+   baixar o backup de cada uma — para restaurar no servidor.
    =================================================================== */
 
 const CHAVE_SESSAO = 'plainus:sessao';
-const CHAVE_INDICE = 'plainus:campanhas';
-const PREFIXO_CAMPANHA = 'plainus:campanha:';
-const CHAVE_MESAS = 'plainus:minhas-mesas';
+const CHAVE_ACESSOS = 'plainus:acessos';
 const CHAVE_NOME = 'plainus:meu-nome';
 
-/* Sem 0/O nem 1/I: o código é lido em voz alta e digitado por outra
-   pessoa, e esses pares se confundem. 32 letras — ver gerarCodigo(). */
-const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+/* As chaves da versão antiga, só para leitura (Antigas). */
+const CHAVE_INDICE_ANTIGO = 'plainus:campanhas';
+const PREFIXO_CAMPANHA_ANTIGA = 'plainus:campanha:';
+
+const ID_CAMPANHA = /^c[0-9a-f]{16}$/;
+const ID_JOGADOR = /^j[0-9a-f]{16}$/;
 
 
 /* ---------- Ler e gravar sem quebrar ----------
    O localStorage pode falhar: aba anônima com armazenamento bloqueado,
    espaço cheio, ou um valor que alguém editou à mão no DevTools e não
-   é mais JSON. Nenhuma dessas situações pode derrubar a página. */
+   é mais JSON. Nenhuma dessas situações pode derrubar a página.
 
-/* `qual` escolhe o depósito: localStorage (o padrão, as campanhas) ou
-   sessionStorage (a sessão, que é por aba). Os dois têm a mesma
-   interface, então uma função serve aos dois. */
+   `qual` escolhe o depósito: localStorage (o padrão) ou sessionStorage
+   (a sessão, que é por aba). Os dois têm a mesma interface. */
 const Armazem = {
 
   ler: function (chave, qual) {
@@ -92,7 +67,6 @@ const Armazem = {
     }
   },
 
-  /* Devolve false se não conseguiu — quem chamou decide como avisar. */
   gravar: function (chave, valor, qual) {
     try {
       (qual || localStorage).setItem(chave, JSON.stringify(valor));
@@ -113,28 +87,39 @@ function depositoDaSessao() {
   try { return window.sessionStorage; } catch (erro) { return null; }
 }
 
+/* Uma linha de acesso, conferida: o que vem do armazenamento é texto que
+   qualquer um edita, então é tratado como entrada de usuário. */
+function acessoValido(a) {
+  if (!a || typeof a !== 'object') return null;
+  if (!ID_CAMPANHA.test(String(a.campanhaId)) || typeof a.chave !== 'string' || !a.chave) return null;
+  const papel = a.papel === 'mestre' ? 'mestre' : a.papel === 'jogador' ? 'jogador' : null;
+  if (!papel) return null;
+  if (papel === 'jogador' && !ID_JOGADOR.test(String(a.jogadorId))) return null;
+  return {
+    campanhaId: a.campanhaId, papel: papel,
+    jogadorId: papel === 'jogador' ? a.jogadorId : null,
+    chave: a.chave.slice(0, 100),
+    nome: String(a.nome || '').slice(0, 30),
+    em: Number(a.em) || 0
+  };
+}
+
 
 /* ===================================================================
-   SESSÃO — quem está usando o site agora
+   SESSÃO — quem está usando esta aba
    =================================================================== */
 
 const Sessao = {
 
-  /* Só aceita o formato esperado. O que vem do localStorage é texto
-     que qualquer um edita, então é tratado como entrada de usuário. */
   ler: function () {
     const deposito = depositoDaSessao();
-    if (!deposito) return null;
-    const dados = Armazem.ler(CHAVE_SESSAO, deposito);
-    if (!dados || typeof dados !== 'object') return null;
-    if (dados.papel !== 'mestre' && dados.papel !== 'jogador') return null;
-    if (typeof dados.campanhaId !== 'string') return null;
-    return dados;
+    return deposito ? acessoValido(Armazem.ler(CHAVE_SESSAO, deposito)) : null;
   },
 
   gravar: function (sessao) {
     const deposito = depositoDaSessao();
-    return deposito ? Armazem.gravar(CHAVE_SESSAO, sessao, deposito) : false;
+    const limpa = acessoValido(sessao);
+    return deposito && limpa ? Armazem.gravar(CHAVE_SESSAO, limpa, deposito) : false;
   },
 
   limpar: function () {
@@ -145,181 +130,39 @@ const Sessao = {
 
 
 /* ===================================================================
-   CAMPANHAS
+   ACESSOS — as mesas deste navegador ("Suas mesas")
    =================================================================== */
 
-const Campanhas = {
+const Acessos = {
 
-  /* ---------- O índice ---------- */
-
-  /* Da mais recente para a mais antiga: quem abre a entrada quase
-     sempre quer continuar a última. */
   listar: function () {
-    const indice = Armazem.ler(CHAVE_INDICE);
-    if (!Array.isArray(indice)) return [];
-
-    return indice
-      .filter(function (c) { return c && typeof c.id === 'string'; })
-      .sort(function (a, b) { return (b.atualizadaEm || 0) - (a.atualizadaEm || 0); });
+    const lista = Armazem.ler(CHAVE_ACESSOS);
+    return (Array.isArray(lista) ? lista : []).map(acessoValido).filter(Boolean);
   },
 
-  achar: function (id) {
-    return this.listar().find(function (c) { return c.id === id; }) || null;
+  /* A mesma mesa, no mesmo papel, com a mesma pessoa: uma linha só. */
+  mesma: function (a, b) {
+    return a.campanhaId === b.campanhaId && a.papel === b.papel && (a.jogadorId || null) === (b.jogadorId || null);
   },
 
-  /* O código chega já normalizado (ver normalizarCodigo). */
-  acharPorCodigo: function (codigo) {
-    return this.listar().find(function (c) { return c.codigo === codigo; }) || null;
+  achar: function (campanhaId, papel, jogadorId) {
+    const alvo = { campanhaId: campanhaId, papel: papel, jogadorId: jogadorId || null };
+    return this.listar().find(function (a) { return Acessos.mesma(a, alvo); }) || null;
   },
 
-  /* A linha do índice é tirada do próprio Estado — nunca digitada à
-     parte. Ver o comentário do topo. */
-  resumoDe: function (id, estado, anterior) {
-    const agora = Date.now();
-    return {
-      id: id,
-      nome: estado.campanha.nome,
-      sistema: estado.campanha.sistema,
-      mestre: estado.mestre.nome,
-      codigo: estado.campanha.codigo,
-      sessao: estado.campanha.sessao,
-      criadaEm: anterior && anterior.criadaEm ? anterior.criadaEm : agora,
-      atualizadaEm: agora
-    };
+  lembrar: function (acesso) {
+    const novo = acessoValido(Object.assign({}, acesso, { em: Date.now() }));
+    if (!novo) return false;
+    const lista = this.listar().filter(function (a) { return !Acessos.mesma(a, novo); });
+    lista.push(novo);
+    return Armazem.gravar(CHAVE_ACESSOS, lista);
   },
 
-
-  /* ---------- O Estado de cada uma ---------- */
-
-  /* Só lê campanhas que estão no índice: um id inventado no endereço
-     ou no DevTools não abre uma chave qualquer do localStorage. */
-  lerEstado: function (id) {
-    if (!this.achar(id)) return null;
-    const estado = Armazem.ler(PREFIXO_CAMPANHA + id);
-    return estado && typeof estado === 'object' ? estado : null;
-  },
-
-  /* Grava o Estado e atualiza a linha do índice. Devolve false se o
-     navegador recusar (espaço cheio, armazenamento bloqueado). */
-  salvarEstado: function (id, estado) {
-    if (!Armazem.gravar(PREFIXO_CAMPANHA + id, estado)) return false;
-
-    const indice = this.listar();
-    const posicao = indice.findIndex(function (c) { return c.id === id; });
-    const linha = this.resumoDe(id, estado, indice[posicao]);
-
-    if (posicao === -1) indice.push(linha);
-    else indice[posicao] = linha;
-
-    return Armazem.gravar(CHAVE_INDICE, indice);
-  },
-
-  /* Cria a campanha e devolve o id dela (ou null se não deu para
-     gravar). O código de convite já tem que vir no estado. */
-  criar: function (estado) {
-    const id = this.novoId();
-    return this.salvarEstado(id, estado) ? id : null;
-  },
-
-  apagar: function (id) {
-    Armazem.apagar(PREFIXO_CAMPANHA + id);
-    const indice = this.listar().filter(function (c) { return c.id !== id; });
-    Armazem.gravar(CHAVE_INDICE, indice);
-  },
-
-
-  /* ---------- Identificadores ---------- */
-
-  /* O id é interno (nunca aparece na tela), mas também é sorteado com
-     crypto: ele vai para a sessão, e um id previsível é um id que
-     alguém pode chutar. */
-  novoId: function () {
-    const bytes = new Uint8Array(8);
-    crypto.getRandomValues(bytes);
-    return 'c' + Array.prototype.map.call(bytes, function (b) {
-      return ('0' + b.toString(16)).slice(-2);
-    }).join('');
-  },
-
-  /* "K7QM-2XRP-9HVD": 12 sorteios num alfabeto de 32 = 32^12 ≈ 10^18
-     combinações. A mesa-virtual usava 3 letras do nome + 4 dígitos,
-     que se adivinha por tentativa (problema 3 do CLAUDE.md).
-
-     crypto.getRandomValues, e não Math.random: Math.random é feito
-     para jogo, não para segredo, e dá para prever a sequência. E como
-     256 é múltiplo de 32, byte % 32 dá a mesma chance a cada letra. */
-  gerarCodigo: function () {
-    const bytes = new Uint8Array(12);
-    crypto.getRandomValues(bytes);
-
-    let letras = '';
-    bytes.forEach(function (byte) {
-      letras += ALFABETO_CODIGO[byte % ALFABETO_CODIGO.length];
-    });
-
-    /* Um código repetido apontaria duas campanhas para o mesmo convite.
-       A chance é desprezível, mas conferir custa uma linha. */
-    const codigo = letras.slice(0, 4) + '-' + letras.slice(4, 8) + '-' + letras.slice(8, 12);
-    return this.acharPorCodigo(codigo) ? this.gerarCodigo() : codigo;
-  },
-
-  /* Aceita o código do jeito que a pessoa colar — minúsculo, sem hífen,
-     com espaço — e devolve no formato certo, ou null se não for um
-     código possível. */
-  normalizarCodigo: function (texto) {
-    const limpo = String(texto).toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (limpo.length !== 12) return null;
-
-    for (let i = 0; i < limpo.length; i++) {
-      if (ALFABETO_CODIGO.indexOf(limpo[i]) === -1) return null;
-    }
-
-    return limpo.slice(0, 4) + '-' + limpo.slice(4, 8) + '-' + limpo.slice(8, 12);
-  }
-};
-
-
-/* ===================================================================
-   MESAS — onde este navegador joga como JOGADOR
-
-   O Mestre já tinha a lista dele (o índice de campanhas). O jogador
-   não tinha nada: toda sessão, nome + código + "Jogador" de novo.
-   Isto guarda a entrada dele para a tela de entrada mostrar um cartão
-   "Voltar para a mesa".
-
-   É lembrança, não permissão: quem clica no cartão passa pelo mesmo
-   caminho de quem digita o código (jogador.html confere a sessão). E,
-   como o resto, vale só para este navegador.
-   =================================================================== */
-
-const Mesas = {
-
-  /* Só as que ainda existem: se o Mestre esqueceu a campanha, a
-     lembrança dela não tem para onde levar. */
-  listar: function () {
-    const lista = Armazem.ler(CHAVE_MESAS);
-    if (!Array.isArray(lista)) return [];
-    return lista.filter(function (m) {
-      return m && typeof m.campanhaId === 'string' && typeof m.jogadorId === 'string'
-        && typeof m.nome === 'string' && Campanhas.achar(m.campanhaId);
-    });
-  },
-
-  /* A mesma pessoa entrando de novo na mesma campanha não vira um
-     segundo cartão: troca o antigo. */
-  lembrar: function (campanhaId, nome, jogadorId) {
-    const lista = this.listar().filter(function (m) {
-      return !(m.campanhaId === campanhaId && m.jogadorId === jogadorId);
-    });
-    lista.push({ campanhaId: campanhaId, nome: nome, jogadorId: jogadorId, em: Date.now() });
-    Armazem.gravar(CHAVE_MESAS, lista);
-  },
-
-  /* Tira o cartão da lista. Não apaga personagem nem campanha. */
-  esquecer: function (campanhaId, jogadorId) {
-    Armazem.gravar(CHAVE_MESAS, this.listar().filter(function (m) {
-      return !(m.campanhaId === campanhaId && (!jogadorId || m.jogadorId === jogadorId));
-    }));
+  /* Tira a linha da lista. Não apaga nada no servidor: a campanha e o
+     personagem continuam lá. */
+  esquecer: function (campanhaId, papel, jogadorId) {
+    const alvo = { campanhaId: campanhaId, papel: papel, jogadorId: jogadorId || null };
+    Armazem.gravar(CHAVE_ACESSOS, this.listar().filter(function (a) { return !Acessos.mesma(a, alvo); }));
   },
 
   ultimoNome: function () {
@@ -329,5 +172,64 @@ const Mesas = {
 
   guardarNome: function (nome) {
     Armazem.gravar(CHAVE_NOME, nome);
+  }
+};
+
+
+/* ===================================================================
+   SERVIDOR — as perguntas de "uma pergunta, uma resposta" (HTTP)
+   Cada uma devolve uma Promise com o corpo da resposta, ou { erro }.
+   =================================================================== */
+
+const Servidor = {
+
+  temServidor: function () {
+    return location.protocol === 'http:' || location.protocol === 'https:';
+  },
+
+  pedir: function (rota, corpo) {
+    if (!this.temServidor()) return Promise.resolve({ erro: 'Abra a mesa pelo servidor (npm start e http://localhost:3000).' });
+    return fetch('/api/' + rota, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    }).then(function (resposta) {
+      return resposta.json().catch(function () { return {}; }).then(function (dados) {
+        if (resposta.ok) return dados;
+        return { erro: (dados && dados.erro) || 'O servidor recusou o pedido (' + resposta.status + ').' };
+      });
+    }, function () {
+      return { erro: 'Sem conexão com o servidor da mesa. Ele está ligado?' };
+    });
+  },
+
+  criarCampanha: function (estado) { return this.pedir('campanhas', { estado: estado }); },
+  convite: function (codigo) { return this.pedir('convite', { codigo: codigo }); },
+  entrar: function (codigo, nome) { return this.pedir('entrar', { codigo: codigo, nome: nome }); },
+  cartoes: function (acessos) { return this.pedir('cartoes', { mesas: acessos }); },
+  backup: function (campanhaId, chave) { return this.pedir('backup', { campanhaId: campanhaId, chave: chave }); }
+};
+
+
+/* ===================================================================
+   ANTIGAS — as campanhas que a versão antiga guardou no navegador
+   Só leitura: a tela de entrada mostra a lista e baixa o backup de cada
+   uma, para o Mestre restaurar no servidor. Nada aqui grava.
+   =================================================================== */
+
+const Antigas = {
+
+  listar: function () {
+    const indice = Armazem.ler(CHAVE_INDICE_ANTIGO);
+    return (Array.isArray(indice) ? indice : []).filter(function (c) {
+      return c && typeof c.id === 'string' && Antigas.ler(c.id);
+    }).map(function (c) {
+      return { id: c.id, nome: String(c.nome || 'Sem nome').slice(0, 60), sessao: c.sessao, atualizadaEm: Number(c.atualizadaEm) || 0 };
+    });
+  },
+
+  ler: function (id) {
+    const estado = Armazem.ler(PREFIXO_CAMPANHA_ANTIGA + id);
+    return estado && typeof estado === 'object' ? estado : null;
   }
 };
