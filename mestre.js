@@ -202,7 +202,11 @@ const Painel = {
        endereço — por isso o link não leva id nenhum. */
     const editar = criarComIcone('a.mini-botao', 'editar', 'Editar campanha', 13);
     editar.href = 'criar-campanha.html?editar=1';
-    sobre.appendChild(criar('div.sobre-acoes', editar));
+    /* Quem tem acesso (liberar jogador, outros computadores, apagar):
+       uma página à parte — ver o topo do acessos.html. */
+    const acessos = criarComIcone('a.mini-botao', 'secreto', 'Acessos da mesa', 13);
+    acessos.href = 'acessos.html';
+    sobre.appendChild(criar('div.sobre-acoes', [editar, acessos]));
 
     return sobre;
   },

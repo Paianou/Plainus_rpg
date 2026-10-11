@@ -17,6 +17,13 @@
      POST /api/tem-senha   a mesa já tem senha? (só o Mestre pergunta)
      POST /api/mestre      entrar como Mestre noutro computador:
                            código + senha → uma chave de Mestre nova
+     POST /api/acessos     quem tem acesso à mesa (só o Mestre)
+     POST /api/liberar     o Mestre libera o lugar de um jogador
+     POST /api/sair-dos-outros   só este computador fica como Mestre
+     POST /api/apagar      o Mestre apaga a campanha (com a senha)
+
+   As três últimas tiram acesso de quem pode estar com a mesa aberta: a
+   mesa (servidor/mesa.js) reconfere as conexões e desconecta quem saiu.
 
    Tudo é POST com JSON, e nenhuma resposta usa cookie: a "credencial"
    é a chave que vai no corpo do pedido. Por isso um site de fora não
@@ -56,6 +63,15 @@ function limitador(porMinuto) {
    de campanhas por minuto do mesmo endereço (testes/rotas-de-teste.cjs). */
 function criarApi(armazem, opcoes) {
   const api = express.Router();
+  /* A mesa em tempo real é ligada DEPOIS da API (server.js): por isso a
+     pergunta é uma função, feita na hora de usar. */
+  const mesa = function () { return opcoes && opcoes.mesa ? opcoes.mesa() : null; };
+  const reconferir = function (id, motivo) { const m = mesa(); if (m) m.reconferir(id, motivo); };
+  const soMestre = function (corpo, resposta) {
+    if (armazem.conferirAcesso(corpo.campanhaId, 'mestre', null, corpo.chave)) return true;
+    resposta.status(403).json({ erro: 'Só o Mestre desta campanha faz isso.' });
+    return false;
+  };
   const limite = opcoes && opcoes.semLimite ? function () { return function (p, r, seguir) { seguir(); }; } : limitador;
 
   /* Criar campanha (inclusive de um backup, que pode trazer mapas): 8 MB. */
@@ -175,6 +191,50 @@ function criarApi(armazem, opcoes) {
     armazem.entrarComoMestre(corpo.codigo, corpo.senha).then(function (r) {
       if (r.erro) return resposta.status(403).json({ erro: r.erro });
       resposta.json(r);
+    }, function () {
+      resposta.status(500).json({ erro: 'O servidor não conseguiu conferir a senha.' });
+    });
+  });
+
+  api.post('/acessos', limite(60), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    if (!soMestre(corpo, resposta)) return;
+    resposta.json(armazem.listarAcessos(corpo.campanhaId));
+  });
+
+  api.post('/liberar', limite(20), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    if (!soMestre(corpo, resposta)) return;
+    const r = armazem.liberarJogador(corpo.campanhaId, String(corpo.jogadorId || ''));
+    if (r.erro) return resposta.status(400).json({ erro: r.erro });
+    reconferir(corpo.campanhaId, 'O Mestre liberou o seu lugar nesta mesa. Para voltar, entre de novo pela entrada, com o código e o seu nome.');
+    resposta.json({ ok: true, nome: r.nome });
+  });
+
+  api.post('/sair-dos-outros', limite(10), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    if (!soMestre(corpo, resposta)) return;
+    const r = armazem.manterSoEstaChave(corpo.campanhaId, corpo.chave);
+    if (r.erro) return resposta.status(400).json({ erro: r.erro });
+    reconferir(corpo.campanhaId, 'Este computador foi desconectado do painel do Mestre. Para voltar, entre como Mestre com o código e a senha.');
+    resposta.json({ ok: true, sairam: r.sairam });
+  });
+
+  /* Apagar não tem volta: com senha, pede a senha (quem achou um
+     computador com a mesa aberta não apaga nada); sem senha, pede o nome
+     da campanha digitado — para ninguém apagar por um clique errado. */
+  api.post('/apagar', limite(10), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const corpo = pedido.body || {};
+    if (!soMestre(corpo, resposta)) return;
+    const id = corpo.campanhaId;
+    const confirmar = armazem.temSenha(id)
+      ? armazem.verificarSenha(id, corpo.senha, { erro: 'Senha errada.' })
+      : Promise.resolve(String(corpo.confirmacao || '').trim() === armazem.ler(id).campanha.nome ? { ok: true } : { erro: 'Digite o nome da campanha exatamente como ele é.' });
+    confirmar.then(function (v) {
+      if (v.erro) return resposta.status(403).json({ erro: v.erro });
+      armazem.apagar(id);
+      reconferir(id, 'O Mestre apagou esta campanha.');
+      resposta.json({ ok: true });
     }, function () {
       resposta.status(500).json({ erro: 'O servidor não conseguiu conferir a senha.' });
     });

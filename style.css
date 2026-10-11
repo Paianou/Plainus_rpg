@@ -5368,5 +5368,27 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 .bloco-senha legend { padding: 0; font-size: 14px; color: var(--texto); }
 .bloco-senha .opcional { color: var(--texto-3); font-size: 12px; }
 
+/* ----- Acessos da mesa (acessos.html) ----- */
+.acessos-caixa { max-width: 620px; }
+.secao-acessos { padding-top: 18px; border-top: 1px solid var(--hairline); margin-top: 6px; }
+.secao-acessos h2 { padding: 0 44px; margin: 0 0 10px; font-size: 1.05rem; }
+.lista-acessos { list-style: none; margin-top: 0; }
+.item-acesso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+}
+.item-acesso:first-child { border-top: 0; }
+.quem-acesso { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sub-acesso, .vazio-acessos { font-size: 12px; color: var(--texto-3); }
+.mini-botao.armado, .botao.armado { color: var(--texto); border-color: var(--perigo); background: rgba(194, 65, 63, .16); }
+.perigo-acessos h2 { color: #e58f8d; }
+@media (max-width: 720px) {
+  .secao-acessos h2 { padding: 0 26px; }
+}
+
 /* Uma mesa que o servidor não abre mais: apagada, sem o mapa. */
 .cartao-mesa.mesa-sem-acesso { opacity: .7; }
