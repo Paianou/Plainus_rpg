@@ -691,7 +691,7 @@ const Mapa = {
       if (self.pintura) {
         self.pintura = null;
         const cena = self.cena();
-        if (Acoes.executar('definirParedes', { cenaId: cena.id, paredes: cena.paredes }).erro) Memoria.carregar();
+        if (Acoes.executar('definirParedes', { cenaId: cena.id, paredes: cena.paredes }).erro) Conexao.voltarAoServidor();
         self.render();
         return;
       }
@@ -973,9 +973,8 @@ const Mapa = {
     if (!Number.isInteger(linhas) || linhas < 5 || linhas > 40) return falha('Linhas: um número inteiro de 5 a 40.', 'cenaLinhas');
 
     /* A mudança em si é a ação salvarCena (acoes.js): nova ou editada,
-       com o redimensionamento. Se o navegador recusar a gravação (espaço
-       cheio, quase sempre por causa de imagem), o Acoes.executar desfaz
-       e devolve o erro. */
+       com o redimensionamento. Se a ação recusar (um campo fora do lugar),
+       nada muda e o erro aparece na janela. */
     const nova = this.janela === 'nova';
     const r = Acoes.executar('salvarCena', {
       id: nova ? null : this.cena().id,

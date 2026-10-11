@@ -34,7 +34,7 @@ ok(await ana.js(`[...document.querySelectorAll('.recado-flutuante.erro')].some(r
 await ana.js(`(()=>{const e=document.querySelector('[data-ataque="0"] [data-parte="dano"]'); e.value='1d4'; e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
 await ana.foto('u1-formulario');
 await ana.js(`document.querySelector('[data-acao="salvar-ficha"]').click()`); await espera(300);
-ok(await ana.js(`(()=>{const f=Estado.herois.find(h=>h.nome==='Lyra').ficha; return f.ataques.length===1 && f.ataques[0].dano==='1d4' && f.atributoMagia==='int' && f.espacos[1]===2 && f.magias.length===2 && f.recursos[0].total===1;})()`), 'ficha salva com ataque, magia e recurso');
+ok(await ana.js(`(()=>{const f=Conexao.visao.meuHeroi.ficha; return f.ataques.length===1 && f.ataques[0].dano==='1d4' && f.atributoMagia==='int' && f.espacos[1]===2 && f.magias.length===2 && f.recursos[0].total===1;})()`), 'ficha salva com ataque, magia e recurso');
 ok(await ana.js(`!!document.querySelector('[data-acao="atacar"]') && document.querySelectorAll('.bolinha').length===1 && [...document.querySelectorAll('.cartao .sub')].some(x=>x.textContent.includes('CD 12'))`), 'ficha mostra Atacar, o resumo com CD 12 e 1 recurso em bolinha');
 await ana.js(`document.querySelector('.nav-jogador [data-aba="magias"]').click()`);
 ok(await ana.js(`document.querySelectorAll('.bolinha[data-tipo="espaco"]').length===2`), 'aba Magias mostra os 2 espaços de 1º nível');
@@ -48,18 +48,18 @@ await espera(500);
 
 /* ---- atacar, e o crítico ---- */
 await ana.js(`document.querySelector('[data-acao="atacar"]').click()`); await espera(200);
-ok(await ana.js(`Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0].texto==='Ataque — Adaga'`), 'Atacar rola e registra "Ataque — Adaga"');
+ok(await ana.js(`(await T.gravado()).rolagensMesa[0].texto==='Ataque — Adaga'`), 'Atacar rola e registra "Ataque — Adaga"');
 await ana.js(`window._d=Layout.dado; Layout.dado=f=>f; document.querySelector('[data-acao="atacar"]').click();`); await espera(200);
 ok(await ana.js(`document.querySelector('[data-acao="dano"]').classList.contains('critico-pendente')`), '20 natural deixa o botão de dano marcado como crítico');
 await ana.js(`document.querySelector('[data-acao="dano"]').click(); Layout.dado=window._d;`); await espera(200);
-ok(await ana.js(`(()=>{const r=Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0]; return r.formula.startsWith('2d4 (4, 4) + 1') && r.total===9 && r.marca==='critico';})()`), 'dano crítico: 2d4 (4, 4) + 1 = 9');
+ok(await ana.js(`(async()=>{const r=(await T.gravado()).rolagensMesa[0]; return r.formula.startsWith('2d4 (4, 4) + 1') && r.total===9 && r.marca==='critico';})()`), 'dano crítico: 2d4 (4, 4) + 1 = 9');
 await ana.js(`document.querySelector('[data-acao="dano"]').click()`); await espera(200);
-ok(await ana.js(`Campanhas.lerEstado(Sessao.ler().campanhaId).rolagensMesa[0].formula.startsWith('1d4 (')`), 'o dano seguinte volta ao normal');
+ok(await ana.js(`(await T.gravado()).rolagensMesa[0].formula.startsWith('1d4 (')`), 'o dano seguinte volta ao normal');
 
 /* ---- conjurar e concentração ---- */
 await ana.js(`document.querySelector('.nav-jogador [data-aba="magias"]').click()`);
 await ana.js(`document.querySelector('[data-acao="conjurar"][data-nome="Detectar Magia"]').click()`); await espera(400);
-ok(await ana.js(`(()=>{const f=Estado.herois.find(h=>h.nome==='Lyra').ficha; return f.espacosGastos[1]===1 && f.concentrando==='Detectar Magia';})()`), 'conjurar gasta um espaço de 1º e começa a concentração');
+ok(await ana.js(`(()=>{const f=Conexao.visao.meuHeroi.ficha; return f.espacosGastos[1]===1 && f.concentrando==='Detectar Magia';})()`), 'conjurar gasta um espaço de 1º e começa a concentração');
 ok(await ana.js(`!!document.querySelector('.concentrando')`), 'a ficha mostra "Concentrando em Detectar Magia"');
 await espera(400);
 ok(await js(`Estado.combate.combatentes.find(c=>c.nome==='Lyra').condicoes.includes('Concentrando')`), 'a aba do Mestre vê "Concentrando" na Lyra, no combate');
@@ -67,9 +67,9 @@ await ana.js(`document.querySelector('[data-acao="conjurar"][data-nome="Detectar
 await ana.js(`document.querySelector('[data-acao="conjurar"][data-nome="Detectar Magia"]').click()`); await espera(300);
 ok(await ana.js(`[...document.querySelectorAll('.recado-flutuante.erro')].some(r=>r.textContent.startsWith('Sem espaço livre'))`), 'sem espaço livre, conjurar é recusado');
 await ana.js(`document.querySelector('[data-acao="conjurar"][data-nome="Raio de Fogo"]').click()`); await espera(300);
-ok(await ana.js(`Estado.herois.find(h=>h.nome==='Lyra').ficha.espacosGastos[1]===2`), 'truque não gasta espaço');
+ok(await ana.js(`Conexao.visao.meuHeroi.ficha.espacosGastos[1]===2`), 'truque não gasta espaço');
 await ana.js(`document.querySelector('.bolinha.gasta[data-tipo="espaco"]').click()`); await espera(300);
-ok(await ana.js(`Estado.herois.find(h=>h.nome==='Lyra').ficha.espacosGastos[1]===1`), 'clicar numa bolinha apagada devolve o espaço');
+ok(await ana.js(`Conexao.visao.meuHeroi.ficha.espacosGastos[1]===1`), 'clicar numa bolinha apagada devolve o espaço');
 await ana.foto('u2-ficha-uso');
 await ana.js(`document.querySelector('[data-acao="encerrar-concentracao"]').click()`); await espera(500);
 ok(await js(`!Estado.combate.combatentes.find(c=>c.nome==='Lyra').condicoes.includes('Concentrando')`), 'encerrar a concentração tira a condição no combate do Mestre');
@@ -78,9 +78,9 @@ ok(await js(`!Estado.combate.combatentes.find(c=>c.nome==='Lyra').condicoes.incl
 await ana.js(`document.querySelector('.nav-jogador [data-aba="ficha"]').click()`);
 await ana.js(`document.querySelector('.bolinha[data-tipo="recurso"]').click()`); await espera(300);
 await ana.js(`document.querySelector('[data-acao="descanso-curto"]').click()`); await espera(300);
-ok(await ana.js(`Estado.herois.find(h=>h.nome==='Lyra').ficha.recursos[0].gastos===1`), 'descanso curto não recarrega recurso de descanso longo');
+ok(await ana.js(`Conexao.visao.meuHeroi.ficha.recursos[0].gastos===1`), 'descanso curto não recarrega recurso de descanso longo');
 await ana.js(`document.querySelector('[data-acao="descanso-longo"]').click()`); await espera(300);
-ok(await ana.js(`(()=>{const f=Estado.herois.find(h=>h.nome==='Lyra').ficha; return f.recursos[0].gastos===0 && !f.espacosGastos[1];})()`), 'descanso longo recarrega recurso e espaços');
+ok(await ana.js(`(()=>{const f=Conexao.visao.meuHeroi.ficha; return f.recursos[0].gastos===0 && !f.espacosGastos[1];})()`), 'descanso longo recarrega recurso e espaços');
 
 /* ---- largar a magia na edição encerra a concentração ---- */
 await ana.js(`document.querySelector('.nav-jogador [data-aba="magias"]').click()`);
@@ -88,10 +88,10 @@ await ana.js(`document.querySelector('[data-acao="conjurar"][data-nome="Detectar
 await ana.js(`document.querySelector('.nav-jogador [data-aba="ficha"]').click()`);
 await ana.js(`document.querySelector('[data-acao="editar"]').click()`);
 await ana.js(`document.querySelector('[data-magia="Detectar Magia"]').click(); document.querySelector('[data-acao="salvar-ficha"]').click();`); await espera(600);
-ok(await ana.js(`Estado.herois.find(h=>h.nome==='Lyra').ficha.concentrando===''`) && await js(`!Estado.combate.combatentes.find(c=>c.nome==='Lyra').condicoes.includes('Concentrando')`), 'tirar a magia da ficha encerra a concentração e a condição');
+ok(await ana.js(`Conexao.visao.meuHeroi.ficha.concentrando===''`) && await js(`!Estado.combate.combatentes.find(c=>c.nome==='Lyra').condicoes.includes('Concentrando')`), 'tirar a magia da ficha encerra a concentração e a condição');
 
 /* ---- ficha antiga, sem os campos novos ---- */
-await ana.js(`(()=>{const id=Sessao.ler().campanhaId; const e=Campanhas.lerEstado(id); const h=e.herois.find(x=>x.nome==='Lyra'); ['ataques','atributoMagia','espacos','espacosGastos','magias','concentrando','recursos'].forEach(k=>delete h.ficha[k]); Campanhas.salvarEstado(id,e);})()`);
+await ana.js(`(async()=>{const id=Sessao.ler().campanhaId; const e=(await T.gravado(id)); const h=e.herois.find(x=>x.nome==='Lyra'); ['ataques','atributoMagia','espacos','espacosGastos','magias','concentrando','recursos'].forEach(k=>delete h.ficha[k]); await T.trocar(e, id);})()`);
 await ana.ir('jogador.html');
 ok(await ana.js(`document.querySelector('.nome-ficha')?.textContent==='Lyra' && document.querySelectorAll('.cartao').length>3`), 'ficha antiga (sem os campos novos) abre sem quebrar');
 await ana.js(`document.querySelector('[data-acao="editar"]').click()`);
@@ -101,8 +101,8 @@ await cmd('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, devic
 await ana.fechar();
 const ana2 = await novaAba();
 await ana2.ir('index.html');
-await ana2.js(`document.getElementById('nome').value='Ana'; document.getElementById('codigo').value=${JSON.stringify(codigo)};`);
-await ana2.navegarPor(`document.getElementById('btnEntrar').click()`);
+await ana2.navegarPor(`document.querySelector('.mesa-jogador [data-acao="voltar-mesa"]').click()`);
+ok(await ana2.js(`document.querySelector('.nome-ficha')?.textContent==='Lyra'`), 'Ana numa aba nova volta pelo cartão');
 await ana2.fechar();
 
 console.log('\nERROS DE JS:', erros.length ? erros : 'nenhum');

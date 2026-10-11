@@ -18,26 +18,20 @@
 
 
    ===================================================================
-   O QUE ISTO PROTEGE, E O QUE NÃO PROTEGE
+   QUEM É QUEM: AS CHAVES
    ===================================================================
-   É a mesma "placa, não porta" do topo do layout.js. Sem servidor,
-   tudo roda no navegador de quem está usando — qualquer um pode abrir
-   o DevTools e escrever papel: 'mestre' na sessão (sessionStorage).
-   Isto aqui impede o jogador de cair no painel sem querer; não impede
-   quem quer entrar.
-
-   Uma porta, porém, foi FECHADA de verdade nesta tela: o código de
-   convite não leva mais ao painel do Mestre. Antes, quem soubesse o
-   código marcava "Mestre" e entrava como Mestre (problema 1 do
-   CLAUDE.md). Agora o código só faz jogador; o Mestre volta pelo
-   cartão da campanha dele.
-
-   Quando o servidor existir, o papel deixa de ser declarado aqui:
-     - Mestre é quem CRIOU a sala, e o servidor lembra disso;
-     - o Mestre em outro computador entra com a senha da campanha;
-     - o servidor devolve um token assinado, e é o token — não o que
-       está escrito no navegador — que prova quem você é.
+   A campanha mora no servidor, e quem entra nela prova quem é com uma
+   CHAVE que o servidor deu (campanhas.js guarda; servidor/armazem.js
+   confere):
+     - criar uma campanha dá a chave do MESTRE a este navegador;
+     - entrar com o código dá a chave daquele JOGADOR — e um nome que
+       já tem dono naquela mesa é recusado;
+     - o código de convite só faz jogador. Mestre é quem criou.
    (Problemas 1 e 2 da lista de segurança do CLAUDE.md.)
+
+   O que ainda falta: o Mestre entrar de OUTRO computador (a senha da
+   campanha) — e, enquanto ela não existe, a chave do Mestre mora só no
+   navegador onde a campanha foi criada.
    =================================================================== */
 
 const LIMITE_NOME = 30;
@@ -95,48 +89,66 @@ const Entrada = {
 
   /* ---------- Suas mesas ----------
 
-     Um cartão por mesa. Para montar os retratos e o mapa de fundo é
-     preciso abrir o Estado de cada campanha — coisa que o índice do
-     campanhas.js existe para evitar. Aqui vale a pena: são poucas
-     campanhas, e é a tela onde ver o mundo de vocês faz diferença. */
+     Um cartão por mesa que este navegador conhece (as chaves, em
+     campanhas.js). O que vai em cada cartão vem do servidor (/api/
+     cartoes), e só das mesas cuja chave abre: nome, sessão, a party em
+     miniatura e o mapa da cena atual. */
 
   desenharMesas: function () {
     const self = this;
     const area = document.getElementById('campanhasSalvas');
     const lista = document.getElementById('listaCampanhas');
+    const acessos = Acessos.listar();
 
-    const cartoes = [];
-    Campanhas.listar().forEach(function (c) {
-      cartoes.push({ quando: c.atualizadaEm || 0, montar: function () { return self.cartaoMestre(c); } });
-    });
-    Mesas.listar().forEach(function (m) {
-      const c = Campanhas.achar(m.campanhaId);
-      cartoes.push({ quando: Math.max(c.atualizadaEm || 0, m.em || 0), montar: function () { return self.cartaoJogador(c, m); } });
-    });
-
-    /* Da mais recente para a mais antiga, misturando os papéis: quem
-       abre a entrada quase sempre quer a mesa da última sessão. */
-    cartoes.sort(function (a, b) { return b.quando - a.quando; });
-
-    lista.textContent = '';
-    cartoes.forEach(function (c) { lista.appendChild(c.montar()); });
-    area.hidden = cartoes.length === 0;
-
-    document.getElementById('subtitulo').textContent = cartoes.length
+    document.getElementById('subtitulo').textContent = acessos.length
       ? 'Que bom te ver de volta. Escolha a mesa — ou abra uma nova porta.'
       : 'Crie uma campanha ou entre na de um amigo.';
+
+    if (!acessos.length || !Servidor.temServidor()) {
+      lista.textContent = '';
+      area.hidden = true;
+      return Promise.resolve();
+    }
+
+    window.plainusCarregando = true;
+    return Servidor.cartoes(acessos).then(function (resposta) {
+      window.plainusCarregando = false;
+      lista.textContent = '';
+      area.hidden = false;
+      if (resposta.erro) {
+        lista.appendChild(el('p', 'dica-backup', resposta.erro));
+        return;
+      }
+      /* Da mais recente para a mais antiga, misturando os papéis: quem
+         abre a entrada quase sempre quer a mesa da última sessão. */
+      (resposta.cartoes || []).slice().sort(function (a, b) { return (b.atualizadaEm || 0) - (a.atualizadaEm || 0); })
+        .forEach(function (c) {
+          const acesso = acessos.find(function (a) { return a.campanhaId === c.campanhaId && a.papel === c.papel && (a.jogadorId || null) === (c.jogadorId || null); });
+          if (!acesso) return;
+          lista.appendChild(c.semAcesso ? self.cartaoSemAcesso(acesso) : c.papel === 'mestre' ? self.cartaoMestre(c) : self.cartaoJogador(c));
+        });
+    });
   },
 
-  /* As partes que os dois cartões dividem: o fundo (o mapa da cena
-     atual, bem apagado), o selo do papel, o nome e o menu "⋯". */
-  cartaoBase: function (classe, campanha, estado, selo, itensMenu) {
+  /* Os dados que identificam a linha de acesso de um cartão — vão nos
+     botões, e o clique acha a linha de novo (nunca a chave no HTML). */
+  marcar: function (botao, c) {
+    botao.type = 'button';
+    botao.dataset.id = c.campanhaId;
+    botao.dataset.papel = c.papel;
+    if (c.jogadorId) botao.dataset.jogador = c.jogadorId;
+    return botao;
+  },
+
+  /* As partes que os cartões dividem: o fundo (o mapa da cena atual, bem
+     apagado), o selo do papel, o nome e o menu "⋯". */
+  cartaoBase: function (classe, c, selo, itensMenu) {
     const cartao = el('article', 'cartao-mesa ' + classe);
 
-    /* O mapa da cena atual como fundo. imagemDaCena (dados.js) só
-       devolve um JPEG em base64 conferido — e só por isso ele pode
-       entrar num url() de CSS sem abrir porta para injeção. */
-    const cena = estado && (estado.cenas || []).find(function (x) { return x.id === estado.cenaAtual; });
-    const fundo = imagemDaCena(cena || (estado && (estado.cenas || [])[0]));
+    /* O mapa da cena atual como fundo. imagemSegura (modelo.js) só
+       aceita um JPEG em base64 — e só por isso ele pode entrar num url()
+       de CSS sem abrir porta para injeção. */
+    const fundo = imagemSegura(c.fundo);
     if (fundo) {
       const camada = el('div', 'fundo-mesa');
       camada.style.backgroundImage = 'url("' + fundo + '")';
@@ -145,91 +157,81 @@ const Entrada = {
 
     const topo = el('div', 'topo-mesa');
     topo.appendChild(el('span', 'selo-mesa ' + selo[0], selo[1]));
-    topo.appendChild(this.menuMesa(campanha.nome, itensMenu));
+    topo.appendChild(this.menuMesa(c.nome || 'mesa', itensMenu));
     cartao.appendChild(topo);
 
-    cartao.appendChild(el('h3', 'campanha-nome', campanha.nome));
+    cartao.appendChild(el('h3', 'campanha-nome', c.nome || 'Mesa'));
     return cartao;
   },
 
   cartaoMestre: function (c) {
-    const estado = Campanhas.lerEstado(c.id);
-
-    const backup = el('button', '', 'Baixar backup');
-    backup.type = 'button';
+    const backup = this.marcar(el('button', '', 'Baixar backup'), c);
     backup.dataset.acao = 'backup';
-    backup.dataset.id = c.id;
-
-    const esquecer = el('button', 'perigo', 'Esquecer campanha');
-    esquecer.type = 'button';
+    const esquecer = this.marcar(el('button', 'perigo', 'Tirar da lista'), c);
     esquecer.dataset.acao = 'esquecer';
-    esquecer.dataset.id = c.id;
 
     /* .campanha-salva: o nome que a lista sempre teve (e que os testes
        procuram) — continua marcando os cartões de MESTRE. */
-    const cartao = this.cartaoBase('campanha-salva', c, estado, ['mestre', 'Mestre'], [backup, esquecer]);
-
-    cartao.appendChild(this.retratos(estado, null));
+    const cartao = this.cartaoBase('campanha-salva', c, ['mestre', 'Mestre'], [backup, esquecer]);
+    cartao.appendChild(this.retratos(c.party));
 
     /* Quando foi o último backup — ou o lembrete de que nunca houve. */
-    const quando = Backup.quandoFoi(c.id);
+    const quando = Backup.quandoFoi(c.campanhaId);
     const meta = el('div', 'campanha-meta', ['Sessão ' + c.sessao, this.haQuanto(c.atualizadaEm)].filter(Boolean).join(' · ') + ' · ');
     meta.appendChild(el('span', 'campanha-backup' + (quando ? '' : ' nunca'), quando ? 'Backup ' + quando : 'Sem backup'));
     cartao.appendChild(meta);
 
-    const continuar = el('button', 'botao-mesa', 'Continuar');
-    continuar.type = 'button';
+    const continuar = this.marcar(el('button', 'botao-mesa', 'Continuar'), c);
     continuar.dataset.acao = 'continuar';
-    continuar.dataset.id = c.id;
     continuar.setAttribute('aria-label', 'Continuar a campanha ' + c.nome + ' como Mestre');
     cartao.appendChild(continuar);
     return cartao;
   },
 
-  cartaoJogador: function (c, mesa) {
-    const estado = Campanhas.lerEstado(c.id);
-    const heroi = ((estado && estado.herois) || []).find(function (h) { return h.dono === mesa.jogadorId; });
-
-    const sair = el('button', '', 'Tirar da lista');
-    sair.type = 'button';
+  cartaoJogador: function (c) {
+    const meu = (c.party || []).find(function (h) { return h.dono; });
+    const sair = this.marcar(el('button', '', 'Tirar da lista'), c);
     sair.dataset.acao = 'tirar-mesa';
-    sair.dataset.id = c.id;
-    sair.dataset.jogador = mesa.jogadorId;
 
-    const cartao = this.cartaoBase('mesa-jogador', c, estado, ['jogador', heroi ? 'Jogando com ' + heroi.nome : 'Jogador'], [sair]);
-
-    cartao.appendChild(this.retratos(estado, mesa.jogadorId));
+    const cartao = this.cartaoBase('mesa-jogador', c, ['jogador', meu ? 'Jogando com ' + meu.nome : 'Jogador'], [sair]);
+    cartao.appendChild(this.retratos(c.party));
 
     /* O personagem já está no selo; aqui vai QUEM joga — no mesmo
        computador, a Ana e o Bruno podem ter cada um o seu cartão. */
-    const quem = heroi ? mesa.nome : mesa.nome + ' · ainda sem personagem';
+    const quem = meu ? c.meuNome : c.meuNome + ' · ainda sem personagem';
     cartao.appendChild(el('div', 'campanha-meta',
       [quem, 'Sessão ' + c.sessao, c.mestre ? 'Mestre: ' + c.mestre : '', this.haQuanto(c.atualizadaEm)].filter(Boolean).join(' · ')));
 
-    const voltar = el('button', 'botao-mesa', heroi ? 'Voltar para a mesa' : 'Criar meu personagem');
-    voltar.type = 'button';
+    const voltar = this.marcar(el('button', 'botao-mesa', meu ? 'Voltar para a mesa' : 'Criar meu personagem'), c);
     voltar.dataset.acao = 'voltar-mesa';
-    voltar.dataset.id = c.id;
-    voltar.dataset.jogador = mesa.jogadorId;
-    voltar.setAttribute('aria-label', 'Voltar para a mesa ' + c.nome + ' como ' + mesa.nome);
+    voltar.setAttribute('aria-label', 'Voltar para a mesa ' + c.nome + ' como ' + c.meuNome);
     cartao.appendChild(voltar);
+    return cartao;
+  },
+
+  /* Uma mesa cuja chave não abre mais (a campanha saiu do servidor, ou
+     o servidor é outro): fica o aviso e o jeito de tirar da lista. */
+  cartaoSemAcesso: function (acesso) {
+    const c = { campanhaId: acesso.campanhaId, papel: acesso.papel, jogadorId: acesso.jogadorId, nome: 'Mesa indisponível' };
+    const tirar = this.marcar(el('button', '', 'Tirar da lista'), c);
+    tirar.dataset.acao = acesso.papel === 'mestre' ? 'esquecer' : 'tirar-mesa';
+    const cartao = this.cartaoBase('mesa-sem-acesso', c, [acesso.papel, acesso.papel === 'mestre' ? 'Mestre' : 'Jogador'], [tirar]);
+    cartao.appendChild(el('div', 'campanha-meta', 'Este servidor não abre mais esta mesa' + (acesso.nome ? ' (' + acesso.nome + ')' : '') + '. Ela pode ter sido de outro servidor.'));
     return cartao;
   },
 
   /* A party em miniatura: foto quando houver, inicial quando não. No
      cartão do jogador, o personagem dele vem primeiro e aceso. */
-  retratos: function (estado, meuId) {
+  retratos: function (party) {
     const fila = el('div', 'retratos-mesa');
-    const herois = ((estado && estado.herois) || []).slice().sort(function (a, b) {
-      return (b.dono === meuId) - (a.dono === meuId);
-    });
+    const herois = (Array.isArray(party) ? party : []).slice().sort(function (a, b) { return (b.dono === true) - (a.dono === true); });
     if (!herois.length) {
       fila.appendChild(el('span', 'sem-party', 'Ninguém criou personagem ainda'));
       return fila;
     }
     herois.slice(0, RETRATOS_NO_CARTAO).forEach(function (h) {
-      const bola = el('span', 'retrato-mini' + (meuId && h.dono === meuId ? ' meu' : ''));
-      const foto = retratoSeguro(h.ficha && h.ficha.foto);
+      const bola = el('span', 'retrato-mini' + (h.dono ? ' meu' : ''));
+      const foto = retratoSeguro(h.foto);
       if (foto) {
         const img = document.createElement('img');
         img.src = foto;
@@ -238,15 +240,15 @@ const Entrada = {
       } else {
         bola.textContent = String(h.nome || '?').charAt(0).toUpperCase();
       }
-      bola.title = h.nome || '';
+      bola.title = String(h.nome || '');
       fila.appendChild(bola);
     });
     if (herois.length > RETRATOS_NO_CARTAO) fila.appendChild(el('span', 'retrato-mini mais', '+' + (herois.length - RETRATOS_NO_CARTAO)));
     return fila;
   },
 
-  /* O menu "⋯" do cartão: as ações raras (backup, esquecer) saem da
-     frente e não disputam espaço com o Continuar. <details> já abre e
+  /* O menu "⋯" do cartão: as ações raras (backup, tirar da lista) saem
+     da frente e não disputam espaço com o Continuar. <details> já abre e
      fecha sozinho, com teclado e leitor de tela, sem JS. */
   menuMesa: function (nome, itens) {
     const menu = el('details', 'menu-mesa');
@@ -272,69 +274,71 @@ const Entrada = {
   },
 
 
-  /* ---------- Entrar por um cartão ---------- */
+  /* ---------- As campanhas da versão antiga ----------
+     Guardadas no navegador antes da mudança para o servidor. Só uma
+     coisa a fazer com elas: baixar o backup, para restaurar no servidor. */
 
-  continuar: function (id) {
-    if (!Campanhas.achar(id)) return;
-    if (!Sessao.gravar({ papel: 'mestre', campanhaId: id })) {
-      this.mostrarErroArmazenamento();
-      return;
-    }
+  desenharAntigas: function () {
+    const antigas = Antigas.listar();
+    const area = document.getElementById('campanhasAntigas');
+    const lista = document.getElementById('listaAntigas');
+    lista.textContent = '';
+    area.hidden = !antigas.length;
+    antigas.forEach(function (c) {
+      const baixar = el('button', 'botao-compacto neutro', 'Baixar backup');
+      baixar.type = 'button';
+      baixar.dataset.acao = 'backup-antiga';
+      baixar.dataset.id = c.id;
+      const linha = el('div', 'linha-antiga');
+      linha.appendChild(el('span', 'campanha-nome', c.nome));
+      linha.appendChild(baixar);
+      lista.appendChild(linha);
+    });
+  },
+
+
+  /* ---------- Entrar por um cartão ----------
+     O botão traz o id, o papel e o jogador; a CHAVE vem da lista deste
+     navegador (Acessos) — ela nunca é escrita no HTML. */
+
+  acessoDo: function (botao) {
+    return Acessos.achar(botao.dataset.id, botao.dataset.papel, botao.dataset.jogador || null);
+  },
+
+  continuar: function (acesso) {
+    if (!acesso || !Sessao.gravar(acesso)) { this.mostrarErroArmazenamento(); return; }
     location.href = 'mestre.html';
   },
 
-  /* O cartão do jogador leva pelo MESMO caminho de quem digita o
-     código: grava a sessão de jogador e abre o painel dele. */
-  voltarMesa: function (id, jogadorId) {
-    const mesa = Mesas.listar().find(function (m) { return m.campanhaId === id && m.jogadorId === jogadorId; });
-    if (!mesa) return;
-    if (!Sessao.gravar({ papel: 'jogador', campanhaId: id, nome: mesa.nome, jogadorId: jogadorId })) {
-      this.mostrarErroArmazenamento();
-      return;
-    }
-    Mesas.lembrar(id, mesa.nome, jogadorId);
+  voltarMesa: function (acesso) {
+    if (!acesso || !Sessao.gravar(acesso)) { this.mostrarErroArmazenamento(); return; }
+    Acessos.lembrar(acesso);
     location.href = 'jogador.html';
   },
 
-  /* Esquece na hora e oferece desfazer — sem o "Tem certeza?" (ver
-     Layout.recadoDesfazer, no layout.js, para o porquê). Aqui apaga a
-     campanha INTEIRA, então a volta guarda tudo o que sai junto: o
-     Estado, os cartões de jogador, a data do backup e a sessão da aba.
-     Se a pessoa fechar a página antes de desfazer, aí sim é para sempre. */
-  esquecer: function (id) {
+  /* Tira a mesa do Mestre da lista — com "Desfazer". A campanha continua
+     no servidor, mas este navegador perde a chave de Mestre dela: sem
+     o desfazer (e enquanto não existe a senha da campanha), não haveria
+     volta. Por isso o recado diz isso com todas as letras. */
+  esquecer: function (acesso) {
     const self = this;
-    const campanha = Campanhas.achar(id);
-    if (!campanha) return;
-
-    const estado = Campanhas.lerEstado(id);
-    const mesas = Mesas.listar().filter(function (m) { return m.campanhaId === id; });
-    const dataBackup = Backup.ultimo(id);
+    if (!acesso) return;
+    Acessos.esquecer(acesso.campanhaId, acesso.papel, acesso.jogadorId);
     const sessao = Sessao.ler();
-    const eraDestaAba = !!(sessao && sessao.campanhaId === id);
-
-    Campanhas.apagar(id);
-    Backup.esquecerData(id);
-    Mesas.esquecer(id);
+    const eraDestaAba = !!(sessao && sessao.campanhaId === acesso.campanhaId && sessao.papel === acesso.papel);
     if (eraDestaAba) Sessao.limpar();
-
     this.desenharMesas();
 
-    this.recadoDesfazer('"' + campanha.nome + '" foi esquecida.', function () {
-      if (!estado || !Campanhas.salvarEstado(id, estado)) {
-        self.mostrarErro('Não deu para trazer a campanha de volta — o navegador recusou a gravação.');
-        return;
-      }
-      mesas.forEach(function (m) { Mesas.lembrar(m.campanhaId, m.nome, m.jogadorId); });
-      if (dataBackup) Backup.marcarData(id, dataBackup);
+    this.recadoDesfazer('Mesa tirada da lista — e, com ela, a sua chave de Mestre desta mesa.', function () {
+      Acessos.lembrar(acesso);
       if (eraDestaAba) Sessao.gravar(sessao);
       self.desenharMesas();
-      self.mostrarAviso('"' + campanha.nome + '" está de volta.');
+      self.mostrarAviso('A mesa está de volta à lista.');
     });
   },
 
   /* O recado com "Desfazer" — a mesma ideia do layout.js, que esta tela
-     não carrega. Mais tempo na tela que nos painéis (12s): aqui o que
-     sai é uma campanha inteira. */
+     não carrega. Mais tempo na tela que nos painéis (12s). */
   recadoDesfazer: function (texto, desfazer) {
     const area = document.getElementById('recados');
     const botao = el('button', 'desfazer-recado', 'Desfazer');
@@ -356,24 +360,38 @@ const Entrada = {
     setTimeout(function () { caixa.remove(); }, 12000);
   },
 
-  /* Só tira o cartão: o personagem continua na campanha, e o código
-     traz a pessoa de volta quando quiser. Por isso não pergunta. */
-  tirarMesa: function (id, jogadorId) {
-    Mesas.esquecer(id, jogadorId);
+  /* Só tira o cartão do jogador: o personagem continua na campanha. A
+     chave dele sai deste navegador — para voltar, só pelo cartão
+     desfeito ou num navegador que ainda a tenha. */
+  tirarMesa: function (acesso) {
+    const self = this;
+    if (!acesso) return;
+    Acessos.esquecer(acesso.campanhaId, acesso.papel, acesso.jogadorId);
     this.desenharMesas();
+    this.recadoDesfazer('Mesa tirada da lista.', function () {
+      Acessos.lembrar(acesso);
+      self.desenharMesas();
+    });
   },
 
 
   /* ---------- Backup (backup.js) ---------- */
 
-  baixarBackup: function (id) {
+  baixarBackup: function (acesso) {
+    const self = this;
     this.limparErro();
-    if (!Backup.baixar(id)) {
-      this.mostrarErro('Não deu para ler essa campanha para o backup.');
-      return;
-    }
-    this.mostrarAviso('Backup baixado. Guarde o arquivo num lugar fora deste navegador — pendrive, nuvem, e-mail para você mesmo.');
-    this.desenharMesas();
+    if (!acesso) return;
+    Backup.baixar(acesso).then(function (r) {
+      if (r.erro) { self.mostrarErro(r.erro); return; }
+      self.mostrarAviso('Backup baixado. Guarde o arquivo num lugar fora deste computador — pendrive, nuvem, e-mail para você mesmo.');
+      self.desenharMesas();
+    });
+  },
+
+  baixarAntiga: function (id) {
+    this.limparErro();
+    if (!Backup.baixarAntiga(id)) { this.mostrarErro('Não deu para ler essa campanha.'); return; }
+    this.mostrarAviso('Backup baixado. Agora, com o servidor ligado, use "Restaurar backup" para trazer a campanha.');
   },
 
   restaurarBackup: function (arquivo) {
@@ -385,9 +403,8 @@ const Entrada = {
         return;
       }
       self.desenharMesas();
-      self.mostrarAviso(resultado.copia
-        ? 'Essa campanha já estava aqui, então o backup entrou como cópia: "' + resultado.nome + '". As duas estão na lista — esqueça a que não quiser.'
-        : 'Campanha "' + resultado.nome + '" restaurada. Ela está em "Suas mesas", acima.');
+      self.mostrarAviso('Campanha "' + resultado.nome + '" restaurada no servidor — ela está em "Suas mesas", e você é o Mestre.'
+        + (resultado.codigoNovo ? ' O código de convite antigo já estava em uso aqui, então ela ganhou um novo: ' + resultado.codigo + '.' : ''));
     });
   },
 
@@ -430,8 +447,8 @@ const Entrada = {
   /* ---------- O link de convite ----------
 
      index.html#convite=K7QM-2XRP-9HVD abre direto a porta do convite,
-     com o código preenchido. Se a campanha existe neste navegador,
-     mostra para ONDE a pessoa está entrando.
+     com o código preenchido, e pergunta ao servidor de que mesa é —
+     para mostrar para ONDE a pessoa está entrando.
 
      O código vai depois do #, e não num ?codigo=: a parte do # nunca
      é enviada ao servidor, então não fica nos registros dele quando o
@@ -442,21 +459,23 @@ const Entrada = {
 
     let texto;
     try { texto = decodeURIComponent(achado[1]); } catch (erro) { return; }
-    const codigo = Campanhas.normalizarCodigo(texto);
+    const codigo = normalizarCodigo(texto);
     if (!codigo) return;
 
     document.getElementById('codigo').value = codigo;
     this.abrirPorta('convite');
 
-    const campanha = Campanhas.acharPorCodigo(codigo);
     const aviso = document.getElementById('conviteAchado');
-    if (campanha) {
+    window.plainusCarregando = true;
+    Servidor.convite(codigo).then(function (campanha) {
+      window.plainusCarregando = false;
+      if (campanha.erro) return;
       aviso.textContent = '';
       aviso.appendChild(document.createTextNode('Você foi convidado para '));
-      aviso.appendChild(el('strong', '', campanha.nome));
+      aviso.appendChild(el('strong', '', String(campanha.nome || '')));
       aviso.appendChild(document.createTextNode(campanha.mestre ? ' · Mestre: ' + campanha.mestre : ''));
       aviso.hidden = false;
-    }
+    });
   },
 
 
@@ -477,7 +496,7 @@ const Entrada = {
       this.mostrarErro('O nome pode ter até ' + LIMITE_NOME + ' letras.', campo);
       return null;
     }
-    Mesas.guardarNome(nome);
+    Acessos.guardarNome(nome);
     return nome;
   },
 
@@ -517,8 +536,11 @@ const Entrada = {
     location.href = 'criar-campanha.html';
   },
 
-  /* O código só leva ao painel do JOGADOR (ver o topo do arquivo). */
+  /* O código só leva ao painel do JOGADOR (ver o topo do arquivo). O
+     servidor confere o código e o nome, e devolve a chave deste jogador
+     — que este navegador guarda (Suas mesas) e que abre o painel. */
   entrar: function () {
+    const self = this;
     this.limparErro();
 
     const nome = this.lerNome();
@@ -530,57 +552,24 @@ const Entrada = {
       return;
     }
 
-    const codigo = Campanhas.normalizarCodigo(campo.value);
+    const codigo = normalizarCodigo(campo.value);
     if (!codigo) {
       this.mostrarErro('Esse código não existe. São 12 letras e números, no formato XXXX-XXXX-XXXX.', campo);
       return;
     }
     campo.value = codigo;            /* mostra como ficou, já arrumado */
 
-    /* Formato certo não quer dizer que a campanha existe. Sem servidor,
-       só existem as campanhas criadas neste navegador. */
-    const campanha = Campanhas.acharPorCodigo(codigo);
-    if (!campanha) {
-      this.mostrarErro('Nenhuma campanha com esse código neste navegador. Enquanto não houver servidor, o código só funciona no computador onde a campanha foi criada.', campo);
-      return;
-    }
-
-    const jogadorId = this.jogadorIdPara(campanha.id, nome);
-    if (!Sessao.gravar({ papel: 'jogador', campanhaId: campanha.id, nome: nome, jogadorId: jogadorId })) {
-      this.mostrarErroArmazenamento();
-      return;
-    }
-
-    /* Da próxima vez, um cartão em "Suas mesas" — sem código. */
-    Mesas.lembrar(campanha.id, nome, jogadorId);
-    location.href = 'jogador.html';
-  },
-
-
-  /* Quem é este jogador nesta campanha?
-
-     Se já existe um personagem cujo jogador tem este nome, é ele
-     voltando: recebe o mesmo id e cai na ficha que já tinha. Senão,
-     ganha um id novo e vai criar a ficha.
-
-     Reconhecer pelo NOME é uma placa, não uma porta: quem digitar o
-     nome de outro jogador entra no lugar dele (problema 2 do
-     CLAUDE.md). Sem servidor não há como provar quem é quem; com ele,
-     o reconhecimento passa a ser por um token assinado. */
-  jogadorIdPara: function (campanhaId, nome) {
-    const estado = Campanhas.lerEstado(campanhaId);
-    const alvo = nome.toLowerCase();
-    const meu = ((estado && estado.herois) || []).find(function (h) {
-      return h.dono && (h.jogador || '').toLowerCase() === alvo;
+    const botao = document.getElementById('btnEntrar');
+    botao.disabled = true;
+    Servidor.entrar(codigo, nome).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { self.mostrarErro(r.erro, campo); return; }
+      const acesso = { campanhaId: r.campanhaId, papel: 'jogador', jogadorId: r.jogadorId, chave: r.chave, nome: r.nome };
+      /* Da próxima vez, um cartão em "Suas mesas" — sem código. */
+      Acessos.lembrar(acesso);
+      if (!Sessao.gravar(acesso)) { self.mostrarErroArmazenamento(); return; }
+      location.href = 'jogador.html';
     });
-    if (meu) return meu.dono;
-
-    /* Ainda sem personagem, mas já entrou antes com este nome: o mesmo
-       id, para não virar um segundo cartão em "Suas mesas". */
-    const mesa = Mesas.listar().find(function (m) {
-      return m.campanhaId === campanhaId && m.nome.toLowerCase() === alvo;
-    });
-    return mesa ? mesa.jogadorId : Campanhas.novoId().replace(/^c/, 'j');
   },
 
 
@@ -617,11 +606,17 @@ const Entrada = {
       if (!alvo) return;
       const menu = alvo.closest('details');
       if (menu) menu.open = false;
-      if (alvo.dataset.acao === 'continuar') self.continuar(alvo.dataset.id);
-      if (alvo.dataset.acao === 'voltar-mesa') self.voltarMesa(alvo.dataset.id, alvo.dataset.jogador);
-      if (alvo.dataset.acao === 'esquecer') self.esquecer(alvo.dataset.id);
-      if (alvo.dataset.acao === 'tirar-mesa') self.tirarMesa(alvo.dataset.id, alvo.dataset.jogador);
-      if (alvo.dataset.acao === 'backup') self.baixarBackup(alvo.dataset.id);
+      const acesso = self.acessoDo(alvo);
+      if (alvo.dataset.acao === 'continuar') self.continuar(acesso);
+      if (alvo.dataset.acao === 'voltar-mesa') self.voltarMesa(acesso);
+      if (alvo.dataset.acao === 'esquecer') self.esquecer(acesso);
+      if (alvo.dataset.acao === 'tirar-mesa') self.tirarMesa(acesso);
+      if (alvo.dataset.acao === 'backup') self.baixarBackup(acesso);
+    });
+
+    document.getElementById('listaAntigas').addEventListener('click', function (evento) {
+      const alvo = evento.target.closest('[data-acao="backup-antiga"]');
+      if (alvo) self.baixarAntiga(alvo.dataset.id);
     });
 
     /* Um menu "⋯" aberto fecha ao clicar fora dele, ou ao abrir outro. */
@@ -652,7 +647,12 @@ const Entrada = {
 };
 
 
-document.getElementById('nome').value = Mesas.ultimoNome();
+/* Aberta sem servidor (duplo clique): o aviso do que fazer. As
+   campanhas da versão antiga aparecem nos dois casos — é justamente
+   pelo duplo clique que elas estão guardadas. */
+document.getElementById('avisoServidor').hidden = Servidor.temServidor();
+document.getElementById('nome').value = Acessos.ultimoNome();
 Entrada.desenharMesas();
+Entrada.desenharAntigas();
 Entrada.ligar();
 Entrada.lerConvite();

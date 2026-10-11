@@ -50,6 +50,9 @@
 
       <!-- ============ CABEÇALHO: o único ornamento literal da tela ============ -->
 
+      <!-- Aberta sem servidor (duplo clique): o que fazer. -->
+      <p class="aviso-entrada aviso-servidor" id="avisoServidor" hidden>A mesa agora roda pelo servidor. Na pasta <strong>minha-mesa</strong>, rode <strong>npm start</strong> e abra <strong>http://localhost:3000</strong>.</p>
+
       <header class="entrada-marca">
         <!--
           Um arco gótico desenhado a traço — o "selo" do site. aria-hidden:
@@ -85,7 +88,21 @@
       <section class="campanhas-salvas" id="campanhasSalvas" hidden>
         <h2>Suas mesas</h2>
         <div class="lista-mesas" id="listaCampanhas"></div>
-        <p class="dica-backup">A campanha só existe neste navegador: baixe um backup de vez em quando (no menu do cartão). O arquivo leva os segredos do Mestre — guarde para você.</p>
+        <p class="dica-backup">As campanhas moram no servidor da mesa (o computador de quem mestra). Baixe um backup de vez em quando (no menu do cartão do Mestre): o arquivo leva os segredos da campanha — guarde para você.</p>
+      </section>
+
+
+      <!-- ============ CAMPANHAS DA VERSÃO ANTIGA ============
+
+        Antes de a mesa rodar pelo servidor, as campanhas ficavam
+        guardadas no próprio navegador. Elas continuam lá (nada foi
+        apagado): esta seção aparece quando existe alguma, com o botão
+        de baixar o backup de cada uma — para restaurar no servidor.
+      -->
+      <section class="campanhas-salvas campanhas-antigas" id="campanhasAntigas" hidden>
+        <h2>Campanhas da versão antiga</h2>
+        <p class="dica-backup">Ficaram guardadas neste navegador, de antes de a mesa rodar pelo servidor. Baixe o backup de cada uma e, com o servidor ligado, use “Restaurar backup” (lá embaixo) para trazê-las.</p>
+        <div class="lista-antigas" id="listaAntigas"></div>
       </section>
 
 

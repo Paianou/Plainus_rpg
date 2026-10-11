@@ -93,8 +93,10 @@ function ligarMesa(servidorHttp, armazem, log) {
 
   function enviarVista(socket, estado) {
     const sessao = socket.data.sessao;
+    /* O Mestre recebe a campanha inteira — menos a conversa da EQUIPE,
+       que é só dos jogadores (nem chega ao navegador dele). */
     const pacote = sessao.papel === 'mestre'
-      ? { papel: 'mestre', estado: estado }
+      ? { papel: 'mestre', estado: Object.assign({}, estado, { mensagens: (estado.mensagens || []).filter(function (m) { return m.canal !== 'equipe'; }) }) }
       : { papel: 'jogador', visao: visaoDoJogador(estado, sessao.jogadorId) };
     const texto = JSON.stringify(pacote);
     if (texto === socket.data.ultimaVista) return;

@@ -1,4 +1,4 @@
-const gravado = (expr) => `(()=>{const e=Campanhas.lerEstado(Sessao.ler().campanhaId); return ${expr};})()`;
+const gravado = (expr) => `(async()=>{const e=(await T.gravado()); return ${expr};})()`;
 
 await ir('index.html');
 await js(`document.querySelector('[data-porta="mestrar"]').click(); document.getElementById('nome').value='Thiago'; document.getElementById('campanha').value='Teste bestiário'`);
@@ -26,12 +26,12 @@ ok(await js(gravado(`(e.fotosMonstros||{})[${JSON.stringify(livro)}]===window._f
 await js(`Bestiario.mudarFoto(${JSON.stringify(livro)}, null)`); await espera(80);
 ok(await js(gravado(`!((e.fotosMonstros||{})[${JSON.stringify(livro)}])`)), 'tirar a foto');
 
-/* armazenamento cheio: a mudança é desfeita sozinha */
-await js(`window._set=Storage.prototype.setItem; Storage.prototype.setItem=function(k){ if(String(k).startsWith('plainus:campanha:')) throw new DOMException('cheio','QuotaExceededError'); return window._set.apply(this, arguments); }`);
-await js(`Bestiario.mudarFoto(${JSON.stringify(livro)}, window._foto)`); await espera(80);
-ok(await js(`!(Estado.fotosMonstros||{})[${JSON.stringify(livro)}]`), 'armazenamento cheio: a foto NÃO fica na memória (o Estado voltou ao gravado)');
-ok(await js(`[...document.querySelectorAll('.recado-flutuante.erro')].some(r=>r.textContent.startsWith('Não coube no armazenamento'))`), '…e aparece o aviso "Não coube no armazenamento"');
-await js(`Storage.prototype.setItem=window._set`);
+/* o servidor recusa: a tela volta ao que ele tem. A tela "aplica" a
+   foto sozinha e manda ao servidor uma versão que ele não aceita. */
+const L = JSON.stringify(livro);
+await js(`Estado.fotosMonstros=Object.assign({}, Estado.fotosMonstros, {[${L}]: window._foto}); Conexao.acao('mudarFotoMonstro', {meuId:null, nome:${L}, foto:'data:image/svg+xml;base64,PHN2Zz4='}, novaSemente()); true`);
+ok(await aguardar(`!(Estado.fotosMonstros||{})[${L}]`), 'o servidor recusou: a foto NÃO fica na tela (o Estado voltou ao do servidor)');
+ok(await aguardar(`[...document.querySelectorAll('.recado-flutuante.erro')].some(r=>r.textContent.startsWith('Essa imagem não é válida'))`), '…e aparece o aviso com o motivo');
 
 /* apagar e desfazer */
 await js(`Bestiario.selecionado='Lobo das Sombras'; Bestiario.render(); document.querySelector('[data-acao="apagar"]').click()`); await espera(100);

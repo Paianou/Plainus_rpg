@@ -156,7 +156,11 @@ const Layout = {
      caía num "modo demonstração" que mostrava tudo — ou seja, qualquer
      um chegava ao painel só digitando o endereço. Agora não há mais
      exceção: sem sessão de mestre, a tela não monta. */
+  /* Abrir o painel: a sessão desta aba tem de ser de Mestre, e a chave
+     dela tem de abrir a mesa no servidor (conexao.js). Enquanto a
+     campanha não chega, "Abrindo a mesa…"; se não abrir, o motivo. */
   iniciar: function (aoPronto) {
+    const self = this;
     const sessao = Sessao.ler();
 
     if (!sessao || sessao.papel !== 'mestre') {
@@ -164,16 +168,43 @@ const Layout = {
       return;                                   /* a tela não monta */
     }
 
-    /* Mestre, mas de uma campanha que não existe mais (foi esquecida
-       na tela de entrada, ou o armazenamento foi limpo). Sem isto, o
-       painel abriria com o exemplo de Valkoria fingindo ser a sua. */
-    if (!Campanhas.achar(sessao.campanhaId)) {
-      this.mostrarRestrito(null, 'Esta campanha não está mais guardada neste navegador. Volte à entrada e escolha outra, ou crie uma nova.');
-      return;
-    }
+    this.mostrarCarregando();
+    Conexao.abrir(sessao).then(function () {
+      self.tirarCarregando();
+      self.montar(aoPronto);
+    }, function (motivo) {
+      self.tirarCarregando();
+      self.mostrarRestrito(null, motivo);
+    });
+  },
 
-    /* Nome, campanha e código não são mais copiados da sessão: eles
-       moram no Estado da campanha, que o dados.js já carregou. */
+  /* "Abrindo a mesa…" — o tempo de a campanha chegar do servidor
+     (instantâneo no seu computador; um instante pela internet). */
+  mostrarCarregando: function () {
+    if (document.querySelector('.carregando-mesa')) return;
+    const aviso = criar('div.carregando-mesa', [criar('span.ponto-carregando'), criar('span', 'Abrindo a mesa…')]);
+    aviso.setAttribute('role', 'status');
+    document.body.appendChild(aviso);
+  },
+
+  tirarCarregando: function () {
+    const aviso = document.querySelector('.carregando-mesa');
+    if (aviso) aviso.remove();
+  },
+
+  /* Há algo sendo digitado no painel? Então um redesenho vindo de fora
+     (um jogador rolou um dado, mandou mensagem) apagaria o texto: um
+     formulário com digitação (aviso-saida.js marca data-sujo), uma
+     janela aberta, ou o foco num campo da área de trabalho. */
+  ocupado: function () {
+    if (document.querySelector('.formulario[data-sujo], [data-rascunho][data-sujo], dialog[open]')) return true;
+    const foco = document.activeElement;
+    return !!(foco && foco.closest && foco.closest('.area-trabalho') && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName));
+  },
+
+  montar: function (aoPronto) {
+    /* Nome, campanha e código não são copiados da sessão: eles moram
+       no Estado da campanha, que acabou de chegar do servidor. */
 
     document.getElementById('app').hidden = false;
 
@@ -184,29 +215,35 @@ const Layout = {
 
     this.ligarSom();
 
-    /* A ligação com o servidor (conexao.js): quem está na mesa. Só liga
-       quando o site foi aberto pelo servidor (npm start). */
-    if (typeof Conexao !== 'undefined') {
-      Conexao.ligar({ campanhaId: sessao.campanhaId, nome: Estado.mestre.nome || 'Mestre', papel: 'mestre' });
-    }
-
-    /* Toda mudança no Estado passa por Memoria.salvar() (chamado pelo
-       Acoes.executar), que avisa 'plainus:mudou'. O sino escuta para acender o ponto na hora. */
+    /* Toda mudança no Estado avisa 'plainus:mudou' (o Acoes.executar e
+       a conexão, quando chega novidade). O sino escuta para acender o
+       ponto na hora. */
     document.addEventListener('plainus:mudou', function () {
       Avisos.atualizar();
     });
 
-    /* Outra aba mudou a campanha (um jogador criou o personagem, por
-       exemplo) e o dados.js já recarregou o Estado. A barra se refaz
-       aqui; o miolo, cada tela sabe redesenhar o seu — ela põe essa
-       função em Layout.redesenhar. Tela sem redesenhar fica como está
-       até a próxima navegação, mas já com o Estado certo na memória. */
+    /* Chegou novidade do servidor (um jogador criou o personagem, rolou
+       um dado...) e a conexão já pôs no Estado. A barra se refaz aqui; o
+       miolo, cada tela sabe redesenhar o seu — ela põe essa função em
+       Layout.redesenhar. Se o Mestre estiver digitando, o redesenho
+       ESPERA (ver ocupado): conferimos de novo a cada instante e
+       redesenhamos assim que ele terminar. */
     const self = this;
-    document.addEventListener('plainus:externo', function () {
+    const redesenharTudo = function () {
       self.montarTopo();
       Icone.aplicar();
       if (typeof self.redesenhar === 'function') self.redesenhar();
-      self.recado('A campanha foi atualizada em outra aba.');
+    };
+    let esperando = null;
+    document.addEventListener('plainus:externo', function () {
+      if (!self.ocupado()) { redesenharTudo(); return; }
+      if (esperando) return;
+      esperando = setInterval(function () {
+        if (self.ocupado()) return;
+        clearInterval(esperando);
+        esperando = null;
+        redesenharTudo();
+      }, 700);
     });
 
     /* O chat (chat.js): os eventos dele, e o contador do botão. */
@@ -281,7 +318,7 @@ const Layout = {
       texto.appendChild(criar('strong', String(papel)));
       texto.appendChild(document.createTextNode('.'));
     } else {
-      texto.textContent = 'Você ainda não entrou na mesa. Crie uma campanha, ou entre com o código marcando "Mestre", para abrir este painel.';
+      texto.textContent = 'Você ainda não entrou na mesa. Crie uma campanha, ou volte pela sua campanha em "Suas mesas", na entrada.';
     }
 
     /* Jogador que caiu numa tela do Mestre: o caminho certo é o painel

@@ -752,6 +752,41 @@ const ACOES = {
   },
 
 
+  /* ----- A campanha (criar-campanha.js, modo editar) ----- */
+
+  /* Os campos que a criação em etapas edita. Texto cortado no tamanho,
+     número preso na faixa — o resto da campanha não é tocado. */
+  editarCampanha: function (estado, dados) {
+    const c = dados.campanha || {};
+    const nome = texto(c.nome, 60);
+    if (!nome) return { erro: 'Dê um nome à campanha.' };
+    const regras = c.regrasPersonagem || {};
+    Object.assign(estado.campanha, {
+      nome: nome,
+      sistema: texto(c.sistema, 60),
+      premissa: texto(c.premissa, 2000),
+      cenario: texto(c.cenario, 2000),
+      tom: texto(c.tom, 200),
+      linhas: texto(c.linhas, 1000),
+      veus: texto(c.veus, 1000),
+      nivelInicial: inteiro(c.nivelInicial, 1, 20, 1),
+      jogadores: inteiro(c.jogadores, 1, 12, 4),
+      regra: texto(c.regra, 4000),
+      regrasPersonagem: {
+        atributos: texto(regras.atributos, 20) || 'compra',
+        pv: texto(regras.pv, 20) || 'media',
+        talentos: !!regras.talentos,
+        multiclasse: !!regras.multiclasse
+      }
+    });
+    delete estado.campanha.limites;          /* migrado para 'linhas' */
+    estado.mestre = Object.assign({}, estado.mestre, { nome: texto(dados.mestre, 30) || 'Mestre' });
+    estado.grupo = Object.assign({ nome: 'A party' }, estado.grupo);
+    if (texto(dados.grupo, 60)) estado.grupo.nome = texto(dados.grupo, 60);
+    return {};
+  },
+
+
   /* ----- Avisos e compêndio ----- */
 
   /* Os avisos do sino que o Mestre já viu (as chaves, calculadas pelo
@@ -993,22 +1028,30 @@ return { ACOES: ACOES, LISTAS_DO_MESTRE: LISTAS_DO_MESTRE, aplicarAcao: aplicarA
 
 const Acoes = {
 
-  /* Roda a ação no Estado deste navegador e salva. Com servidor, é
-     esta função — e só ela — que passa a mandar o pedido pela rede. */
+  /* Roda a ação aqui, na hora (a tela responde sem esperar a rede), e
+     manda a MESMA ação, com a MESMA semente, para o servidor — que roda
+     na cópia oficial, grava e espalha para a mesa. Os dois chegam ao
+     mesmo resultado (ver aplicarAcao); se o servidor recusar, ele
+     manda de volta a campanha oficial e a tela volta a ela.
+
+     Devolve o resultado daqui, na hora — as telas usam (o item novo, o
+     que foi apagado...). Quem precisa da CONFIRMAÇÃO do servidor (antes
+     de sair da página, por exemplo) usa confirmar(). */
   executar: function (nome, dados) {
-    const copia = dados === undefined ? {} : JSON.parse(JSON.stringify(dados));
-    const resultado = aplicarAcao(nome, Estado, copia, novaSemente());
+    const texto = JSON.stringify(dados === undefined ? {} : dados);
+    const semente = novaSemente();
+    const resultado = aplicarAcao(nome, Estado, JSON.parse(texto), semente);
     if (resultado.erro) return resultado;
 
-    /* O navegador pode recusar a gravação (espaço cheio — uma foto
-       grande, por exemplo). Aí a mudança é desfeita: o Estado volta a
-       ser o último que foi gravado, e a tela recebe um erro como
-       qualquer outro. Nenhuma tela precisa desfazer à mão. */
-    if (!Memoria.salvar({ silencioso: true })) {
-      Memoria.carregar();
-      return { erro: 'Não coube no armazenamento do navegador — nada foi mudado. Se for uma imagem, tente uma menor.' };
-    }
+    this.ultimaConfirmacao = Conexao.acao(nome, JSON.parse(texto), semente);
+    document.dispatchEvent(new CustomEvent('plainus:mudou'));
     return resultado;
+  },
+
+  /* Uma Promise que se cumpre quando o servidor confirmar a última ação
+     ({ resultado } ou { erro }). */
+  confirmar: function () {
+    return this.ultimaConfirmacao || Promise.resolve({});
   }
 };
 

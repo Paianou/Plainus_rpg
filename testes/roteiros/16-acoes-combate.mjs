@@ -1,5 +1,5 @@
 /* A tela de Combate inteira, clicando como o Mestre clica. */
-const gravado = (expr) => `(()=>{const e=Campanhas.lerEstado(Sessao.ler().campanhaId); return ${expr};})()`;
+const gravado = (expr) => `(async()=>{const e=(await T.gravado()); return ${expr};})()`;
 const naLinha = (nome, acao) => `[...document.querySelectorAll('#listaCombatentes [data-id]')].find(l=>l.querySelector('.nome-combatente').firstChild.textContent===${JSON.stringify(nome)}).querySelector('[data-acao="${acao}"]')`;
 const idDe = (nome) => `Estado.combate.combatentes.find(c=>c.nome===${JSON.stringify(nome)}).id`;
 
@@ -10,7 +10,7 @@ await js(`document.getElementById('btnAvancar').click(); document.getElementById
 await clicarENavegar(`document.getElementById('btnAvancar').click()`);
 
 /* começar limpo: sem combatentes */
-await js(`Estado.combate={ativo:false, rodada:1, encontro:'', dificuldade:'', nd:'', combatentes:[], registro:[]}; Memoria.salvar();`);
+await js(`Estado.combate={ativo:false, rodada:1, encontro:'', dificuldade:'', nd:'', combatentes:[], registro:[]}; await T.salvar();`);
 
 /* ---- bestiário: somar ao combate ---- */
 await ir('bestiario.html');

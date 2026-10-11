@@ -19,7 +19,7 @@ await clicarENavegar(`document.getElementById('btnAvancar').click()`);
 const codigo = await js(`Estado.campanha.codigo`);
 
 /* um mapa na cena, para o fundo do cartão */
-await js(`(()=>{const c=document.createElement('canvas'); c.width=64; c.height=40; const x=c.getContext('2d'); x.fillStyle='#3a5a8a'; x.fillRect(0,0,64,40); x.fillStyle='#ddd'; x.fillRect(10,10,20,20); Estado.cenas=[{id:'s1', nome:'Cripta', colunas:8, linhas:5, paredes:[], tokens:[], imagem:c.toDataURL('image/jpeg',.8)}]; Estado.cenaAtual='s1'; Memoria.salvar();})()`);
+await js(`(async()=>{const c=document.createElement('canvas'); c.width=64; c.height=40; const x=c.getContext('2d'); x.fillStyle='#3a5a8a'; x.fillRect(0,0,64,40); x.fillStyle='#ddd'; x.fillRect(10,10,20,20); Estado.cenas=[{id:'s1', nome:'Cripta', colunas:8, linhas:5, paredes:[], tokens:[], imagem:c.toDataURL('image/jpeg',.8)}]; Estado.cenaAtual='s1'; await T.salvar();})()`);
 
 /* ---- Ana: convite ---- */
 const ana = await novaAba();
@@ -33,7 +33,7 @@ ok(await ana.js(`location.pathname.endsWith('jogador.html') && Sessao.ler().pape
 await ana.js(digita('#f-nome', 'Lyra') + digita('#f-raca', 'Elfa') + digita('#f-classe', 'Guerreira'));
 await ana.js(`(()=>{const c=document.createElement('canvas'); c.width=40; c.height=40; const x=c.getContext('2d'); x.fillStyle='#a33'; x.fillRect(0,0,40,40); window._foto=c.toDataURL('image/jpeg',.8);})()`);
 await ana.js(`document.querySelector('[data-acao="salvar-ficha"]').click()`); await espera(400);
-await ana.js(`(()=>{const id=Sessao.ler().campanhaId; const e=Campanhas.lerEstado(id); e.herois[0].ficha.foto=window._foto; Campanhas.salvarEstado(id,e);})()`);
+await ana.js(`(async()=>{const e=await T.gravado(); e.herois[0].ficha.foto=window._foto; await T.trocar(e);})()`);
 
 /* ---- Ana volta à entrada ---- */
 await ana.ir('index.html');
@@ -56,15 +56,16 @@ ok(await ana.js(`!document.querySelector('.menu-mesa[open]')`), 'clicar fora fec
 await ana.navegarPor(`document.querySelector('.mesa-jogador [data-acao="voltar-mesa"]').click()`);
 ok(await ana.js(`location.pathname.endsWith('jogador.html') && !!document.querySelector('[data-acao="editar"]') && Sessao.ler().nome==='Ana'`), 'um clique e a Ana está na ficha da Lyra, sem digitar nada');
 
-/* tirar da lista e voltar pelo código: o mesmo id, um cartão só */
+/* tirar da lista, e o "Desfazer" traz de volta o mesmo jogador */
 await ana.ir('index.html');
-const idAna = await ana.js(`Mesas.listar()[0].jogadorId`);
-await ana.js(`document.querySelector('.mesa-jogador [data-acao="tirar-mesa"]').click()`); await espera(80);
-ok(await ana.js(`document.querySelectorAll('.mesa-jogador').length===0 && Campanhas.lerEstado(Campanhas.listar()[0].id).herois.length===1`), '"Tirar da lista" some com o cartão, mas a Lyra continua na campanha');
-await ana.js(`document.querySelector('[data-porta="convite"]').click(); document.getElementById('nome').value='Ana'; document.getElementById('codigo').value=${JSON.stringify(codigo)};`);
-await ana.navegarPor(`document.getElementById('btnEntrar').click()`);
-await ana.ir('index.html');
-ok(await ana.js(`Mesas.listar().length===1 && Mesas.listar()[0].jogadorId===${JSON.stringify(idAna)}`), 'voltar pelo código com o mesmo nome reaproveita o mesmo jogador (um cartão só)');
+const idAna = await ana.js(`Acessos.listar().find(a=>a.papel==='jogador').jogadorId`);
+const idCamp = await ana.js(`Acessos.listar().find(a=>a.papel==='mestre').campanhaId`);
+await ana.js(`document.querySelector('.mesa-jogador [data-acao="tirar-mesa"]').click()`);
+await aguardar(`document.querySelectorAll('.mesa-jogador').length===0`, ana.js);
+ok(await ana.js(`T.gravado(${JSON.stringify(idCamp)}).then(e=>document.querySelectorAll('.mesa-jogador').length===0 && e.herois.length===1)`), '"Tirar da lista" some com o cartão, mas a Lyra continua na campanha');
+await ana.js(`document.querySelector('.desfazer-recado').click()`);
+await aguardar(`document.querySelectorAll('.mesa-jogador').length===1`, ana.js);
+ok(await ana.js(`Acessos.listar().filter(a=>a.papel==='jogador').length===1 && Acessos.listar().find(a=>a.papel==='jogador').jogadorId===${JSON.stringify(idAna)}`), '"Desfazer" traz o cartão de volta, com a mesma chave (o mesmo jogador)');
 
 /* ---- link de convite ---- */
 await ana.ir('jogador.html'); await ana.ir('index.html#convite=' + codigo);
@@ -80,8 +81,9 @@ await ana.navegarPor(`document.querySelector('.campanha-salva [data-acao="contin
 ok(await ana.js(`location.pathname.endsWith('mestre.html')`), 'Continuar no cartão de Mestre abre o painel do Mestre');
 await ana.ir('index.html');
 await ana.js(`document.querySelector('.campanha-salva .botao-opcoes').click()`);
-await ana.js(`window.confirm=()=>true; document.querySelector('.campanha-salva [data-acao="esquecer"]').click()`); await espera(100);
-ok(await ana.js(`document.getElementById('campanhasSalvas').hidden && Mesas.listar().length===0 && JSON.parse(localStorage.getItem('plainus:minhas-mesas')).length===0`), 'esquecer a campanha leva junto as mesas de jogador dela');
+await ana.js(`document.querySelector('.campanha-salva [data-acao="esquecer"]').click()`);
+await aguardar(`document.querySelectorAll('.campanha-salva').length===0`, ana.js);
+ok(await ana.js(`!Acessos.listar().some(a=>a.papel==='mestre') && document.querySelectorAll('.mesa-jogador').length===1 && /chave de Mestre/.test(document.getElementById('recados').textContent)`), 'tirar a mesa de Mestre: a chave de Mestre sai (o recado avisa), o cartão de jogador fica');
 
 /* ---- celular ---- */
 await ana.ir('index.html');

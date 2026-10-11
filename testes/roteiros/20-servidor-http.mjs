@@ -1,18 +1,9 @@
-/* O site servido pelo server.js (http://), e não pelo duplo clique
-   (file://). Este roteiro liga o próprio servidor numa porta de teste. */
-const PORTA_TESTE = 3999;
-const SITE = 'http://127.0.0.1:' + PORTA_TESTE + '/';
-const servidor = spawn(process.execPath, [path.join(MESA, 'server.js')], { env: Object.assign({}, process.env, { PORT: String(PORTA_TESTE) }), stdio: ['ignore', 'pipe', 'pipe'] });
-let falaDoServidor = '';
-servidor.stdout.on('data', (d) => { falaDoServidor += d; });
-servidor.stderr.on('data', (d) => { falaDoServidor += d; });
-for (let i = 0; i < 40 && !falaDoServidor.includes('no ar'); i++) await espera(100);
-process.on('exit', () => { try { servidor.kill(); } catch (erro) { /* já tinha saído */ } });
+/* O site servido pelo server.js (http://) — o servidor que a base liga
+   para cada roteiro. */
 ok(falaDoServidor.includes('Plainus no ar em http://localhost:' + PORTA_TESTE), 'npm start: o servidor liga e diz o endereço');
 
-const irHttp = async (caminho) => { const p = new Promise((r) => { carregou = r; }); await cmd('Page.navigate', { url: SITE + caminho }); await p; await espera(300); };
-/* Espera até a página mostrar algo — em vez de um tempo fixo, que pode ser pouco. */
-const esperarPor = async (expr, limite) => { for (let i = 0; i < (limite || 50); i++) { if (await js(expr)) return true; await espera(100); } return false; };
+const irHttp = (caminho) => ir(caminho);
+const esperarPor = (expr, limite) => aguardar(expr, js, limite);
 const status = async (caminho) => (await fetch(SITE + caminho)).status;
 
 /* a lista branca, de novo, de fora */
@@ -44,7 +35,18 @@ await ana.navegarPor(`document.getElementById('btnEntrar').click()`);
 ok(await ana.js(`location.href`) === SITE + 'jogador.html' && await ana.js(`!!document.getElementById('formFicha')`), '…e entra como jogadora, no formulário da ficha');
 await ana.fechar();
 
-servidor.kill();
+/* As rotas de teste só existem com PLAINUS_ROTAS_DE_TESTE=1: um servidor
+   ligado do jeito normal (npm start) não as tem. */
+const { mkdtempSync } = await import('node:fs');
+const { tmpdir } = await import('node:os');
+const PORTA_NORMAL = PORTA_TESTE - 2;
+const normal = spawn(process.execPath, [path.join(MESA, 'server.js')], { env: Object.assign({}, process.env, { PORT: String(PORTA_NORMAL), DATA_DIR: mkdtempSync(path.join(tmpdir(), 'plainus-')), PLAINUS_ROTAS_DE_TESTE: '' }), stdio: ['ignore', 'pipe', 'pipe'] });
+let falaNormal = '';
+normal.stdout.on('data', (d) => { falaNormal += d; });
+for (let i = 0; i < 60 && !falaNormal.includes('no ar'); i++) await espera(100);
+const rotaTeste = await fetch('http://127.0.0.1:' + PORTA_NORMAL + '/teste/ler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then((r) => r.status, () => 'erro');
+ok(falaNormal.includes('no ar') && rotaTeste === 404, 'no npm start de sempre, as rotas de teste não existem (' + rotaTeste + ')');
+normal.kill();
 console.log('\nERROS DE JS:', erros.length ? erros : 'nenhum');
 ws.close(); edge.kill();
 process.exit(0);

@@ -29,17 +29,17 @@ ok(await ana.js(`!!document.querySelector('.nav-jogador [data-aba="chat"]')`), '
 /* ======== FOTOS ======== */
 await ana.js(semJanela);
 await ana.js(`document.querySelector('.cabeca-ficha [data-acao="foto-escolher"]').click()`); await espera(1500);
-ok(await ana.js(`(()=>{const f=Estado.herois.find(h=>h.nome==='Lyra').ficha.foto; return !!retratoSeguro(f) && f.length < 160000;})()`), 'foto do personagem comprimida (< 160 KB) e salva');
+ok(await ana.js(`(()=>{const f=Conexao.visao.meuHeroi.ficha.foto; return !!retratoSeguro(f) && f.length < 160000;})()`), 'foto do personagem comprimida (< 160 KB) e salva');
 ok(await ana.js(`!!document.querySelector('.cabeca-ficha .retrato-grande img') && !!document.querySelector('.nav-personagem img')`), 'a foto aparece na ficha e na navegação');
 await ana.foto('f1-ficha-foto');
 await espera(300);
-ok(await bruno.js(`(()=>{Memoria.carregar(); Jogador.render(); return [...document.querySelectorAll('.companheiro')].some(c=>c.textContent.includes('Lyra') && c.querySelector('img'));})()`), 'o outro jogador vê a foto da Lyra na party');
+ok(await bruno.js(`(async()=>{Jogador.render(); return [...document.querySelectorAll('.companheiro')].some(c=>c.textContent.includes('Lyra') && c.querySelector('img'));})()`), 'o outro jogador vê a foto da Lyra na party');
 await ir('mestre.html');
 ok(await js(`[...document.querySelectorAll('article.heroi')].some(a=>a.textContent.includes('Lyra') && a.querySelector('.retrato-heroi img'))`), 'o Mestre vê a foto no cartão do herói');
 /* foto inválida é recusada pela ação, mesmo vindo por fora da tela */
-ok(await ana.js(`(()=>{const m=Estado.herois.find(h=>h.nome==='Lyra'); const h=JSON.parse(JSON.stringify(m)); h.ficha.foto='data:image/svg+xml;base64,PHN2Zz4='; return enviarMeuHeroi(Sessao.ler(), h)==='Essa foto não é válida. Escolha outra imagem.';})()`), 'foto que não é o JPEG do site é recusada (SVG)');
+ok(await ana.js(`(()=>{const m=Conexao.visao.meuHeroi; const h=JSON.parse(JSON.stringify(m)); h.ficha.foto='data:image/svg+xml;base64,PHN2Zz4='; return enviarMeuHeroi(Sessao.ler(), h)==='Essa foto não é válida. Escolha outra imagem.';})()`), 'foto que não é o JPEG do site é recusada (SVG)');
 await ana.js(`document.querySelector('[data-acao="foto-tirar"]').click()`); await espera(300);
-ok(await ana.js(`!Estado.herois.find(h=>h.nome==='Lyra').ficha.foto && !document.querySelector('.cabeca-ficha img')`), 'tirar foto volta para a inicial');
+ok(await ana.js(`!Conexao.visao.meuHeroi.ficha.foto && !document.querySelector('.cabeca-ficha img')`), 'tirar foto volta para a inicial');
 await ana.js(`document.querySelector('.cabeca-ficha [data-acao="foto-escolher"]').click()`); await espera(1500);
 
 /* monstros */
@@ -72,17 +72,17 @@ await ana.js(`(()=>{const c=document.getElementById('chatTexto'); c.value='Oi, m
 ok(await js(`[...document.querySelectorAll('.painel-chat .mensagem')].some(m=>m.textContent.includes('Lyra (Ana)') && m.textContent.includes('Oi, mesa!'))`), 'Enter envia, e o painel aberto do Mestre recebe sem recarregar');
 /* equipe: Bruno vê, Mestre não */
 await ana.js(`document.querySelector('[data-acao="chat-canal"][data-canal="equipe"]').click(); document.getElementById('chatTexto').value='Plano: ninguém conta ao Mestre.'; document.querySelector('[data-acao="chat-enviar"]').click();`); await espera(500);
-ok(await bruno.js(`mensagensDoJogador(Estado, Sessao.ler().jogadorId).some(m=>m.canal==='equipe' && m.texto.startsWith('Plano'))`), 'o outro jogador recebe a conversa da equipe');
+ok(await bruno.js(`Conexao.visao.mensagens.some(m=>m.canal==='equipe' && m.texto.startsWith('Plano'))`), 'o outro jogador recebe a conversa da equipe');
 ok(await js(`!Chat.mensagens().some(m=>m.canal==='equipe') && !document.querySelector('.painel-chat').textContent.includes('Plano')`), 'o Mestre não vê a conversa da equipe');
-ok(await js(`enviarMensagem(Sessao.ler(), 'equipe', 'infiltrado')`) === 'A conversa da equipe é só dos jogadores.', 'o Mestre não consegue escrever na equipe nem por fora da tela');
+ok(await js(`Conexao.acaoJogador('mensagem', {canal:'equipe', texto:'infiltrado'}).then(r=>r.erro)`) === 'A conversa da equipe é só dos jogadores.', 'o Mestre não consegue escrever na equipe nem por fora da tela (o servidor recusa)');
 /* privado: Ana ↔ Mestre; Bruno não vê */
 const canalAna = await ana.js(`canalPrivado(Sessao.ler().jogadorId)`);
 await ana.js(`document.querySelector('[data-acao="chat-canal"][data-canal="${canalAna}"]').click(); document.getElementById('chatTexto').value='Quero roubar a chave sem ninguém ver.'; document.querySelector('[data-acao="chat-enviar"]').click();`); await espera(500);
 ok(await js(`[...document.querySelectorAll('#chatCanais .filtro')].find(b=>b.textContent.startsWith('Lyra'))?.querySelector('.pilula')?.textContent==='1'`), 'a conversa privada da Lyra acende "1" no painel do Mestre');
 await js(`document.querySelector('[data-acao="chat-canal"][data-canal="${canalAna}"]').click(); document.getElementById('chatTexto').value='Role Prestidigitação.'; document.querySelector('[data-acao="chat-enviar"]').click();`); await espera(500);
 ok(await ana.js(`[...document.querySelectorAll('.mensagem')].some(m=>m.textContent.includes('Role Prestidigitação.'))`), 'a resposta privada do Mestre chega à Ana');
-ok(await bruno.js(`!mensagensDoJogador(Estado, Sessao.ler().jogadorId).some(m=>m.texto.includes('roubar a chave') || m.texto.includes('Prestidigitação'))`), 'o outro jogador NÃO recebe a conversa privada');
-ok(await bruno.js(`enviarMensagem(Sessao.ler(), ${JSON.stringify(canalAna)}, 'xereta')`) === 'Você não participa dessa conversa.', 'jogador não escreve na conversa privada de outro');
+ok(await bruno.js(`!Conexao.visao.mensagens.some(m=>m.texto.includes('roubar a chave') || m.texto.includes('Prestidigitação'))`), 'o outro jogador NÃO recebe a conversa privada');
+ok(await bruno.js(`Conexao.acaoJogador('mensagem', {canal:${JSON.stringify(canalAna)}, texto:'xereta'}).then(r=>r.erro)`) === 'Você não participa dessa conversa.', 'jogador não escreve na conversa privada de outro');
 ok(await ana.js(`mensagensDoJogador(Estado, Sessao.ler().jogadorId).every(m=>!('jogadorId' in m.autor))`), 'a visão do chat não expõe o jogadorId de ninguém');
 /* contador e "não apaga o que se digita" */
 await bruno.js(`document.querySelector('.nav-jogador [data-aba="ficha"]').click()`);

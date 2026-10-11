@@ -1,5 +1,5 @@
 /* As três telas do Mestre que passaram para o acoes.js, de ponta a ponta. */
-const gravado = (expr) => `(()=>{const e=Campanhas.lerEstado(Sessao.ler().campanhaId); return ${expr};})()`;
+const gravado = (expr) => `(async()=>{const e=(await T.gravado()); return ${expr};})()`;
 const clicar = (acao, extra) => `document.querySelector('[data-acao="${acao}"]${extra || ''}').click()`;
 
 await ir('index.html');

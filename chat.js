@@ -51,7 +51,7 @@ const Chat = {
   mensagens: function () {
     const s = this.sessao();
     if (!s) return [];
-    if (s.papel === 'jogador') return mensagensDoJogador(Estado, s.jogadorId);
+    if (s.papel === 'jogador') return (Conexao.visao && Conexao.visao.mensagens) || [];
 
     return (Estado.mensagens || [])
       .filter(function (m) { return m.canal !== 'equipe'; })

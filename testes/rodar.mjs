@@ -13,6 +13,10 @@
      testes/servidor/*.test.cjs  as peças do servidor (servidor/*.js).
      testes/roteiros/*.mjs       o site de verdade num Edge sem janela,
                                  clicando como as pessoas clicam (base.mjs).
+                                 Cada roteiro liga o próprio servidor, na
+                                 porta 3999, com as campanhas numa pasta só
+                                 dele (testes/saida/<roteiro>/dados) — a
+                                 data/ de verdade nunca é tocada.
 
    Cada roteiro imprime uma linha por verificação ("OK" ou "FALHA") e,
    no fim, "ERROS DE JS: nenhum" — erro de JavaScript na página conta

@@ -54,7 +54,7 @@ ok(await js(`document.querySelectorAll('#passos li:not([hidden])').length`) === 
 await js(`document.getElementById('veus').value='Romance fora de cena'; for (let i=0;i<4;i++) document.getElementById('btnAvancar').click()`);
 ok(await js(`document.getElementById('btnAvancar').textContent==='Salvar alterações' && document.getElementById('escolhaInicio').hidden`), 'última etapa da edição: salvar, sem escolha vazia/exemplo');
 await foto('3b-edicao-salvar');
-const codigoAntes = await js(`Campanhas.lerEstado(Sessao.ler().campanhaId).campanha.codigo`);
+const codigoAntes = await js(`T.gravado().then(e=>e.campanha.codigo)`);
 await clicarENavegar(`document.getElementById('btnAvancar').click()`);
 ok(await js(`document.querySelector('.sobre-grade').textContent.includes('Romance fora de cena') && Estado.campanha.codigo===${JSON.stringify(codigoAntes)} && Estado.pendencias.length===1`), 'edição salva véus, mantém código e conteúdo');
 await ir('criar-campanha.html?editar=1');
@@ -96,7 +96,7 @@ const codigo = await js(`Estado.campanha.codigo`);
 await clicarENavegar(`document.querySelector('[data-acao="sair"]').click()`);
 ok(await js(`document.querySelectorAll('.campanha-salva').length`) === 2, '2 campanhas na lista');
 await js(`document.getElementById('nome').value='Ana'; document.getElementById('codigo').value='AAAA-BBBB-CCCC'; document.getElementById('btnEntrar').click()`);
-ok(await js(`document.getElementById('erro').textContent.startsWith('Nenhuma campanha')`), 'código inexistente recusado');
+ok(await aguardar(`document.getElementById('erro').textContent.startsWith('Nenhuma campanha') && !document.getElementById('btnEntrar').disabled`), 'código inexistente recusado');
 await clicarENavegar(`document.getElementById('codigo').value=${JSON.stringify(codigo.toLowerCase().replace(/-/g, ' '))}; document.getElementById('btnEntrar').click()`);
 ok(await js(`location.pathname.endsWith('jogador.html') && !!document.getElementById('formFicha')`), 'jogador com código certo vai para o painel dele (código em minúsculas e com espaços)');
 await ir('mestre.html');
@@ -117,9 +117,9 @@ ok(await js(`document.querySelector('.titulo-sessao').textContent.startsWith('Cr
 await ir('index.html');
 await js(`[...document.querySelectorAll('.campanha-salva')].find(l=>l.textContent.includes('Ravendusk')).querySelector('[data-acao="esquecer"]').click()`);
 await espera(300);
-ok(await js(`document.querySelectorAll('.campanha-salva').length`) === 1, 'esquecer apaga a campanha');
+ok(await js(`document.querySelectorAll('.campanha-salva').length`) === 1, 'tirar da lista some com o cartão');
 await ir('mestre.html');
-ok(await js(`!!document.querySelector('.tela-restrita')`), 'campanha esquecida: painel barrado');
+ok(await js(`!!document.querySelector('.tela-restrita')`), 'tirada da lista: a chave de Mestre saiu deste navegador, painel barrado');
 
 /* celular */
 await cmd('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });

@@ -7,6 +7,7 @@
 
      POST /api/campanhas   criar (da criação em etapas, ou de um backup)
                            → { id, codigo, chave }   a chave do Mestre
+     POST /api/convite     o nome da mesa de um código (o link de convite)
      POST /api/entrar      entrar com o código, como jogador
                            → { campanhaId, jogadorId, chave, nome }
      POST /api/cartoes     o que mostrar em cada cartão de "Suas mesas"
@@ -44,19 +45,35 @@ function limitador(porMinuto) {
   };
 }
 
-function criarApi(armazem) {
+/* opcoes.semLimite: só para os testes do navegador, que criam dezenas
+   de campanhas por minuto do mesmo endereço (testes/rotas-de-teste.cjs). */
+function criarApi(armazem, opcoes) {
   const api = express.Router();
+  const limite = opcoes && opcoes.semLimite ? function () { return function (p, r, seguir) { seguir(); }; } : limitador;
 
   /* Criar campanha (inclusive de um backup, que pode trazer mapas): 8 MB. */
-  api.post('/campanhas', limitador(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
+  api.post('/campanhas', limite(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
     const estado = pedido.body && pedido.body.estado;
     const r = armazem.criar(estado);
     if (r.erro) return resposta.status(400).json({ erro: r.erro });
     resposta.json({ id: r.id, codigo: r.codigo, chave: r.chave });
   });
 
+  /* O código de convite e a entrada dividem o MESMO limite: é por eles
+     que alguém tentaria adivinhar códigos. */
+  const limiteDoCodigo = limite(20);
+
+  /* O link de convite: de que mesa é este código? Quem tem o código foi
+     convidado — o nome da mesa e do Mestre não são segredo para ele. */
+  api.post('/convite', limiteDoCodigo, express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const id = armazem.acharPorCodigo(pedido.body && pedido.body.codigo);
+    if (!id) return resposta.status(404).json({ erro: 'Nenhuma campanha com esse código.' });
+    const r = armazem.resumo(id);
+    resposta.json({ nome: r.nome, mestre: r.mestre });
+  });
+
   /* Entrar com o código. */
-  api.post('/entrar', limitador(20), express.json({ limit: '10kb' }), function (pedido, resposta) {
+  api.post('/entrar', limiteDoCodigo, express.json({ limit: '10kb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
     const id = armazem.acharPorCodigo(corpo.codigo);
     if (!id) return resposta.status(404).json({ erro: 'Nenhuma campanha com esse código. Confira com o Mestre.' });
@@ -69,7 +86,7 @@ function criarApi(armazem) {
      conhece, cada uma com a chave; só as que abrem voltam com dados. O
      que vai no cartão é o que qualquer um da mesa já vê: nome, sessão,
      a party (nomes e retratos) e a cena atual. */
-  api.post('/cartoes', limitador(60), express.json({ limit: '20kb' }), function (pedido, resposta) {
+  api.post('/cartoes', limite(60), express.json({ limit: '20kb' }), function (pedido, resposta) {
     const mesas = Array.isArray(pedido.body && pedido.body.mesas) ? pedido.body.mesas.slice(0, 30) : [];
     resposta.json({
       cartoes: mesas.map(function (m) {
@@ -104,7 +121,7 @@ function criarApi(armazem) {
 
   /* Baixar o backup: só com a chave do Mestre (o backup leva os
      segredos da campanha). */
-  api.post('/backup', limitador(20), express.json({ limit: '10kb' }), function (pedido, resposta) {
+  api.post('/backup', limite(20), express.json({ limit: '10kb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
     if (!armazem.conferirAcesso(corpo.campanhaId, 'mestre', null, corpo.chave)) {
       return resposta.status(403).json({ erro: 'Só o Mestre desta campanha baixa o backup.' });

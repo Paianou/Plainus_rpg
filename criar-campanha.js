@@ -90,13 +90,18 @@ const Criacao = {
     this.preencherPistas();
     this.preencherOpcoes();
 
+    const self = this;
     const editar = new URLSearchParams(location.search).get('editar') === '1';
     if (editar) {
-      if (!this.prepararEdicao()) return;
-    } else {
-      this.preencherRascunho();
+      /* A campanha a editar vem do servidor: a página espera ela chegar. */
+      this.prepararEdicao().then(function (pronta) {
+        if (!pronta) return;
+        self.ligar();
+        self.mostrar(0);
+      });
+      return;
     }
-
+    this.preencherRascunho();
     this.ligar();
     this.mostrar(0);
   },
@@ -150,17 +155,26 @@ const Criacao = {
     if (typeof rascunho.mestre === 'string') document.getElementById('mestre').value = rascunho.mestre.slice(0, 30);
   },
 
-  /* Troca os textos, esconde o que só existe ao criar e preenche os
-     campos com a campanha da sessão. Devolve false (e sai da página)
-     se não houver campanha de mestre aberta. */
+  /* Abre a mesa pela conexão (só com a chave do Mestre), troca os
+     textos, esconde o que só existe ao criar e preenche os campos com a
+     campanha. Devolve uma Promise: false (e sai da página, ou mostra o
+     motivo) se não der para editar. */
   prepararEdicao: function () {
+    const self = this;
     const sessao = Sessao.ler();
-    const estado = sessao && sessao.papel === 'mestre' ? Campanhas.lerEstado(sessao.campanhaId) : null;
-
-    if (!estado) {
+    if (!sessao || sessao.papel !== 'mestre') {
       location.replace('index.html');
-      return false;
+      return Promise.resolve(false);
     }
+    return Conexao.abrir(sessao).then(function () {
+      return self.preencherEdicao(sessao, Estado);
+    }, function (motivo) {
+      self.mostrarErro(motivo);
+      return false;
+    });
+  },
+
+  preencherEdicao: function (sessao, estado) {
 
     this.modo = 'editar';
     this.ordem = [1, 2, 3, 4, 6];
@@ -490,7 +504,9 @@ const Criacao = {
     const estado = comExemplo ? estadoDeExemplo() : estadoVazio();
 
     this.aplicarCampanha(estado, r);
-    estado.campanha.codigo = Campanhas.gerarCodigo();
+    /* O código de convite é sorteado pelo servidor (que sabe quais já
+       existem — dois convites iguais apontariam para duas mesas). */
+    estado.campanha.codigo = '';
 
     /* Regras da casa em branco no exemplo: fica a regra que ele já
        tinha. Na vazia, o branco é branco mesmo. */
@@ -507,44 +523,60 @@ const Criacao = {
   },
 
 
-  /* Lê a campanha DE NOVO na hora de salvar, em vez de usar a cópia
-     de quando a página abriu: se o mestre mexeu no painel em outra
-     aba enquanto editava, essas mudanças não são atropeladas. */
+  /* A edição é uma ação (editarCampanha, no acoes.js): só os campos
+     daqui mudam, e o resto da campanha — o que o Mestre ou os jogadores
+     mexeram enquanto ele editava — não é atropelado. Espera o servidor
+     confirmar antes de sair da página. */
   salvarEdicao: function () {
-    const estado = Campanhas.lerEstado(this.idEditando);
-    if (!estado) {
-      this.mostrarErro('Esta campanha não está mais guardada neste navegador.');
-      return;
-    }
-
+    const self = this;
     const r = this.respostas();
-    this.aplicarCampanha(estado, r);
-    estado.campanha.regra = r.regras;
-
-    this.gravar(estado, this.idEditando);
-  },
-
-
-  /* id null = campanha nova. Trava o botão enquanto grava: um segundo
-     clique criaria duas campanhas iguais. */
-  gravar: function (estado, id) {
     const botao = document.getElementById('btnAvancar');
     botao.disabled = true;
 
-    let ok;
-    if (id) {
-      ok = Campanhas.salvarEstado(id, estado);
-    } else {
-      const novo = Campanhas.criar(estado);
-      ok = !!novo && Sessao.gravar({ papel: 'mestre', campanhaId: novo });
-    }
+    const feita = Acoes.executar('editarCampanha', {
+      campanha: {
+        nome: r.nomeCampanha, sistema: r.sistema, premissa: r.premissa, cenario: r.cenario, tom: r.tom,
+        linhas: r.linhas, veus: r.veus, nivelInicial: r.nivelInicial, jogadores: r.jogadores, regra: r.regras,
+        regrasPersonagem: { atributos: r.metodoAtributos, pv: r.metodoPv, talentos: r.talentos, multiclasse: r.multiclasse }
+      },
+      mestre: r.mestre,
+      grupo: r.grupo
+    });
+    if (feita.erro) { botao.disabled = false; this.mostrarErro(feita.erro); return; }
 
-    if (!ok) {
-      botao.disabled = false;
-      this.mostrarErro('O navegador não deixou guardar a campanha. Se estiver numa aba anônima, tente numa aba normal.');
-      return;
-    }
+    Acoes.confirmar().then(function (resposta) {
+      if (resposta.erro) { botao.disabled = false; self.mostrarErro(resposta.erro); return; }
+      self.sair();
+    });
+  },
 
+
+  /* Campanha nova: o servidor guarda e devolve a chave do Mestre, que
+     este navegador lembra (Suas mesas) e que abre o painel. Trava o
+     botão enquanto grava: um segundo clique criaria duas campanhas. */
+  gravar: function (estado) {
+    const self = this;
+    const botao = document.getElementById('btnAvancar');
+    botao.disabled = true;
+
+    Servidor.criarCampanha(estado).then(function (r) {
+      if (r.erro) {
+        botao.disabled = false;
+        self.mostrarErro(r.erro);
+        return;
+      }
+      const acesso = { campanhaId: r.id, papel: 'mestre', chave: r.chave, nome: estado.mestre.nome };
+      Acessos.lembrar(acesso);
+      if (!Sessao.gravar(acesso)) {
+        botao.disabled = false;
+        self.mostrarErro('O navegador não deixou guardar sua entrada. Se estiver numa aba anônima, tente numa aba normal.');
+        return;
+      }
+      self.sair();
+    });
+  },
+
+  sair: function () {
     try { sessionStorage.removeItem(CHAVE_RASCUNHO); } catch (erro) { /* tanto faz */ }
     /* Esta saída É o salvamento: sem perguntar "sair sem salvar?". */
     AvisoSaida.liberar();

@@ -64,22 +64,33 @@ const Backup = {
 
   /* ---------- Baixar ---------- */
 
-  /* Monta o arquivo e entrega ao navegador como download. Devolve
-     false se a campanha não existir. */
-  baixar: function (id) {
-    const estado = Campanhas.lerEstado(id);
+  /* Uma mesa do servidor: o arquivo vem de lá, e só sai com a chave do
+     Mestre (o backup leva os segredos). Devolve uma Promise com
+     { ok: true } ou { erro }. */
+  baixar: function (acesso) {
+    const self = this;
+    return Servidor.backup(acesso.campanhaId, acesso.chave).then(function (envelope) {
+      if (envelope.erro) return envelope;
+      self.entregarArquivo(envelope);
+      self.marcarData(acesso.campanhaId);
+      return { ok: true };
+    });
+  },
+
+  /* Uma campanha da versão antiga, ainda guardada neste navegador
+     (campanhas.js, Antigas): o arquivo é montado aqui mesmo. */
+  baixarAntiga: function (id) {
+    const estado = Antigas.ler(id);
     if (!estado) return false;
+    this.entregarArquivo({ formato: this.FORMATO, versao: this.VERSAO, exportadoEm: new Date().toISOString(), estado: estado });
+    return true;
+  },
 
-    const envelope = {
-      formato: this.FORMATO,
-      versao: this.VERSAO,
-      exportadoEm: new Date().toISOString(),
-      estado: estado
-    };
-
-    /* Blob + link com "download": o jeito de um site criar um arquivo
-       e oferecer para salvar, sem servidor. O texto vai indentado
-       (o 2 do stringify) para dar para abrir e ler num editor. */
+  /* Blob + link com "download": o jeito de uma página criar um arquivo e
+     oferecer para salvar. O texto vai indentado (o 2 do stringify) para
+     dar para abrir e ler num editor. */
+  entregarArquivo: function (envelope) {
+    const estado = envelope.estado || {};
     const arquivo = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
     const endereco = URL.createObjectURL(arquivo);
 
@@ -93,9 +104,6 @@ const Backup = {
     /* O endereço do Blob segura o arquivo na memória até ser
        revogado. Um instante depois o download já começou. */
     setTimeout(function () { URL.revokeObjectURL(endereco); }, 1000);
-
-    this.marcarData(id);
-    return true;
   },
 
   /* "plainus-cronicas-de-ravendusk-2026-10-08.json": sem acento, sem
@@ -150,10 +158,10 @@ const Backup = {
 
   /* ---------- Restaurar ---------- */
 
-  /* Lê o arquivo escolhido e, se for um backup válido, grava como uma
-     campanha deste navegador. Devolve (numa Promise, porque ler
-     arquivo é assíncrono):
-       { ok: true, id, nome, copia }   copia = já existia, virou cópia
+  /* Lê o arquivo escolhido e, se for um backup válido, manda para o
+     servidor como uma campanha NOVA — de que este navegador vira o
+     Mestre (guarda a chave). Devolve (numa Promise):
+       { ok: true, id, nome, codigo, codigoNovo }
        { ok: false, erro }             o texto para mostrar à pessoa */
   restaurar: function (arquivo) {
     const self = this;
@@ -174,15 +182,15 @@ const Backup = {
       const conferido = self.validar(dados);
       if (typeof conferido === 'string') return { ok: false, erro: conferido };
 
-      const resultado = self.gravarRestaurado(conferido);
-
-      /* A campanha veio DE um backup: a data dele é a data do último
-         backup dela (o arquivo continua guardado em algum lugar). */
-      if (resultado.ok) {
-        const feito = Date.parse(dados.exportadoEm);
-        self.marcarData(resultado.id, Number.isFinite(feito) && feito <= Date.now() ? feito : Date.now());
-      }
-      return resultado;
+      return self.gravarRestaurado(conferido).then(function (resultado) {
+        /* A campanha veio DE um backup: a data dele é a data do último
+           backup dela (o arquivo continua guardado em algum lugar). */
+        if (resultado.ok) {
+          const feito = Date.parse(dados.exportadoEm);
+          self.marcarData(resultado.id, Number.isFinite(feito) && feito <= Date.now() ? feito : Date.now());
+        }
+        return resultado;
+      });
     }, function () {
       return { ok: false, erro: 'O navegador não conseguiu ler esse arquivo.' };
     });
@@ -204,26 +212,16 @@ const Backup = {
 
 
   /* Sempre cria uma campanha NOVA (id novo): restaurar nunca passa por
-     cima do que existe. Se já há uma campanha com o mesmo código — é a
-     mesma campanha, e o backup é de outro dia —, a restaurada vira
-     cópia, com outro código e "(backup de ...)" no nome, e as duas
-     ficam na lista para você comparar e esquecer a que não quiser. */
+     cima do que existe. O código de convite do backup é mantido se
+     estiver livre neste servidor; se já estiver em uso (a mesma
+     campanha, de outro dia, já foi restaurada), o servidor sorteia
+     outro — e a pessoa fica sabendo. */
   gravarRestaurado: function (estado) {
-    const codigo = Campanhas.normalizarCodigo(estado.campanha.codigo);
-    const copia = !!(codigo && Campanhas.acharPorCodigo(codigo));
-
-    if (!codigo || copia) estado.campanha.codigo = Campanhas.gerarCodigo();
-    else estado.campanha.codigo = codigo;
-
-    if (copia) {
-      const hoje = new Date().toLocaleDateString('pt-BR');
-      estado.campanha.nome = (estado.campanha.nome + ' (backup de ' + hoje + ')').slice(0, 80);
-    }
-
-    const id = Campanhas.criar(estado);
-    if (!id) {
-      return { ok: false, erro: 'O navegador não deixou guardar a campanha — provavelmente falta espaço. Esqueça uma campanha antiga e tente de novo.' };
-    }
-    return { ok: true, id: id, nome: estado.campanha.nome, copia: copia };
+    const codigoAntigo = normalizarCodigo(estado.campanha.codigo);
+    return Servidor.criarCampanha(estado).then(function (r) {
+      if (r.erro) return { ok: false, erro: r.erro };
+      Acessos.lembrar({ campanhaId: r.id, papel: 'mestre', chave: r.chave, nome: estado.mestre.nome });
+      return { ok: true, id: r.id, nome: estado.campanha.nome, codigo: r.codigo, codigoNovo: !!codigoAntigo && codigoAntigo !== r.codigo };
+    });
   }
 };

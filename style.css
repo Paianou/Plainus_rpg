@@ -5289,3 +5289,57 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 @media (max-width: 720px) {
   .presenca-mesa { padding: 5px 8px; }
 }
+
+
+/* ----- A mesa pelo servidor (parte 2) ----- */
+
+/* Aberta sem servidor: o mesmo desenho do aviso, em violeta — é o
+   recado que precisa chamar atenção na tela. */
+.aviso-servidor {
+  color: var(--texto);
+  background: rgba(139, 108, 255, .12);
+  border-left-color: var(--violeta);
+}
+
+/* "Abrindo a mesa…": enquanto a campanha não chega do servidor. */
+.carregando-mesa {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--texto-3);
+  background: var(--breu);
+}
+.ponto-carregando {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--violeta);
+  box-shadow: 0 0 12px var(--violeta);
+  animation: pulso-carregando 1.1s ease-in-out infinite;
+}
+@keyframes pulso-carregando {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ponto-carregando { animation: none; }
+}
+
+/* As campanhas da versão antiga: uma linha cada, com o backup. */
+.campanhas-antigas .linha-antiga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+}
+.campanhas-antigas .linha-antiga .campanha-nome { font-size: 1rem; margin: 0; }
+
+/* Uma mesa que o servidor não abre mais: apagada, sem o mapa. */
+.cartao-mesa.mesa-sem-acesso { opacity: .7; }

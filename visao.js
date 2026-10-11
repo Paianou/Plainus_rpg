@@ -395,29 +395,39 @@ return { visaoDoJogador: visaoDoJogador, canalPrivado: canalPrivado, mensagensDo
 
 
 /* ===================================================================
-   NO NAVEGADOR, ENQUANTO A CAMPANHA MORA NELE
+   NO NAVEGADOR: AS AÇÕES VÃO PARA O SERVIDOR
 
-   As telas chamam estas quatro. Cada uma lê a campanha FRESCA do
-   armazenamento (não a da memória, que pode estar velha — o Mestre
-   pode ter mexido em outra aba), aplica a ação acima e grava. Devolvem
-   null se deu certo, ou o texto do problema. Na troca para o servidor,
-   só elas mudam: passam a mandar o pedido pela conexão.
+   As telas chamam estas quatro. Cada uma manda o pedido pela conexão
+   (conexao.js); o servidor roda a ação acima com a sessão que a CHAVE
+   provou, grava e manda a visão nova — e a tela se redesenha quando ela
+   chega. Por isso devolvem null na hora (o pedido foi): se o servidor
+   recusar, o motivo aparece como aviso.
+
+   A ficha é a exceção que vale o cuidado: ela é atualizada na tela já
+   (Conexao.visao.meuHeroi), para a pessoa ver o que salvou sem esperar
+   a volta — e a visão que chega do servidor confirma (ou desfaz).
    =================================================================== */
 
-function acaoNoNavegador(sessao, nome, dados) {
-  const estado = Campanhas.lerEstado(sessao.campanhaId);
-  if (!estado) return 'Esta campanha não está mais guardada neste navegador.';
-  const r = aplicarAcaoJogador(nome, estado, sessao, dados);
-  if (r.erro) return r.erro;
-  if (!Campanhas.salvarEstado(sessao.campanhaId, estado)) return 'O navegador não deixou guardar.';
-  Memoria.carregar();         /* a memória desta aba passa a ser a gravada */
+function enviarMeuHeroi(sessao, heroi) {
+  if (heroi && heroi.ficha && heroi.ficha.foto && !retratoSeguro(heroi.ficha.foto)) return 'Essa foto não é válida. Escolha outra imagem.';
+  if (Conexao.visao) {
+    const antigo = Conexao.visao.meuHeroi;
+    Conexao.visao.meuHeroi = Object.assign({}, antigo || {}, JSON.parse(JSON.stringify(heroi)), {
+      pv: antigo ? Math.min(antigo.pv >= antigo.pvMax ? heroi.pvMax : antigo.pv, heroi.pvMax) : heroi.pvMax
+    });
+  }
+  Conexao.acaoJogador('salvarHeroi', { heroi: heroi });
   return null;
 }
-
-function enviarMeuHeroi(sessao, heroi) { return acaoNoNavegador(sessao, 'salvarHeroi', { heroi: heroi }); }
-function enviarConcentracao(sessao, concentrando) { return acaoNoNavegador(sessao, 'concentracao', { concentrando: concentrando }); }
-function enviarRolagem(sessao, rolagem) { return acaoNoNavegador(sessao, 'rolagem', { rolagem: rolagem }); }
-function enviarMensagem(sessao, canal, texto) { return acaoNoNavegador(sessao, 'mensagem', { canal: canal, texto: texto }); }
+function enviarConcentracao(sessao, concentrando) { Conexao.acaoJogador('concentracao', { concentrando: !!concentrando }); return null; }
+function enviarRolagem(sessao, rolagem) { Conexao.acaoJogador('rolagem', { rolagem: rolagem }); return null; }
+function enviarMensagem(sessao, canal, texto) {
+  const limpo = String(texto || '').trim();
+  if (!limpo) return 'Escreva alguma coisa.';
+  if (limpo.length > LIMITE_TEXTO_MENSAGEM) return 'A mensagem pode ter até ' + LIMITE_TEXTO_MENSAGEM + ' caracteres.';
+  Conexao.acaoJogador('mensagem', { canal: canal, texto: limpo });
+  return null;
+}
 
 
 if (typeof module !== 'undefined' && module.exports) {

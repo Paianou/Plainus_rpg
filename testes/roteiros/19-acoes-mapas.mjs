@@ -1,5 +1,5 @@
 /* Mapas & Cenas: tokens, marcadores, trazer o combate, trocar e apagar cena — com o mouse de verdade. */
-const gravado = (expr) => `(()=>{const e=Campanhas.lerEstado(Sessao.ler().campanhaId); return ${expr};})()`;
+const gravado = (expr) => `(async()=>{const e=(await T.gravado()); return ${expr};})()`;
 const centro = async (c, l) => js(`(()=>{const s=document.querySelector('#quadro svg'); const p=s.createSVGPoint(); p.x=${c}*CELULA+CELULA/2; p.y=${l}*CELULA+CELULA/2; const t=p.matrixTransform(s.getScreenCTM()); return {x:t.x,y:t.y};})()`);
 const mouse = (type, p, buttons) => cmd('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: 'left', buttons, clickCount: 1 });
 
@@ -9,7 +9,7 @@ await clicarENavegar(`document.getElementById('btnCriar').click()`);
 await js(`document.getElementById('btnAvancar').click(); document.getElementById('premissa').value='x'; document.getElementById('cenario').value='y'; const b=()=>document.getElementById('btnAvancar').click(); b(); b(); b(); b(); document.querySelector('input[value="exemplo"]').checked=true`);
 await clicarENavegar(`document.getElementById('btnAvancar').click()`);
 await ir('combate.html');
-await js(`Estado.combate={ativo:true, rodada:1, encontro:'', dificuldade:'', nd:'', combatentes:[], registro:[]}; Memoria.salvar(); document.querySelector('[data-acao="add-party"]').click()`); await espera(80);
+await js(`Estado.combate={ativo:true, rodada:1, encontro:'', dificuldade:'', nd:'', combatentes:[], registro:[]}; await T.salvar(); document.querySelector('[data-acao="add-party"]').click()`); await espera(80);
 await js(`document.getElementById('nomeAvulso').value='Ogro'; document.getElementById('pvAvulso').value='59'; document.querySelector('[data-acao="add-avulso"]').click()`); await espera(80);
 const noCombate = await js(`Estado.combate.combatentes.length`);
 

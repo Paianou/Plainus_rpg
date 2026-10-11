@@ -1,25 +1,19 @@
 /* ===================================================================
    server.js — o servidor da mesa
 
-   Passo 1: entregar o site (a lista branca, logo abaixo).
-   Passo 2: o tempo real com Socket.IO — por enquanto, quem está na mesa.
+   Entrega o site (a lista branca, logo abaixo), guarda as campanhas
+   (servidor/armazem.js, na pasta data/), responde às perguntas da
+   entrada (servidor/api.js) e mantém a mesa em tempo real
+   (servidor/mesa.js).
 
    COMO RODAR
      npm install     uma vez (baixa o Express e o Socket.IO)
      npm start       liga o servidor
      abra http://localhost:3000
 
-   O QUE ELE FAZ POR ENQUANTO
-   Entrega os arquivos do site — o mesmo que o duplo clique fazia, mas
-   por http:// — e mantém uma ligação em tempo real com cada painel
-   aberto, para mostrar quem está na mesa. Ainda não guarda campanha
-   nenhuma: cada navegador continua com a sua cópia no localStorage.
-   O próximo passo traz a campanha para cá.
-
-   Por que já vale a pena: com http://, o navegador trata o site como
-   um site de verdade — o "Copiar convite" passa a copiar um LINK, a
-   área de transferência funciona, e o Cloudflare Tunnel tem para onde
-   apontar.
+   A campanha mora aqui: o servidor tem a cópia oficial, confere cada
+   ação (só o Mestre mexe na campanha; cada jogador, só no que é dele),
+   grava no disco e espalha para a mesa — a cada um, só o que ele vê.
 
 
    SÓ ENTREGA O QUE É DO SITE (uma lista branca)
@@ -54,6 +48,9 @@ const HOST = process.env.HOST || '127.0.0.1';
 /* Onde as campanhas ficam no disco. A pasta data/ está no .gitignore:
    campanha de verdade (com os segredos do Mestre) nunca sobe pro Git. */
 const PASTA_DADOS = process.env.DATA_DIR || path.join(RAIZ, 'data');
+
+const rotasDeTeste = process.env.PLAINUS_ROTAS_DE_TESTE === '1' && HOST === '127.0.0.1'
+  ? require('./testes/rotas-de-teste.cjs') : null;
 
 
 /* ---------- As campanhas (servidor/armazem.js) ---------- */
@@ -116,7 +113,13 @@ PASTAS_DO_SITE.forEach(function (pasta) {
 
 /* As perguntas da tela de entrada (criar, entrar, cartões, backup):
    servidor/api.js. */
-app.use('/api', criarApi(armazem));
+app.use('/api', criarApi(armazem, { semLimite: !!rotasDeTeste }));
+
+/* Os testes do navegador (testes/rodar.mjs) ligam o servidor com
+   PLAINUS_ROTAS_DE_TESTE=1 e ganham duas rotas para ler e trocar uma
+   campanha por inteiro. Sem essa variável — o npm start de sempre —
+   elas não existem. E nunca fora do 127.0.0.1. */
+if (rotasDeTeste) rotasDeTeste.ligar(app, armazem, function () { return mesa; });
 
 /* Todo o resto: não existe. */
 app.use(function (pedido, resposta) {
@@ -133,7 +136,7 @@ app.use(function (pedido, resposta) {
    gravadas, e espalhadas para a mesa (a cada um, só o que ele vê).
    =================================================================== */
 const servidor = http.createServer(app);
-ligarMesa(servidor, armazem, function (texto) { console.log(texto); });
+const mesa = ligarMesa(servidor, armazem, function (texto) { console.log(texto); });
 
 
 servidor.listen(PORTA, HOST, function () {

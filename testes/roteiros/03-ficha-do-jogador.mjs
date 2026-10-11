@@ -34,14 +34,14 @@ await js(digita('[data-base="for"]', 8));
 await js(`document.querySelector('[data-acao="salvar-ficha"]').click()`);
 await espera(200);
 ok(await js(`!document.getElementById('formFicha') && document.querySelector('.nome-ficha').textContent==='Lyra'`), 'ficha criada e mostrada em leitura');
-ok(await js(`(()=>{const h=Campanhas.lerEstado(Sessao.ler().campanhaId).herois[0]; return h.nome==='Lyra' && h.jogador==='Ana' && h.dono===Sessao.ler().jogadorId && h.pv===7 && h.pvMax===7 && h.ca===13 && h.pp===11;})()`), 'herói gravado com dono, jogador e resumo (PV 7, CA 13, PP 11)');
+ok(await js(`(async()=>{const h=(await T.gravado()).herois[0]; return h.nome==='Lyra' && h.jogador==='Ana' && h.dono===Sessao.ler().jogadorId && h.pv===7 && h.pvMax===7 && h.ca===13 && h.pp===11;})()`), 'herói gravado com dono, jogador e resumo (PV 7, CA 13, PP 11)');
 await foto('j2-ficha');
 
 /* subir de nível com a vida cheia: continua cheio */
 await js(`document.querySelector('[data-acao="editar"]').click()`);
 await js(digita('#f-nivel', 3));
 await js(`document.querySelector('[data-acao="salvar-ficha"]').click()`); await espera(200);
-ok(await js(`(()=>{const h=Estado.herois[0]; return h.nivel===3 && h.pvMax===17 && h.pv===17;})()`), 'nível 3: PV 7 + 2×(4+1) = 17, e continua cheio');
+ok(await js(`(()=>{const h=Conexao.visao.meuHeroi; return h.nivel===3 && h.pvMax===17 && h.pv===17;})()`), 'nível 3: PV 7 + 2×(4+1) = 17, e continua cheio');
 
 /* ---- o Mestre vê, e o jogador não entra no painel do Mestre ---- */
 await ir('mestre.html');
@@ -59,14 +59,14 @@ const js2 = async (e) => (await cmd2('Runtime.evaluate', { expression: e, return
 await cmd2('Runtime.enable');
 /* a aba 1 vira Mestre de novo, a aba 2 abre o painel */
 const idCamp = await js(`Sessao.ler().campanhaId`);
-await js(`Sessao.gravar({papel:'mestre', campanhaId:${JSON.stringify(idCamp)}})`);
+await js(`Sessao.gravar(Acessos.achar(${JSON.stringify(idCamp)}, 'mestre'))`);
 await cmd2('Page.enable'); await cmd2('Page.navigate', { url: url('index.html') }); await espera(800);
-await js2(`Sessao.gravar({papel:'mestre', campanhaId:${JSON.stringify(idCamp)}})`);
+await js2(`Sessao.gravar(Acessos.achar(${JSON.stringify(idCamp)}, 'mestre'))`);
 await cmd2('Page.navigate', { url: url('mestre.html') }); await espera(1200);
 ok(await js2(`document.querySelectorAll('article.heroi').length`) === 1 && await js2(`!document.querySelector('.heroi-topo .pilula')`), 'Mestre vê Lyra, sem pílula de estado vazia');
 /* aba 1 vira jogador e muda o nome do personagem */
-const idAna = await js(`Campanhas.lerEstado(${JSON.stringify(idCamp)}).herois[0].dono`);
-await js(`Sessao.gravar({papel:'jogador', campanhaId:${JSON.stringify(idCamp)}, nome:'Ana', jogadorId:${JSON.stringify(idAna)}})`);
+const idAna = await js(`T.gravado(${JSON.stringify(idCamp)}).then(e=>e.herois[0].dono)`);
+await js(`Sessao.gravar(Acessos.achar(${JSON.stringify(idCamp)}, 'jogador', ${JSON.stringify(idAna)}))`);
 await ir('jogador.html');
 await js(`document.querySelector('[data-acao="editar"]').click()`);
 await js(digita('#f-nome', 'Lyra Lunar'));
@@ -74,26 +74,27 @@ await js(`document.querySelector('[data-acao="salvar-ficha"]').click()`); await 
 ok(await js2(`document.querySelector('article.heroi .nome').textContent`) === 'Lyra Lunar', 'aba do Mestre se atualiza sozinha quando o jogador salva');
 /* e o mestre, agindo depois, não apaga a mudança do jogador */
 await js2(`document.querySelector('[data-faces="20"]').click()`); await espera(300);
-ok(await js(`Campanhas.lerEstado(${JSON.stringify(idCamp)}).herois[0].nome==='Lyra Lunar'`), 'ação do Mestre depois não apaga a ficha do jogador');
+ok(await js(`T.gravado(${JSON.stringify(idCamp)}).then(e=>e.herois[0].nome==='Lyra Lunar')`), 'ação do Mestre depois não apaga a ficha do jogador');
 await cmd2('Page.close').catch(() => {}); ws2.close();
 await fetch('http://127.0.0.1:9333/json/close/' + tabMestre.id).catch(() => {});
 
-/* ---- Ana volta com o nome em minúsculas: mesma ficha ---- */
+/* ---- o nome "ana" já tem dono: pelo código, recusado; pelo cartão, a mesma ficha ---- */
 await js(`Sessao.limpar()`);
 await ir('index.html');
-await js(`document.getElementById('nome').value='ana'; document.getElementById('codigo').value=${JSON.stringify(codigo)};`);
-await clicarENavegar(`document.getElementById('btnEntrar').click()`);
-ok(await js(`document.querySelector('.nome-ficha')?.textContent==='Lyra Lunar'`), 'Ana volta (nome em minúsculas) e cai na própria ficha');
+await js(`document.querySelector('[data-porta="convite"]')?.click(); document.getElementById('nome').value='ana'; document.getElementById('codigo').value=${JSON.stringify(codigo)}; document.getElementById('btnEntrar').click()`);
+ok(await aguardar(`document.getElementById('erro').textContent.startsWith('Já tem alguém com esse nome')`), 'outra pessoa com o nome "ana" (em minúsculas) não entra no lugar da Ana');
+await clicarENavegar(`document.querySelector('.mesa-jogador [data-acao="voltar-mesa"]').click()`);
+ok(await js(`document.querySelector('.nome-ficha')?.textContent==='Lyra Lunar'`), 'a Ana volta pelo cartão de "Suas mesas" e cai na própria ficha');
 
 /* ---- Bruno: outro jogador, vê Lyra na party ---- */
 await clicarENavegar(`document.querySelector('[data-acao="sair"]').click()`);
 await js(`document.getElementById('nome').value='Bruno'; document.getElementById('codigo').value=${JSON.stringify(codigo)};`);
 await clicarENavegar(`document.getElementById('btnEntrar').click()`);
 ok(await js(`!!document.getElementById('formFicha') && [...document.querySelectorAll('.companheiro .nome')].some(n=>n.textContent==='Lyra Lunar')`), 'novo jogador cria ficha e já vê Lyra na party');
-ok(await js(`(()=>{const v=visaoDoJogador(Estado, Sessao.ler().jogadorId); return v.segredos.every(x=>!('ligadoA' in x)) && !('npcs' in v) && !('pendencias' in v);})()`), 'visão do jogador: só segredos revelados, sem lista de NPCs nem pendências');
+ok(await js(`(()=>{const v=Conexao.visao; return v.segredos.every(x=>!('ligadoA' in x)) && !('npcs' in v) && !('pendencias' in v);})()`), 'visão do jogador: só segredos revelados, sem lista de NPCs nem pendências');
 
 /* ---- método rolagem + PV rolado ---- */
-await js(`(()=>{const id=Sessao.ler().campanhaId; const e=Campanhas.lerEstado(id); e.campanha.regrasPersonagem={atributos:'rolagem',pv:'rolado',talentos:false,multiclasse:false}; Campanhas.salvarEstado(id,e);})()`);
+await js(`(async()=>{const e=await T.gravado(); e.campanha.regrasPersonagem={atributos:'rolagem',pv:'rolado',talentos:false,multiclasse:false}; await T.trocar(e);})()`);
 await ir('jogador.html');
 ok(await js(`!document.getElementById('f-classe2') && !document.getElementById('f-talentos') && !!document.querySelector('[data-acao="rolar-atributos"]')`), 'regras novas: sem multiclasse, sem talentos, com botão de rolar');
 await js(`document.querySelector('[data-acao="rolar-atributos"]').click()`);
@@ -107,10 +108,10 @@ await js(`document.querySelector('[data-acao="salvar-ficha"]').click()`);
 ok(await js(`[...document.querySelectorAll('.recado-flutuante.erro')].some(r=>r.textContent.includes('que você rolou'))`), 'valor fora do que foi rolado é recusado');
 await js(digita('[data-base="for"]', `Jogador.rascunho.ficha.rolados[0]`).replace(`"Jogador.rascunho.ficha.rolados[0]"`, `Jogador.rascunho.ficha.rolados[0]`));
 await js(`document.querySelector('[data-acao="salvar-ficha"]').click()`); await espera(200);
-ok(await js(`document.querySelector('.nome-ficha')?.textContent==='Brom' && Estado.herois.length===2`), 'Brom criado com atributos rolados');
+ok(await js(`(async()=>document.querySelector('.nome-ficha')?.textContent==='Brom' && (await T.gravado()).herois.length===2)()`), 'Brom criado com atributos rolados');
 
 /* ---- o Mestre no painel do jogador ---- */
-await js(`Sessao.gravar({papel:'mestre', campanhaId:Sessao.ler().campanhaId})`);
+await js(`Sessao.gravar(Acessos.achar(Sessao.ler().campanhaId, 'mestre'))`);
 await ir('jogador.html');
 ok(await js(`document.querySelector('.tela-restrita a')?.getAttribute('href')==='mestre.html'`), 'Mestre no painel do jogador: barrado, com link para o painel dele');
 await ir('combate.html');
@@ -118,7 +119,7 @@ await js(`document.querySelector('[data-acao="add-party"]').click()`);
 ok(await js(`Estado.combate.combatentes.filter(c=>c.heroiId).length===2`), 'Trazer a party leva os dois personagens para o combate');
 
 await cmd('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-await js(`Sessao.gravar({papel:'jogador', campanhaId:Sessao.ler().campanhaId, nome:'Ana', jogadorId:${JSON.stringify(idAna)}})`);
+await js(`Sessao.gravar(Acessos.achar(Sessao.ler().campanhaId, 'jogador', ${JSON.stringify(idAna)}))`);
 await ir('jogador.html');
 ok(await js(`document.documentElement.scrollWidth <= 390`), 'ficha sem rolagem lateral no celular');
 await foto('j3-celular-ficha');
