@@ -35,11 +35,12 @@
    por que elas viram células enquanto se pinta.
 
    A IMAGEM DE FUNDO
-   Sem servidor, ela vai para o localStorage junto com a campanha. Por
-   isso é recomprimida antes (Imagens.comprimir, no imagens.js): reduzida e salva em
-   JPEG, fica em algumas centenas de KB em vez de vários MB. Mesmo
-   assim o espaço do navegador acaba — e, se acabar, a janela desfaz a
-   mudança e avisa, em vez de deixar a campanha pela metade.
+   Vai para o servidor dentro da ação, e ele a guarda como arquivo
+   (servidor/imagens.js). Por isso é recomprimida antes
+   (Imagens.comprimir, no imagens.js): reduzida e salva em JPEG, fica
+   em algumas centenas de KB em vez de vários MB. Se a campanha passar
+   do espaço de imagens dela, o servidor recusa, a tela volta ao que
+   ele tem e avisa — em vez de deixar a campanha pela metade.
    =================================================================== */
 
 /* O limite de tamanho de uma imagem de mapa está no imagens.js

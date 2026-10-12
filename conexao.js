@@ -43,6 +43,7 @@ const Conexao = {
   textoDoServidor: null,    /* Mestre: a última campanha que veio do servidor, em texto */
   fila: [],                 /* ações esperando a mesa abrir */
   pendentes: 0,             /* ações mandadas e ainda sem confirmação */
+  atrasada: false,          /* Mestre: chegou campanha com ação ainda a caminho (receber) */
   primeira: null,           /* { resolver, recusar } da abertura */
 
   ESPERA_NOVA_TENTATIVA: 4000,
@@ -146,6 +147,14 @@ const Conexao = {
     if (pacote.papel === 'mestre' && pacote.estado && typeof pacote.estado === 'object') {
       const texto = JSON.stringify(pacote.estado);
       this.textoDoServidor = texto;
+      /* Ainda há ação do Mestre a caminho: a tela já mostra ela, e a
+         campanha que chegou agora ainda NÃO (o servidor a aplica depois).
+         Trocar a tela agora faria a mudança sumir por um instante e
+         voltar — o "pisca" de quem pinta parede. Fica guardada; quando
+         a última confirmação chegar (enviar, abaixo), a tela passa a
+         ser a do servidor. A primeira chegada não espera. */
+      if (this.pendentes > 0 && !this.primeira) { this.atrasada = true; return; }
+      this.atrasada = false;
       /* O eco da própria ação: igual ao que a tela já tem, nada a fazer. */
       if (texto === JSON.stringify(Estado)) mudou = false;
       else Memoria.substituir(pacote.estado);
@@ -216,6 +225,12 @@ const Conexao = {
     return new Promise(function (resolver) {
       envio.resolver = function (resposta) {
         self.pendentes -= 1;
+        /* A última a caminho foi confirmada (ou recusada): a campanha do
+           servidor que ficou esperando entra na tela agora. */
+        if (!self.pendentes && self.atrasada) {
+          self.atrasada = false;
+          self.receber({ papel: 'mestre', estado: JSON.parse(self.textoDoServidor) });
+        }
         if (resposta && resposta.erro) self.avisar(resposta.erro);
         resolver(resposta || { erro: 'Sem resposta do servidor.' });
       };

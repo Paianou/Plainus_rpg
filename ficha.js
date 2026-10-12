@@ -9,7 +9,7 @@
 
    Nada aqui desenha tela. São funções que recebem a ficha e devolvem
    números. Por isso o mesmo arquivo serve ao painel do jogador (que
-   mostra a ficha dele) e vai servir ao do Mestre (que mostra a de
+   mostra a ficha dele) e pode servir ao do Mestre (que mostra a de
    todos) — e as duas telas nunca vão discordar de quanto dá a CA.
 
    POR QUE NÃO GUARDAR O RESULTADO

@@ -7,6 +7,7 @@
 
      POST /api/campanhas   criar (da criação em etapas, ou de um backup)
                            → { id, codigo, chave }   a chave do Mestre
+                           só no computador do servidor (doProprioComputador)
      POST /api/convite     o nome da mesa de um código (o link de convite)
      POST /api/entrar      entrar com o código, como jogador
                            → { campanhaId, jogadorId, chave, nome }
@@ -41,6 +42,7 @@
    um arquivo de gigabytes, não.
    =================================================================== */
 
+const net = require('net');
 const express = require('express');
 const { senhaValida } = require('./armazem.js');
 const { imagemDaCena, retratoSeguro } = require('../modelo.js');
@@ -63,13 +65,42 @@ function quemPede(pedido) {
   return conexao || 'desconhecido';
 }
 
+/* O PRÓPRIO COMPUTADOR, DE VERDADE
+   Conexão de 127.0.0.1 SEM o cabeçalho do Cloudflare: é alguém sentado
+   na máquina do servidor (o Mestre, em casa) ou os testes. Pelo túnel
+   a conexão também vem de 127.0.0.1 — mas o Cloudflare sempre põe o
+   CF-Connecting-IP, e quem está do outro lado não consegue tirá-lo. */
+function doProprioComputador(pedido) {
+  const conexao = pedido.socket && pedido.socket.remoteAddress;
+  return DO_PROPRIO_COMPUTADOR.has(conexao) && pedido.headers['cf-connecting-ip'] === undefined;
+}
+
+/* A CHAVE DE UM ENDEREÇO, PARA OS LIMITES
+   Em IPv4, cada casa costuma ter um endereço. Em IPv6, cada casa recebe
+   um BLOCO inteiro (os primeiros 64 bits iguais, o resto livre): quem
+   trocasse o fim do endereço a cada pedido ganharia um limite novo a
+   cada vez. Por isso, em IPv6, conta o bloco — "2001:db8:1:2::/64". */
+function chaveDoEndereco(ip) {
+  let texto = String(ip || '');
+  if (texto.startsWith('::ffff:') && net.isIPv4(texto.slice(7))) return texto.slice(7);
+  texto = texto.split('%')[0];
+  if (!net.isIPv6(texto)) return texto;
+  const partes = texto.split('::');
+  const esquerda = partes[0] ? partes[0].split(':') : [];
+  const direita = partes.length > 1 && partes[1] ? partes[1].split(':') : [];
+  const grupos = partes.length > 1
+    ? esquerda.concat(new Array(Math.max(0, 8 - esquerda.length - direita.length)).fill('0'), direita)
+    : esquerda;
+  return grupos.slice(0, 4).map(function (g) { return (parseInt(g, 16) || 0).toString(16); }).join(':') + '::/64';
+}
+
 /* Um contador por endereço, que zera a cada minuto. Simples e em
    memória: para uma mesa de amigos, é o bastante. */
 function limitador(porMinuto) {
   const contas = new Map();
   setInterval(function () { contas.clear(); }, 60 * 1000).unref();
   return function (pedido, resposta, seguir) {
-    const quem = quemPede(pedido);
+    const quem = chaveDoEndereco(quemPede(pedido));
     const n = (contas.get(quem) || 0) + 1;
     contas.set(quem, n);
     if (n > porMinuto) return resposta.status(429).json({ erro: 'Pedidos demais. Espere um minuto e tente de novo.' });
@@ -96,7 +127,15 @@ function criarApi(armazem, opcoes) {
   /* A senha do Mestre é opcional: sem ela, a mesa só abre no navegador
      que a criou (o que é seguro, só menos prático). Vem conferida ANTES
      de criar — senha recusada não deixa campanha pela metade. */
-  api.post('/campanhas', limite(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
+  /* QUEM CRIA: só quem está no computador do servidor. Criar não pede
+     chave nenhuma — aberto pelo túnel, qualquer um com o endereço
+     enchia o servidor de campanhas (até o teto de 200, e aí nem o
+     Mestre criava mais), de memória e de disco. Os jogadores entram
+     pelo código; quem cria e restaura backup é o Mestre, em casa. */
+  api.post('/campanhas', function (pedido, resposta, seguir) {
+    if (doProprioComputador(pedido)) return seguir();
+    resposta.status(403).json({ erro: 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando.' });
+  }, limite(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
     const comSenha = corpo.senha !== undefined && corpo.senha !== null && corpo.senha !== '';
     const problema = comSenha ? senhaValida(corpo.senha) : null;
@@ -105,7 +144,16 @@ function criarApi(armazem, opcoes) {
     if (r.erro) return resposta.status(400).json({ erro: r.erro });
     const pronto = function () { resposta.json({ id: r.id, codigo: r.codigo, chave: r.chave, temSenha: armazem.temSenha(r.id) }); };
     if (!comSenha) return pronto();
-    armazem.definirSenha(r.id, corpo.senha).then(pronto, pronto);
+    /* A senha pedida não foi guardada: a campanha também não fica. Antes,
+       a mesa nascia SEM senha e quem criou achava que tinha uma. */
+    const desfazer = function () {
+      armazem.apagar(r.id);
+      resposta.status(500).json({ erro: 'O servidor não conseguiu guardar a senha, e a campanha não foi criada. Tente de novo.' });
+    };
+    armazem.definirSenha(r.id, corpo.senha).then(function (v) {
+      if (v && v.erro) return desfazer();
+      pronto();
+    }, desfazer);
   });
 
   /* O código de convite e a entrada dividem o MESMO limite: é por eles
@@ -142,7 +190,7 @@ function criarApi(armazem, opcoes) {
         m = m || {};
         const papel = m.papel === 'mestre' ? 'mestre' : 'jogador';
         if (!armazem.conferirAcesso(m.campanhaId, papel, m.jogadorId, m.chave)) {
-          return { campanhaId: String(m.campanhaId || '').slice(0, 40), jogadorId: m.jogadorId || null, papel: papel, semAcesso: true };
+          return { campanhaId: String(m.campanhaId || '').slice(0, 40), jogadorId: typeof m.jogadorId === 'string' ? m.jogadorId.slice(0, 40) : null, papel: papel, semAcesso: true };
         }
         const estado = armazem.ler(m.campanhaId);
         const resumo = armazem.resumo(m.campanhaId);
@@ -206,7 +254,7 @@ function criarApi(armazem, opcoes) {
      razoável leva anos. */
   api.post('/mestre', limite(5), express.json({ limit: '2kb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
-    armazem.entrarComoMestre(corpo.codigo, corpo.senha).then(function (r) {
+    armazem.entrarComoMestre(corpo.codigo, corpo.senha, chaveDoEndereco(quemPede(pedido))).then(function (r) {
       if (r.erro) return resposta.status(403).json({ erro: r.erro });
       resposta.json(r);
     }, function () {
@@ -246,7 +294,7 @@ function criarApi(armazem, opcoes) {
     if (!soMestre(corpo, resposta)) return;
     const id = corpo.campanhaId;
     const confirmar = armazem.temSenha(id)
-      ? armazem.verificarSenha(id, corpo.senha, { erro: 'Senha errada.' })
+      ? armazem.verificarSenha(id, corpo.senha, { erro: 'Senha errada.' }, chaveDoEndereco(quemPede(pedido)))
       : Promise.resolve(String(corpo.confirmacao || '').trim() === armazem.ler(id).campanha.nome ? { ok: true } : { erro: 'Digite o nome da campanha exatamente como ele é.' });
     confirmar.then(function (v) {
       if (v.erro) return resposta.status(403).json({ erro: v.erro });
@@ -268,4 +316,4 @@ function criarApi(armazem, opcoes) {
   return api;
 }
 
-module.exports = { criarApi, quemPede };
+module.exports = { criarApi, quemPede, chaveDoEndereco, doProprioComputador };

@@ -42,8 +42,13 @@ ok(quemPede(pedido('127.0.0.1')) === '127.0.0.1', 'sem túnel, no próprio compu
   ok(ana.slice(0, 5).every((s) => s === 403) && ana[5] === 429, 'a 6ª tentativa no minuto, da mesma pessoa: barrada (' + ana.join(', ') + ')');
   ok(await tentar('198.51.100.9') === 403, '…mas outra pessoa, pelo mesmo túnel, continua podendo tentar');
 
+  /* Espera o servidor SAIR antes de apagar a pasta dele: no Windows,
+     apagar uma pasta que outro processo ainda está largando dá EBUSY —
+     e o teste falhava depois de todas as verificações darem certo. */
+  const saiu = new Promise((r) => (servidor.exitCode !== null ? r() : servidor.once('exit', r)));
   servidor.kill();
-  fs.rmSync(pasta, { recursive: true, force: true });
+  await saiu;
+  fs.rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   console.log(falhas ? falhas + ' FALHAS' : '\nTúnel certo.');
   process.exit(falhas ? 1 : 0);
 })();

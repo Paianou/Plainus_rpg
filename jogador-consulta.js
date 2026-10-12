@@ -12,9 +12,10 @@
 
    ANOTAÇÕES
    O caderno do jogador: pistas, nomes, teorias. Ficam na ficha dele
-   (ficha.notas) e só ele escreve. Sem servidor, o Mestre também
-   consegue lê-las (como lê o resto); a tela diz isso, para ninguém
-   escrever achando que é um diário trancado.
+   (ficha.notas) e só ele escreve. O Mestre recebe a campanha inteira,
+   fichas incluídas — então ele também consegue lê-las (e elas vão no
+   backup); a tela diz isso, para ninguém escrever achando que é um
+   diário trancado.
    =================================================================== */
 
 const RegrasJogador = {
@@ -244,7 +245,7 @@ const AnotacoesJogador = {
       criarComIcone('h2', 'nota', atual ? 'Editando anotação' : 'Nova anotação', 16),
       criar('div.form-nota', [titulo, texto]),
       criar('div.acoes-detalhe', botoes),
-      criar('p.dica', 'As anotações ficam na sua ficha. Sem servidor, o Mestre também consegue lê-las.')
+      criar('p.dica', 'As anotações ficam na sua ficha. O Mestre também consegue lê-las.')
     ]));
 
     const lista = criar('div.cartao', [criarComIcone('h2', 'diario', 'Suas anotações (' + notas.length + ')', 16)]);

@@ -158,12 +158,14 @@
         <div id="blocoConvite">
           <!--
             O código tem 12 caracteres sorteados (XXXX-XXXX-XXXX).
-            maxlength 20, e não 14, para caber um código colado com
-            espaços — o app.js limpa e arruma.
+            maxlength 300, e não 14: cabe um código colado com
+            espaços, ou o LINK de convite inteiro — o normalizarCodigo
+            (modelo.js) tira o código de dentro e arruma. Com 20, o link
+            colado era cortado no meio e a entrada recusava o código.
           -->
           <div class="campo">
             <label for="codigo">Código da campanha</label>
-            <input class="codigo-entrada" type="text" id="codigo" placeholder="K7QM-2XRP-9HVD" maxlength="20" autocomplete="off" spellcheck="false">
+            <input class="codigo-entrada" type="text" id="codigo" placeholder="K7QM-2XRP-9HVD" maxlength="300" autocomplete="off" spellcheck="false">
           </div>
           <div class="campo">
             <button class="botao fantasma" type="button" id="btnEntrar">Entrar na mesa</button>
@@ -188,7 +190,7 @@
         <div id="blocoVoltaMestre" hidden>
           <div class="campo">
             <label for="codigoMestre">Código da campanha</label>
-            <input class="codigo-entrada" type="text" id="codigoMestre" placeholder="K7QM-2XRP-9HVD" maxlength="20" autocomplete="username" spellcheck="false">
+            <input class="codigo-entrada" type="text" id="codigoMestre" placeholder="K7QM-2XRP-9HVD" maxlength="300" autocomplete="username" spellcheck="false">
           </div>
           <div class="campo">
             <label for="senhaMestre">Senha do Mestre</label>

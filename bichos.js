@@ -266,7 +266,10 @@ const Bicho = {
     regua.setAttribute('height', 24);
     /* Fora da vista, mas dentro do documento: getBBox() precisa que o
        elemento esteja renderizado para responder. */
-    regua.setAttribute('style', 'position:absolute;left:-9999px;top:0');
+    /* style.cssText, e não setAttribute('style'): a política de
+       segurança do servidor (server.js) bloqueia o atributo de estilo
+       escrito como texto, mas não o estilo posto pelo JavaScript. */
+    regua.style.cssText = 'position:absolute;left:-9999px;top:0';
     regua.innerHTML = this.formas[chave];
     document.body.appendChild(regua);
 

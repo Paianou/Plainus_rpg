@@ -21,9 +21,8 @@
    SESSÃO que o servidor conferiu pela chave — nunca com quem o
    navegador diz ser.
 
-   Enquanto o site ainda guarda a campanha no navegador, enviarMeuHeroi()
-   e companhia (no fim do arquivo) aplicam as mesmas ações no
-   armazenamento local. Na troca para o servidor, só elas mudam.
+   No navegador, enviarMeuHeroi() e companhia (no fim do arquivo)
+   mandam essas ações ao servidor pela conexão (conexao.js).
 
 
    LISTA BRANCA, SEMPRE
@@ -133,16 +132,14 @@ function visaoDoJogador(estado, jogadorId) {
      'privado:<jogadorId>'  só aquele jogador e o Mestre
 
    Do jogador, saem a mesa, a equipe e a conversa DELE com o Mestre.
-   A conversa privada de outro jogador não sai daqui — com o servidor,
-   não chega ao navegador dele. Do mesmo jeito, a conversa da equipe
-   não vai para o Mestre (hoje o painel dele simplesmente não a mostra;
-   sem servidor, ela está no mesmo armazenamento, e quem souber abrir o
-   DevTools a lê).
+   A conversa privada de outro jogador não sai daqui — não chega ao
+   navegador dele. Do mesmo jeito, a conversa da equipe não vai para o
+   Mestre (o servidor/mesa.js a tira antes de mandar a campanha a ele).
 
    O AUTOR, NA VISÃO DO JOGADOR
    Sai o nome, o personagem e se a mensagem é dele mesmo — mas NÃO o
-   jogadorId de quem escreveu. Sem servidor, esse id é o que identifica
-   cada jogador; quem soubesse o id de outro poderia se passar por ele.
+   jogadorId de quem escreveu: os ids dos outros não são da conta de
+   ninguém (quem identifica cada jogador é a chave, no servidor).
    =================================================================== */
 
 const LIMITE_MENSAGENS = 300;
@@ -251,30 +248,58 @@ function inteiro(valor, minimo, maximo, padrao) {
   return Number.isFinite(n) ? Math.min(Math.max(n, minimo), maximo) : padrao;
 }
 
+function ehObjeto(x) {
+  return !!x && typeof x === 'object' && !Array.isArray(x);
+}
+
 const ACOES_JOGADOR = {
 
   /* Salvar a própria ficha. O PV ATUAL não vem da ficha: quem tira e
      dá PV na mesa é o Mestre, no combate. A ficha só muda o máximo. */
   salvarHeroi: function (estado, sessao, dados) {
     if (sessao.papel !== 'jogador') return { erro: 'Só jogador salva a própria ficha.' };
-    const heroi = dados.heroi;
-    if (!heroi || typeof heroi !== 'object' || Array.isArray(heroi) || !ID.test(String(heroi.id))) return { erro: 'Ficha inválida.' };
-    if (JSON.stringify(heroi).length > LIMITE_HEROI) return { erro: 'A ficha ficou grande demais (a foto, talvez).' };
+    const enviado = dados.heroi;
+    if (!ehObjeto(enviado) || !ID.test(String(enviado.id))) return { erro: 'Ficha inválida.' };
+    if (enviado.ficha !== undefined && !ehObjeto(enviado.ficha)) return { erro: 'Ficha inválida.' };
+    if (JSON.stringify(enviado).length > LIMITE_HEROI) return { erro: 'A ficha ficou grande demais (a foto, talvez).' };
     /* A foto vem do navegador do jogador: só entra se for o JPEG que o
        site gera, no tamanho de retrato — nunca 5 MB, nunca um SVG. */
-    if (heroi.ficha && heroi.ficha.foto && !modelo.retratoSeguro(heroi.ficha.foto)) {
+    if (enviado.ficha && enviado.ficha.foto && !modelo.retratoSeguro(enviado.ficha.foto)) {
       return { erro: 'Essa foto não é válida. Escolha outra imagem.' };
     }
 
-    /* Quem é o dono sai da SESSÃO: o navegador não escolhe de quem é o
-       personagem. Os números que a mesa inteira vê chegam conferidos. */
-    heroi.dono = sessao.jogadorId;
-    heroi.jogador = String(sessao.nome || 'Jogador').slice(0, 30);
-    heroi.nome = typeof heroi.nome === 'string' && heroi.nome.trim() ? heroi.nome.trim().slice(0, 40) : 'Sem nome';
-    heroi.nivel = inteiro(heroi.nivel, 1, 20, 1);
-    heroi.ca = inteiro(heroi.ca, 0, 40, 10);
-    heroi.pvMax = inteiro(heroi.pvMax, 1, 999, 1);
-    heroi.bonusIniciativa = inteiro(heroi.bonusIniciativa, -10, 20, 0);
+    /* LISTA BRANCA, como na visão: o herói guardado é montado campo a
+       campo, com o tipo conferido — o que o navegador mandar a mais fica
+       de fora. Antes, o objeto que chegava era guardado inteiro: uma
+       "classe" que fosse um objeto, ou um campo inventado de 200 KB, ia
+       para a tela do Mestre e para a party de todo mundo.
+       Quem é o dono sai da SESSÃO: o navegador não escolhe de quem é o
+       personagem. Os números que a mesa inteira vê chegam conferidos.
+       Os campos são os do Ficha.resumoDoHeroi (ficha.js). A ficha em si
+       (heroi.ficha) só é lida pelo próprio jogador — vai como veio. */
+    const textoCurto = function (valor, limite) { return typeof valor === 'string' ? valor.slice(0, limite) : ''; };
+    const heroi = {
+      id: enviado.id,
+      dono: sessao.jogadorId,
+      jogador: String(sessao.nome || 'Jogador').slice(0, 30),
+      nome: typeof enviado.nome === 'string' && enviado.nome.trim() ? enviado.nome.trim().slice(0, 40) : 'Sem nome',
+      classe: textoCurto(enviado.classe, 120),
+      nivel: inteiro(enviado.nivel, 1, 20, 1),
+      ca: inteiro(enviado.ca, 0, 40, 10),
+      pp: inteiro(enviado.pp, 0, 99, 10),
+      bonusIniciativa: inteiro(enviado.bonusIniciativa, -10, 20, 0),
+      pvMax: inteiro(enviado.pvMax, 1, 999, 1),
+      rodape: textoCurto(enviado.rodape, 80),
+      estado: textoCurto(enviado.estado, 80)
+    };
+    /* A terceira estatística do cartão do Mestre (mestre.js lê
+       heroi.terceira.rotulo direto): sempre existe. */
+    heroi.terceira = ehObjeto(enviado.terceira)
+      ? { rotulo: textoCurto(enviado.terceira.rotulo, 30), valor: textoCurto(String(enviado.terceira.valor === undefined ? '' : enviado.terceira.valor), 30) }
+      : { rotulo: 'Iniciativa', valor: (heroi.bonusIniciativa >= 0 ? '+' : '') + heroi.bonusIniciativa };
+    /* A ficha só vai quando veio; um herói novo sem ficha ganha uma vazia
+       (as telas do jogador leem meuHeroi.ficha por dentro). */
+    if (enviado.ficha) heroi.ficha = enviado.ficha;
 
     estado.herois = estado.herois || [];
     const posicao = estado.herois.findIndex(function (h) { return h.id === heroi.id; });
@@ -283,6 +308,7 @@ const ACOES_JOGADOR = {
       if (estado.herois.some(function (h) { return h.dono === sessao.jogadorId; })) return { erro: 'Você já tem um personagem nesta campanha.' };
       if (estado.herois.length >= LIMITE_HEROIS) return { erro: 'Esta mesa já está cheia.' };
       heroi.pv = heroi.pvMax;
+      if (!heroi.ficha) heroi.ficha = {};
       estado.herois.push(heroi);
       return { novo: true };
     }

@@ -21,9 +21,22 @@ await clicarENavegar(`document.getElementById('btnAvancar').click()`);
 ok(await js(`location.href`) === SITE + 'mestre.html' && await js(`Estado.campanha.nome`) === 'Mesa no servidor', 'criar campanha leva ao painel do Mestre, em http://');
 const codigo = await js(`Estado.campanha.codigo`);
 
-/* no ar, o convite é um LINK */
+/* Aberta por localhost/127.0.0.1, o convite é o CÓDIGO: um link
+   "http://127.0.0.1/…" não abre nada no computador do amigo. */
 await js(`window._copiado=null; navigator.clipboard.writeText=(t)=>{window._copiado=t; return Promise.resolve();}; Layout.copiarCodigo()`); await espera(100);
-ok(await js(`window._copiado`) === SITE + 'index.html#convite=' + codigo, 'o botão de convite copia o LINK: ' + await js(`window._copiado`));
+ok(await js(`window._copiado`) === codigo, 'por localhost, o botão de convite copia o CÓDIGO: ' + await js(`window._copiado`));
+
+/* O link inteiro colado no campo do código também entra (antes, o
+   campo cortava o link em 20 letras e o código era recusado). */
+const bia = await novaAba();
+await bia.js(`location.href=${JSON.stringify(SITE + 'jogador.html')}`); await espera(500);
+await bia.navegarPor(`location.href=${JSON.stringify(SITE)}`);
+await bia.js(`document.querySelector('[data-porta="convite"]').click(); document.getElementById('nome').value='Bia'; const c=document.getElementById('codigo'); c.value=${JSON.stringify(SITE + 'index.html#convite=' + codigo)};`);
+/* (value por JavaScript ignora o maxlength; quem cola com o teclado, não.) */
+ok(await bia.js(`document.getElementById('codigo').maxLength`) >= 100 && await bia.js(`document.getElementById('codigoMestre').maxLength`) >= 100, 'os campos de código cabem um link colado inteiro');
+await bia.navegarPor(`document.getElementById('btnEntrar').click()`);
+ok(await bia.js(`location.href`) === SITE + 'jogador.html', 'link colado no campo do código: a Bia entra na mesa');
+await bia.fechar();
 
 /* a Ana abre o link */
 const ana = await novaAba();
