@@ -15,11 +15,10 @@
    (mensagensDoJogador, enviarMensagem) — o desenho do servidor. Esta
    tela só desenha o que pode ver e manda pelo que pode mandar.
 
-   SEM SERVIDOR
-   As mensagens vão para a campanha no localStorage, e as outras abas
-   do MESMO navegador ficam sabendo pelo evento 'storage' (dados.js).
-   Dá para conversar entre as abas do Mestre e dos jogadores num
-   computador só; entre computadores, só com o servidor (Socket.IO).
+   O CAMINHO DE UMA MENSAGEM
+   Vai ao servidor como ação (acaoJogador 'mensagem', pela conexao.js);
+   ele confere quem pode escrever ali, guarda na campanha e manda a
+   cada um a conversa que ele pode ver.
 
    O QUE JÁ FOI LIDO
    Fica no sessionStorage desta aba: até quando cada conversa foi lida.

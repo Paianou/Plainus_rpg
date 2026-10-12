@@ -19,9 +19,10 @@
 
 
    QUEM É O JOGADOR
-   A sessão guarda um jogadorId, criado na entrada. Sem servidor ele é
-   autodeclarado — é o problema 2 do CLAUDE.md, e só um token assinado
-   pelo servidor resolve de vez.
+   A sessão guarda o jogadorId e a CHAVE que o servidor entregou na
+   entrada. Quem o jogador é sai da chave, conferida no servidor — o
+   jogadorId sozinho não abre nada (problema 2 do CLAUDE.md, resolvido
+   no servidor/armazem.js).
    =================================================================== */
 
 /* Limites de cada campo de texto da ficha. */

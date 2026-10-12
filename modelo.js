@@ -106,7 +106,51 @@ function conferirCampanha(salvo) {
   if (!(limpo.campanha.sessao >= 1)) limpo.campanha.sessao = 1;
   if (typeof limpo.mestre.nome !== 'string') limpo.mestre.nome = '';
 
+  conferirPorDentro(limpo);
   return limpo;
+}
+
+/* ---------- Por dentro das listas ----------
+   Conferir só o primeiro nível ("cenas é uma lista") não basta: as
+   telas e a visão do jogador (visao.js) leem DENTRO de cada item —
+   cena.paredes.map, mensagem.autor.papel. Um backup com uma cena sem
+   paredes, ou um null no meio da lista de mensagens, derrubava o
+   servidor no instante em que alguém entrava na mesa.
+   Aqui, cada lista fica só com itens do tipo certo, e os pedaços que
+   a visão lê por dentro ganham o valor vazio quando faltam. Numa
+   campanha que o próprio site gravou, nada muda. */
+const LISTAS_DE_OBJETOS = ['herois', 'cenas', 'rolagens', 'diario', 'segredos', 'pendencias', 'faccoes', 'npcs',
+  'tabelasMinhas', 'monstrosMeus', 'rolagensTabela', 'rolagensMesa', 'mensagens'];
+const LISTAS_DE_TEXTOS = ['acoesDaVez', 'fixadas', 'avisosVistos'];
+
+function ehObjeto(x) {
+  return !!x && typeof x === 'object' && !Array.isArray(x);
+}
+
+function soLista(x) {
+  return Array.isArray(x) ? x : [];
+}
+
+function conferirPorDentro(limpo) {
+  LISTAS_DE_OBJETOS.forEach(function (chave) { limpo[chave] = limpo[chave].filter(ehObjeto); });
+  LISTAS_DE_TEXTOS.forEach(function (chave) { limpo[chave] = limpo[chave].filter(function (x) { return typeof x === 'string'; }); });
+
+  /* Cada parede é [coluna, linha, largura, altura]: quatro números. */
+  limpo.cenas.forEach(function (cena) {
+    cena.paredes = soLista(cena.paredes).filter(function (p) {
+      return Array.isArray(p) && p.length === 4 && p.every(function (n) { return typeof n === 'number' && isFinite(n); });
+    });
+    cena.tokens = soLista(cena.tokens).filter(ehObjeto);
+    cena.marcadores = soLista(cena.marcadores).filter(ehObjeto);
+  });
+
+  /* Mensagem sem autor ou sem canal não tem como ser mostrada a ninguém. */
+  limpo.mensagens = limpo.mensagens.filter(function (m) { return ehObjeto(m.autor) && typeof m.canal === 'string'; });
+
+  const combate = limpo.combate;
+  combate.combatentes = soLista(combate.combatentes).filter(ehObjeto);
+  combate.combatentes.forEach(function (x) { if (x.condicoes !== undefined && !Array.isArray(x.condicoes)) x.condicoes = []; });
+  combate.registro = soLista(combate.registro).filter(ehObjeto);
 }
 
 /* ---------- As imagens ----------
@@ -169,10 +213,18 @@ function sortearCodigo() {
 }
 
 /* Aceita o código do jeito que a pessoa colar — minúsculo, sem hífen,
-   com espaço — e devolve no formato certo, ou null se não for um
-   código possível. */
+   com espaço, ou o LINK de convite inteiro ("…/index.html#convite=
+   K7QM-2XRP-9HVD", que é o que o botão de convite copia quando a mesa
+   está no ar) — e devolve no formato certo, ou null se não for um
+   código possível. Do link, vale só o que vem depois de "convite=":
+   as letras do endereço não podem entrar na conta. */
 function normalizarCodigo(texto) {
-  const limpo = String(texto).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let bruto = String(texto);
+  const doLink = /convite=([^&\s]+)/i.exec(bruto);
+  if (doLink) {
+    try { bruto = decodeURIComponent(doLink[1]); } catch (erro) { bruto = doLink[1]; }
+  }
+  const limpo = bruto.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (limpo.length !== 12) return null;
   for (let i = 0; i < limpo.length; i++) {
     if (ALFABETO_CODIGO.indexOf(limpo[i]) === -1) return null;

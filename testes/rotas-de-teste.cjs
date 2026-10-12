@@ -12,13 +12,24 @@
 
    O server.js só carrega este arquivo com PLAINUS_ROTAS_DE_TESTE=1 —
    que só o testes/rodar.mjs define — e só escutando em 127.0.0.1. No
-   npm start de sempre, estas rotas não existem.
+   npm start de sempre, estas rotas não existem. E mesmo ligadas, só
+   respondem a quem está no próprio computador (nunca pelo túnel).
    =================================================================== */
 
 const express = require('express');
 const { conferirCampanha } = require('../modelo.js');
+const { doProprioComputador } = require('../servidor/api.js');
 
 function ligar(app, armazem, mesa) {
+  /* "Só em 127.0.0.1" não basta: o túnel do Cloudflare TAMBÉM chega por
+     127.0.0.1. Rodar os testes com o túnel ligado abriria estas rotas
+     (que não pedem chave nenhuma) para a internet. Cada pedido é
+     conferido: do próprio computador, e sem o cabeçalho do túnel. */
+  app.use('/teste', function (pedido, resposta, seguir) {
+    if (doProprioComputador(pedido)) return seguir();
+    resposta.status(404).type('text').send('Não encontrado.');
+  });
+
   app.post('/teste/ler', express.json(), function (pedido, resposta) {
     const estado = armazem.ler(pedido.body && pedido.body.campanhaId);
     if (!estado) return resposta.status(404).json({ erro: 'Campanha não encontrada.' });

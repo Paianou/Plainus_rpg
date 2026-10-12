@@ -92,8 +92,10 @@ const LIMITE_ESTADO = 3 * 1024 * 1024;
 const SENHA_MIN = 8;
 const SENHA_MAX = 100;
 /* Erros de senha seguidos numa campanha, dentro da janela, travam a
-   entrada como Mestre daquela campanha até a janela passar. */
-const ERROS_ATE_TRAVAR = 10;
+   entrada como Mestre — de quem errou, ou da mesa toda se forem muitos
+   somando todo mundo — até a janela passar (ver verificarSenha). */
+const ERROS_ATE_TRAVAR = 10;          /* por pessoa (endereço) */
+const ERROS_ATE_TRAVAR_MESA = 100;    /* somando todo mundo */
 const JANELA_ERROS = 15 * 60 * 1000;
 /* scrypt: N = 2^14 (custo), r = 8, p = 1 — uns 16 MB e algumas dezenas
    de milissegundos por tentativa. */
@@ -224,9 +226,13 @@ function criarArmazem(pastaDados, avisar) {
 
   /* ---------- Gravar ---------- */
 
+  /* Grava já. Se der erro, ele sobe para quem chamou — e a gravação
+     agrupada que estivesse esperando CONTINUA esperando: o relógio só é
+     desligado depois que o arquivo foi trocado de verdade. (Antes, ele
+     era desligado primeiro; um erro no meio — no Windows, o antivírus
+     segurando o arquivo — deixava a mudança só na memória, sem nova
+     tentativa, nem ao desligar.) */
   function gravarAgora(id) {
-    const relogio = aGravar.get(id);
-    if (relogio) { clearTimeout(relogio); aGravar.delete(id); }
     const c = campanhas.get(id);
     if (!c) return;
     /* O envelope do disco leva os RESUMOS das chaves; o backup que a
@@ -236,6 +242,24 @@ function criarArmazem(pastaDados, avisar) {
     const temporario = final + '.tmp';
     fs.writeFileSync(temporario, JSON.stringify(envelope));
     fs.renameSync(temporario, final);
+    const relogio = aGravar.get(id);
+    if (relogio) { clearTimeout(relogio); aGravar.delete(id); }
+  }
+
+  /* Marca a campanha para gravar daqui a `espera` ms. Se a gravação
+     falhar, marca de novo — até conseguir. */
+  const ESPERA_NOVA_TENTATIVA = 5000;
+  function agendar(id, espera) {
+    if (aGravar.has(id)) return;
+    aGravar.set(id, setTimeout(function () {
+      aGravar.delete(id);
+      try {
+        gravarAgora(id);
+      } catch (erro) {
+        log('Não consegui gravar ' + id + ' (' + erro.message + '). Tento de novo em ' + ESPERA_NOVA_TENTATIVA / 1000 + ' s.');
+        agendar(id, ESPERA_NOVA_TENTATIVA);
+      }
+    }, espera));
   }
 
   /* "Esta campanha mudou": grava daqui a pouco, junto com o que mais mudar. */
@@ -243,10 +267,7 @@ function criarArmazem(pastaDados, avisar) {
     const c = campanhas.get(id);
     if (!c) return;
     c.atualizadaEm = Date.now();
-    if (aGravar.has(id)) return;
-    aGravar.set(id, setTimeout(function () {
-      try { gravarAgora(id); } catch (erro) { log('Não consegui gravar ' + id + ': ' + erro.message); }
-    }, ESPERA_GRAVAR));
+    agendar(id, ESPERA_GRAVAR);
   }
 
   /* Ao desligar: grava o que ainda estava esperando. */
@@ -467,13 +488,30 @@ function criarArmazem(pastaDados, avisar) {
     });
   }
 
-  /* id → { erros, desde }: as tentativas erradas recentes de cada campanha. */
+  /* id → { desde, total, porQuem: Map(endereço → erros) }: as tentativas
+     erradas recentes de cada campanha.
+
+     A TRAVA É POR PESSOA, COM UM TETO PARA A MESA
+     Antes, 10 erros de QUALQUER um travavam a campanha — e todo jogador
+     tem o código: bastava errar 10 vezes de propósito para o Mestre não
+     conseguir entrar de outro computador. Agora cada endereço tem os
+     seus 10 erros; quem erra trava só a si. E, somando todo mundo, 100
+     erros na janela travam a mesa: é o que segura quem tentasse de
+     muitos endereços ao mesmo tempo.
+
+     A TENTATIVA CONTA ANTES DE CONFERIR
+     O scrypt leva dezenas de milissegundos, sem segurar o servidor.
+     Se o erro só fosse contado no fim, vinte tentativas mandadas JUNTAS
+     leriam todas "zero erros" e passariam pela trava. Contada na
+     entrada, cada uma já enxerga as outras; a que acerta é descontada. */
   const errosDeSenha = new Map();
+  const TRAVADA = { erro: 'Senha errada vezes demais. A entrada como Mestre desta mesa está travada por alguns minutos.' };
 
   /* A senha confere? Conta os erros e trava depois de muitos seguidos.
-     Devolve uma Promise com { ok: true } ou { erro } — o erro de senha
-     errada é `recusa`, para quem chama escolher as palavras. */
-  function verificarSenha(id, senha, recusa) {
+     `quem` é o endereço de quem tenta (servidor/api.js). Devolve uma
+     Promise com { ok: true } ou { erro } — o erro de senha errada é
+     `recusa`, para quem chama escolher as palavras. */
+  function verificarSenha(id, senha, recusa, quem) {
     const c = campanhas.get(id);
     if (!c || !c.acessos.senha) return Promise.resolve(recusa);
     if (typeof senha !== 'string' || !senha || senha.length > SENHA_MAX) return Promise.resolve(recusa);
@@ -481,22 +519,37 @@ function criarArmazem(pastaDados, avisar) {
     const agora = Date.now();
     let conta = errosDeSenha.get(id);
     if (conta && agora - conta.desde > JANELA_ERROS) { errosDeSenha.delete(id); conta = null; }
-    if (conta && conta.erros >= ERROS_ATE_TRAVAR) {
-      return Promise.resolve({ erro: 'Senha errada vezes demais. A entrada como Mestre desta mesa está travada por alguns minutos.' });
-    }
+    if (!conta) { conta = { desde: agora, total: 0, porQuem: new Map() }; errosDeSenha.set(id, conta); }
+    const pessoa = String(quem || '');
+    const meus = conta.porQuem.get(pessoa) || 0;
+    if (meus >= ERROS_ATE_TRAVAR || conta.total >= ERROS_ATE_TRAVAR_MESA) return Promise.resolve(TRAVADA);
+
+    conta.porQuem.set(pessoa, meus + 1);
+    conta.total += 1;
+    /* Esta tentativa não era erro (acertou, ou o servidor falhou):
+       sai da conta — se a conta ainda for a mesma janela. */
+    const descontar = function () {
+      if (errosDeSenha.get(id) !== conta) return;
+      conta.porQuem.set(pessoa, Math.max(0, (conta.porQuem.get(pessoa) || 0) - 1));
+      conta.total = Math.max(0, conta.total - 1);
+    };
 
     const guardada = c.acessos.senha;
     return resumoDaSenha(senha, guardada.sal).then(function (resumo) {
       const a = Buffer.from(resumo, 'hex');
       const b = Buffer.from(guardada.resumo, 'hex');
-      if (!crypto.timingSafeEqual(a, b)) {
-        const nova = conta || { erros: 0, desde: agora };
-        nova.erros += 1;
-        errosDeSenha.set(id, nova);
-        return recusa;
+      if (!crypto.timingSafeEqual(a, b)) return recusa;
+      /* Acertou: os erros SEGUIDOS desta pessoa zeram. */
+      descontar();
+      if (errosDeSenha.get(id) === conta) {
+        conta.total = Math.max(0, conta.total - (conta.porQuem.get(pessoa) || 0));
+        conta.porQuem.delete(pessoa);
+        if (!conta.total) errosDeSenha.delete(id);
       }
-      errosDeSenha.delete(id);
       return { ok: true };
+    }, function (erro) {
+      descontar();
+      throw erro;
     });
   }
 
@@ -504,14 +557,14 @@ function criarArmazem(pastaDados, avisar) {
      Devolve uma Promise com { campanhaId, chave, nome } ou { erro }. A
      mensagem de erro é a mesma para "código errado" e "senha errada":
      não conta a quem tenta qual dos dois acertou. */
-  function entrarComoMestre(codigo, senha) {
+  function entrarComoMestre(codigo, senha, quem) {
     const recusa = { erro: 'Código ou senha não conferem.' };
     const id = acharPorCodigo(codigo);
     if (!id) return Promise.resolve(recusa);
     const c = campanhas.get(id);
     if (!c.acessos.senha) return Promise.resolve({ erro: 'Esta mesa ainda não tem senha de Mestre. Defina uma em "Editar campanha", no computador onde a mesa foi criada.' });
 
-    return verificarSenha(id, senha, recusa).then(function (v) {
+    return verificarSenha(id, senha, recusa, quem).then(function (v) {
       if (v.erro) return v;
       const chave = novaChave();
       c.acessos.mestres = c.acessos.mestres.concat(resumoDaChave(chave)).slice(-LIMITE_CHAVES_MESTRE);

@@ -31,9 +31,21 @@
 const { Server } = require('socket.io');
 const { aplicarAcao } = require('../acoes.js');
 const { visaoDoJogador, aplicarAcaoJogador } = require('../visao.js');
+const { quemPede, chaveDoEndereco, doProprioComputador } = require('./api.js');
 
 const LIMITE_POR_SALA = 20;
 const PEDIDOS_POR_MINUTO = 600;   /* pintar parede gera várias ações seguidas */
+/* O jogador não pinta parede: ficha, rolagem e chat. Cada ação custa ao
+   servidor copiar e conferir a campanha inteira — o teto menor impede
+   um jogador de ocupar o servidor sozinho. */
+const PEDIDOS_POR_MINUTO_JOGADOR = 300;
+/* Conexões abertas ao mesmo tempo por pessoa (endereço). Cada painel é
+   uma; quinze dá para várias abas. O computador do próprio servidor
+   não tem teto (é o Mestre em casa, e os testes). */
+const CONEXOES_POR_ENDERECO = 15;
+/* Quem conecta e não entra numa mesa (não mostrou chave) em 30 s sai:
+   o navegador de verdade manda a chave no primeiro instante. */
+const ESPERA_ENTRAR = 30 * 1000;
 
 /* Uma página de OUTRO site, aberta no navegador de alguém, poderia abrir
    uma conexão com a mesa (o "Cross-Site WebSocket Hijacking"). O
@@ -93,22 +105,49 @@ function ligarMesa(servidorHttp, armazem, log) {
 
   function enviarVista(socket, estado) {
     const sessao = socket.data.sessao;
-    /* O Mestre recebe a campanha inteira — menos a conversa da EQUIPE,
-       que é só dos jogadores (nem chega ao navegador dele). */
-    const pacote = sessao.papel === 'mestre'
-      ? { papel: 'mestre', estado: Object.assign({}, estado, { mensagens: (estado.mensagens || []).filter(function (m) { return m.canal !== 'equipe'; }) }) }
-      : { papel: 'jogador', visao: visaoDoJogador(estado, sessao.jogadorId) };
-    const texto = JSON.stringify(pacote);
+    let pacote, texto;
+    /* Um erro aqui dentro (uma campanha com algo que a visão não
+       esperava) não pode derrubar o servidor inteiro: no Socket.IO, uma
+       exceção num evento vira erro sem dono e o Node sai — a mesa de
+       todo mundo cai junto. Fica registrado, e só esta pessoa fica sem
+       a atualização. */
+    try {
+      /* O Mestre recebe a campanha inteira — menos a conversa da EQUIPE,
+         que é só dos jogadores (nem chega ao navegador dele). */
+      pacote = sessao.papel === 'mestre'
+        ? { papel: 'mestre', estado: Object.assign({}, estado, { mensagens: (estado.mensagens || []).filter(function (m) { return m && m.canal !== 'equipe'; }) }) }
+        : { papel: 'jogador', visao: visaoDoJogador(estado, sessao.jogadorId) };
+      texto = JSON.stringify(pacote);
+    } catch (erro) {
+      avisar('Não consegui montar a mesa de ' + sessao.nome + ' (' + sessao.campanhaId + '): ' + erro.message);
+      return;
+    }
     if (texto === socket.data.ultimaVista) return;
     socket.data.ultimaVista = texto;
     socket.emit('mesa', pacote);
   }
 
+  /* endereço → conexões abertas agora */
+  const conexoesPorEndereco = new Map();
+
   io.on('connection', function (socket) {
+    /* Teto de conexões por pessoa. */
+    const endereco = doProprioComputador(socket.request) ? null : chaveDoEndereco(quemPede(socket.request));
+    if (endereco) {
+      const abertas = conexoesPorEndereco.get(endereco) || 0;
+      if (abertas >= CONEXOES_POR_ENDERECO) { socket.disconnect(true); return; }
+      conexoesPorEndereco.set(endereco, abertas + 1);
+    }
+
     let pedidos = 0;
     const contagem = setInterval(function () { pedidos = 0; }, 60 * 1000);
-    const passou = function () { pedidos += 1; return pedidos > PEDIDOS_POR_MINUTO; };
+    const passou = function () {
+      pedidos += 1;
+      const sessao = socket.data.sessao;
+      return pedidos > (sessao && sessao.papel === 'jogador' ? PEDIDOS_POR_MINUTO_JOGADOR : PEDIDOS_POR_MINUTO);
+    };
     const responder = function (cb, valor) { if (typeof cb === 'function') cb(valor); };
+    const semEntrar = setTimeout(function () { if (!socket.data.sessao) socket.disconnect(true); }, ESPERA_ENTRAR);
 
     /* ---------- entrar ---------- */
     socket.on('entrar', function (dados, cb) {
@@ -121,7 +160,11 @@ function ligarMesa(servidorHttp, armazem, log) {
       if (!armazem.conferirAcesso(campanhaId, papel, jogadorId, dados.chave)) {
         return responder(cb, { erro: 'Esta chave não abre esta mesa. Volte à entrada.' });
       }
-      if (presentes(campanhaId).length >= LIMITE_POR_SALA) return responder(cb, { erro: 'A mesa está cheia.' });
+      /* Conta os OUTROS: quem está voltando (a mesma conexão entrando de
+         novo) não ocupa um lugar a mais. */
+      const naSala = io.sockets.adapter.rooms.get(sala(campanhaId));
+      const outros = naSala ? naSala.size - (naSala.has(socket.id) ? 1 : 0) : 0;
+      if (outros >= LIMITE_POR_SALA) return responder(cb, { erro: 'A mesa está cheia.' });
 
       const estado = armazem.ler(campanhaId);
       const nome = papel === 'mestre' ? (estado.mestre.nome || 'Mestre') : armazem.nomeDoJogador(campanhaId, jogadorId);
@@ -204,6 +247,12 @@ function ligarMesa(servidorHttp, armazem, log) {
     /* Fechou a aba, caiu a internet: sai da lista, e a sala fica sabendo. */
     socket.on('disconnect', function () {
       clearInterval(contagem);
+      clearTimeout(semEntrar);
+      if (endereco) {
+        const abertas = (conexoesPorEndereco.get(endereco) || 1) - 1;
+        if (abertas > 0) conexoesPorEndereco.set(endereco, abertas);
+        else conexoesPorEndereco.delete(endereco);
+      }
       const sessao = socket.data.sessao;
       if (sessao) io.to(sala(sessao.campanhaId)).emit('presenca', presentes(sessao.campanhaId));
     });

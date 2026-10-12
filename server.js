@@ -84,12 +84,42 @@ app.disable('x-powered-by');
      DENY             nenhum outro site põe a mesa dentro de um <iframe>
                       (proteção contra clique disfarçado)
      same-origin      o endereço da mesa (com o código de convite no #)
-                      não vaza para sites de fora em links */
+                      não vaza para sites de fora em links
+     CSP              a segunda tranca contra XSS (veja abaixo) */
+
+/* CONTENT-SECURITY-POLICY: de onde a página pode carregar cada coisa.
+   As telas já não põem texto de usuário como HTML (criar() usa
+   textContent). Esta é a segunda tranca: se um dia um descuido deixar
+   passar um <script> ou um onclick="..." escrito por alguém, o
+   navegador se recusa a rodá-lo — script só dos nossos arquivos.
+   Importa porque a chave de Mestre mora no localStorage: um único
+   script de fora a levaria.
+     script-src 'self'   só os .js daqui (nada inline, nada de fora)
+     style-src           o style.css e a folha das fontes do Google
+     font-src            os arquivos das fontes (Marcellus e Inter)
+     img-src             daqui, data: (as imagens em texto, o ícone da
+                         aba) e blob: (a prévia de uma foto escolhida)
+     connect-src 'self'  a conexão da mesa (WebSocket) e a /api
+     object-src, base-uri  fechados: nada de plugin nem de <base>
+     frame-ancestors     o mesmo que o X-Frame-Options, no jeito novo */
+const POLITICA = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com',
+  "img-src 'self' data: blob:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'"
+].join('; ');
+
 app.use(function (pedido, resposta, seguir) {
   resposta.set({
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
-    'Referrer-Policy': 'same-origin'
+    'Referrer-Policy': 'same-origin',
+    'Content-Security-Policy': POLITICA
   });
   seguir();
 });
@@ -151,6 +181,19 @@ const servidor = http.createServer(app);
 const mesa = ligarMesa(servidor, armazem, function (texto) { console.log(texto); });
 
 
+/* A porta ocupada não é erro do servidor: quase sempre é OUTRO
+   npm start ainda aberto (numa aba do terminal esquecida). Duas cópias
+   não podem escutar a mesma porta. Diz o que fazer, em vez de um erro
+   técnico. */
+servidor.on('error', function (erro) {
+  if (erro.code === 'EADDRINUSE') {
+    console.error('A porta ' + PORTA + ' já está em uso — provavelmente o servidor já está rodando em outra janela do terminal.');
+    console.error('Use aquele (abra http://localhost:' + PORTA + '), ou feche-o com Ctrl+C e rode npm start de novo.');
+    process.exit(1);
+  }
+  throw erro;
+});
+
 servidor.listen(PORTA, HOST, function () {
   /* 127.0.0.1 e 0.0.0.0 abrem no navegador como "localhost". */
   const nome = HOST === '127.0.0.1' || HOST === '0.0.0.0' ? 'localhost' : HOST;
@@ -169,6 +212,19 @@ function desligar() {
 }
 process.on('SIGINT', desligar);
 process.on('SIGTERM', desligar);
+/* No Windows, fechar a janela do terminal (no X) não é Ctrl+C: chega
+   como SIGHUP, com alguns segundos para terminar. */
+process.on('SIGHUP', desligar);
+
+/* Um erro que ninguém tratou derruba o Node — e, sem isto, levaria
+   junto o que ainda esperava a gravação agrupada. Grava o que der,
+   conta o erro e sai (continuar rodando depois de um erro desses não é
+   seguro: algo ficou pela metade). Quem reinicia é você, com npm start. */
+process.on('uncaughtException', function (erro) {
+  console.error('Erro inesperado no servidor:', erro);
+  try { armazem.gravarPendentes(); } catch (e) { /* já estamos caindo */ }
+  process.exit(1);
+});
 
 /* Para os testes (e o que mais precisar do servidor por dentro). */
 module.exports = { armazem };

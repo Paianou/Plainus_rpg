@@ -1,24 +1,22 @@
 /* ===================================================================
    acoes.js — tudo o que o Mestre pode MUDAR na campanha, com nome
 
-   POR QUE ESTE ARQUIVO EXISTE (Fase 0, preparação para o servidor)
-   Antes, cada tela mexia no Estado direto (Estado.npcs = ...) e
-   chamava Memoria.salvar(). Funciona com um navegador só. Com servidor,
-   não: o servidor precisa receber um PEDIDO com nome — "apague o NPC
-   n4" — conferir se quem pediu pode, e aplicar na cópia oficial dele.
-   Se o Mestre mandasse o Estado inteiro, apagaria o que um jogador
-   mudou no mesmo segundo (o Mestre dá dano na Lyra enquanto a Ana
-   edita a ficha dela).
+   POR QUE ESTE ARQUIVO EXISTE
+   O servidor precisa receber um PEDIDO com nome — "apague o NPC n4" —,
+   conferir se quem pediu pode e aplicar na cópia oficial dele. Se o
+   Mestre mandasse o Estado inteiro, apagaria o que um jogador mudou no
+   mesmo segundo (o Mestre dá dano na Lyra enquanto a Ana edita a ficha
+   dela).
 
    COMO FUNCIONA
      ACOES       a tabela: nome → função (estado, dados) → resultado.
                  A função SÓ mexe nos dados — não desenha, não salva,
-                 não conhece tela nem navegador. Por isso ela vai rodar,
-                 igualzinha, no servidor.
+                 não conhece tela nem navegador. Por isso ela roda,
+                 igualzinha, no servidor (servidor/mesa.js).
      Acoes.executar(nome, dados)
-                 o que as telas chamam. Hoje: roda a ação aqui e salva
-                 no navegador. Com servidor: manda o pedido pelo
-                 Socket.IO, e o servidor roda a MESMA função.
+                 o que as telas chamam: roda a ação aqui, na hora (a
+                 tela responde sem esperar a rede), e manda o pedido
+                 pelo Socket.IO — o servidor roda a MESMA função.
 
    O RESULTADO
    Cada ação devolve um objeto. { erro: 'texto' } quer dizer que nada
@@ -28,14 +26,8 @@
    OS DADOS SÃO UMA CÓPIA
    executar() copia os dados antes de entregar à ação, então ela nunca
    segura um objeto da tela (o rascunho de um formulário, por exemplo).
-   Com servidor é assim de qualquer jeito — os dados chegam pela rede,
-   como texto. Copiar agora faz a diferença aparecer hoje, e não no
-   dia da troca.
-
-   O QUE AINDA NÃO ESTÁ AQUI
-   As telas estão sendo trazidas aos poucos (NPCs, diário e tabelas
-   primeiro). Para ver o que falta: procure "Memoria.salvar" fora
-   deste arquivo — cada ocorrência é uma mudança que ainda não tem nome.
+   No servidor é assim de qualquer jeito — os dados chegam pela rede,
+   como texto —, e copiar aqui faz os dois lados se comportarem igual.
    =================================================================== */
 
 
@@ -1056,7 +1048,7 @@ const Acoes = {
 };
 
 
-/* No Node (o futuro server.js), este arquivo é carregado com require()
+/* No Node (servidor/mesa.js), este arquivo é carregado com require()
    e entrega a tabela de ações. No navegador, `module` não existe e
    esta linha não faz nada. É o que deixa o MESMO arquivo servir aos
    dois lados. */

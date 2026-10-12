@@ -2,14 +2,11 @@
    backup.js — baixar a campanha num arquivo e restaurar de volta
 
    POR QUE ISTO EXISTE
-   Sem servidor, a campanha inteira mora no localStorage DESTE
-   navegador. Limpar os dados de navegação, trocar de navegador ou
-   formatar o computador apaga tudo — heróis, diário, mapas — sem aviso
-   e sem volta. O backup é um arquivo .json que você guarda onde quiser
-   (pendrive, Google Drive, mandar para você mesmo no Discord).
-
-   Mesmo com o servidor (passo 8 do CLAUDE.md) ele continua útil: é a
-   cópia que não depende de disco de ninguém.
+   A campanha mora no servidor (data/campanhas/), num disco só: se ele
+   estragar, ou a pasta for apagada, vai tudo — heróis, diário, mapas.
+   O backup é um arquivo .json que você guarda onde quiser (pendrive,
+   Google Drive, mandar para você mesmo no Discord): a cópia que não
+   depende do disco de ninguém. Com as imagens dentro, num arquivo só.
 
 
    O FORMATO DO ARQUIVO

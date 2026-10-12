@@ -2943,17 +2943,7 @@ a.marca-mestre:hover .nome { color: #fff; }
 .em-construcao p { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.6; color: var(--texto-3); }
 
 
-/* ---------- 23. FAIXA DE AVISO / RECADO ---------- */
-.faixa-aviso {
-  padding: 9px 22px;
-  font-size: 12px;
-  letter-spacing: .02em;
-  text-align: center;
-  color: var(--gelo);
-  background: var(--azul-fundo);
-  border-bottom: 1px solid rgba(77, 141, 255, .22);
-}
-
+/* ---------- 23. RECADO ---------- */
 /* Recado flutuante no canto — aparece e some sozinho. */
 .recados {
   position: fixed;

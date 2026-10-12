@@ -208,7 +208,6 @@ const Layout = {
 
     document.getElementById('app').hidden = false;
 
-    this.montarFaixa();
     this.montarTopo();
     this.montarCodice();
     Icone.aplicar();
@@ -342,17 +341,6 @@ const Layout = {
 
 
   /* ---------- A moldura ---------- */
-
-  /* Aparece sempre: a campanha é salva, mas só no localStorage deste
-     navegador — os jogadores, em outros computadores, não a veem. A
-     faixa sai quando o servidor entrar. */
-  montarFaixa: function () {
-    const faixa = document.getElementById('faixaDemo');
-    if (!faixa) return;
-    faixa.className = 'faixa-aviso';
-    faixa.textContent = 'Sem servidor ainda — esta campanha fica salva só neste navegador e não chega aos jogadores.';
-  },
-
 
   montarTopo: function () {
     const barra = document.getElementById('barraTopo');
@@ -868,21 +856,24 @@ const Layout = {
     const codigo = Estado.campanha.codigo;
     const self = this;
 
-    /* No ar (http/https), copia o LINK de convite: o jogador clica e
+    /* Aberta por um endereço que os amigos alcançam (o do túnel, ou o
+       IP da rede de casa), copia o LINK de convite: o jogador clica e
        cai na entrada com o código já preenchido (app.js, lerConvite).
-       Aberto por duplo clique (file://), o link seria um caminho do
-       SEU disco — inútil para quem está em outro computador —, então
-       copia só o código. */
-    const noAr = location.protocol === 'http:' || location.protocol === 'https:';
+       Aberta por localhost, o link seria "http://localhost:3000/…" —
+       e localhost, no computador do amigo, é o computador DELE: o link
+       não abre nada lá. Então copia só o código, que ele cola em "Tenho
+       um convite". (A entrada aceita os dois: código ou link colado.) */
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+    const noAr = (location.protocol === 'http:' || location.protocol === 'https:') && !local;
     const texto = noAr ? new URL('index.html#convite=' + codigo, location.href).href : codigo;
-    const oQue = noAr ? 'Link de convite' : 'Código ' + codigo;
+    const oQue = noAr ? 'Link de convite copiado (código ' + codigo + ')' : 'Código ' + codigo + ' copiado';
 
     /* A API moderna só funciona em contexto seguro (https, localhost).
        Abrindo por duplo clique (file://) ela pode falhar — por isso o
        catch mostra o código em vez de ficar em silêncio. */
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(texto).then(function () {
-        self.recado(oQue + ' copiado.');
+        self.recado(oQue + '.');
       }).catch(function () {
         self.recado('Não consegui copiar daqui. O código é ' + codigo + '.', true);
       });

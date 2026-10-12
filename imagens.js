@@ -8,14 +8,11 @@
    Antes ela estava presa no mapas.js.
 
    POR QUE REDUZIR
-   Sem servidor, a imagem vai para o localStorage junto com a campanha,
-   e o navegador inteiro tem uns 5 MB. Uma foto de celular tem 3 a 5 MB
-   sozinha. Reduzida e em JPEG, um retrato fica em ~100 KB e um mapa em
-   algumas centenas — e, na tela, aparecem do mesmo tamanho.
-
-   Com o servidor, a imagem vira um arquivo enviado (upload) e a
-   campanha guarda só o endereço. Quem chama Imagens.comprimir() não
-   precisa mudar: muda só o que se faz com o resultado.
+   A imagem viaja pela conexão, como texto, dentro da ação; o servidor
+   a tira da campanha e a guarda como arquivo (servidor/imagens.js),
+   aceitando só JPEG de até 600 KB. Uma foto de celular tem 3 a 5 MB.
+   Reduzida e em JPEG, um retrato fica em ~100 KB e um mapa em algumas
+   centenas — e, na tela, aparecem do mesmo tamanho.
 
    POR QUE REGRAVAR EM JPEG, E NÃO GUARDAR O ARQUIVO COMO VEIO
    Além do tamanho: o que sai do <canvas> é sempre um JPEG que nós
