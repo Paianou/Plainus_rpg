@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { criarArmazem } = require('../../servidor/armazem.js');
-const { estadoVazio, conferirCampanha } = require('../../modelo.js');
+const { estadoVazio, conferirCampanha } = require('../../publico/modelo.js');
 
 let falhas = 0;
 const ok = (c, t) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + t); if (!c) falhas++; };

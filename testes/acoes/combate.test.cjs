@@ -1,5 +1,5 @@
 /* As ações de combate rodando no Node, sem navegador. */
-const { ACOES } = require('../../acoes.js');
+const { ACOES } = require('../../publico/acoes.js');
 let falhas = 0;
 const ok = (c, t) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + t); if (!c) falhas++; };
 

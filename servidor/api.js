@@ -8,6 +8,7 @@
      POST /api/campanhas   criar (da criação em etapas, ou de um backup)
                            → { id, codigo, chave }   a chave do Mestre
                            só no computador do servidor (doProprioComputador)
+     POST /api/pode-criar  daqui pode criar? → { podeCriar } (só para a tela avisar cedo)
      POST /api/convite     o nome da mesa de um código (o link de convite)
      POST /api/entrar      entrar com o código, como jogador
                            → { campanhaId, jogadorId, chave, nome }
@@ -45,7 +46,7 @@
 const net = require('net');
 const express = require('express');
 const { senhaValida } = require('./armazem.js');
-const { imagemDaCena, retratoSeguro } = require('../modelo.js');
+const { imagemDaCena, retratoSeguro } = require('../publico/modelo.js');
 
 /* QUEM ESTÁ PEDINDO, ATRÁS DO TÚNEL
    Pelo Cloudflare Tunnel, todo pedido chega aqui vindo do próprio
@@ -154,6 +155,14 @@ function criarApi(armazem, opcoes) {
       if (v && v.erro) return desfazer();
       pronto();
     }, desfazer);
+  });
+
+  /* "Daqui pode criar?" — a MESMA regra do POST /campanhas, para a tela
+     avisar ANTES de a pessoa preencher a criação inteira (pelo túnel, o
+     aviso só aparecia no fim). Só informa: quem decide continua sendo o
+     /campanhas, que recusa do mesmo jeito se alguém pular o aviso. */
+  api.post('/pode-criar', limite(60), function (pedido, resposta) {
+    resposta.json({ podeCriar: doProprioComputador(pedido) });
   });
 
   /* O código de convite e a entrada dividem o MESMO limite: é por eles

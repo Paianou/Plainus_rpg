@@ -70,7 +70,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { conferirCampanha, sortearCodigo, normalizarCodigo } = require('../modelo.js');
+const { conferirCampanha, sortearCodigo, normalizarCodigo } = require('../publico/modelo.js');
 const { criarImagens } = require('./imagens.js');
 
 const FORMATO = 'plainus-campanha';

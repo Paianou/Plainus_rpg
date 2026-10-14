@@ -29,8 +29,8 @@
    =================================================================== */
 
 const { Server } = require('socket.io');
-const { aplicarAcao } = require('../acoes.js');
-const { visaoDoJogador, aplicarAcaoJogador } = require('../visao.js');
+const { aplicarAcao } = require('../publico/acoes.js');
+const { visaoDoJogador, aplicarAcaoJogador } = require('../publico/visao.js');
 const { quemPede, chaveDoEndereco, doProprioComputador } = require('./api.js');
 
 const LIMITE_POR_SALA = 20;

@@ -204,6 +204,9 @@ const Servidor = {
   },
 
   criarCampanha: function (estado, senha) { return this.pedir('campanhas', { estado: estado, senha: senha || undefined }); },
+  /* Criar e restaurar backup só valem no computador do servidor (não
+     pelo túnel). A tela pergunta antes, para avisar cedo. */
+  podeCriar: function () { return this.pedir('pode-criar', {}); },
   convite: function (codigo) { return this.pedir('convite', { codigo: codigo }); },
   entrar: function (codigo, nome) { return this.pedir('entrar', { codigo: codigo, nome: nome }); },
   cartoes: function (acessos) { return this.pedir('cartoes', { mesas: acessos }); },

@@ -48,7 +48,7 @@ const PORTA_TESTE = Number(process.env.PLAINUS_PORTA_TESTE) || 3999;
 const SITE = 'http://127.0.0.1:' + PORTA_TESTE + '/';
 const url = (f) => SITE + f;
 /* O duplo clique (file://), para os roteiros que conferem a página sem servidor. */
-const urlArquivo = (f) => 'file:///' + MESA + f;
+const urlArquivo = (f) => 'file:///' + MESA + 'publico/' + f;
 /* ligarServidor() de novo depois de servidor.kill(): o roteiro 21 derruba
    e religa o servidor, para ver os painéis reconectarem. */
 let servidor = null;

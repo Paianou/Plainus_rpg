@@ -59,6 +59,7 @@ function el(tag, classe, texto) {
 const Entrada = {
 
   porta: null,          /* 'convite' | 'mestrar' | null (as duas portas à vista) */
+  podeCriar: true,      /* false: aberta por fora (o túnel) — ver perguntarSePodeCriar */
 
 
   /* ---------- Mensagens ---------- */
@@ -110,9 +111,9 @@ const Entrada = {
       return Promise.resolve();
     }
 
-    window.plainusCarregando = true;
+    Entrada.esperando(1);
     return Servidor.cartoes(acessos).then(function (resposta) {
-      window.plainusCarregando = false;
+      Entrada.esperando(-1);
       lista.textContent = '';
       area.hidden = false;
       if (resposta.erro) {
@@ -417,6 +418,37 @@ const Entrada = {
   },
 
 
+  /* ---------- Pedidos a caminho ----------
+     window.plainusCarregando diz "a página ainda espera o servidor" (os
+     testes esperam ele desligar antes de clicar). Com mais de um pedido
+     ao mesmo tempo, o primeiro a voltar não pode desligar o sinal com os
+     outros ainda a caminho: por isso é uma conta, e não um sim/não. */
+  pedidos: 0,
+  esperando: function (mais) {
+    this.pedidos = Math.max(0, this.pedidos + mais);
+    window.plainusCarregando = this.pedidos > 0;
+  },
+
+
+  /* ---------- Daqui pode criar? ----------
+     Criar campanha e restaurar backup só valem no computador do servidor
+     (servidor/api.js, doProprioComputador). Aberta pelo link do túnel, a
+     entrada já sabe disso ao abrir: troca os campos de criar pelo aviso,
+     antes de alguém preencher tudo e ser recusado no fim. Sem resposta
+     (servidor fora do ar), fica como está — quem decide é o servidor. */
+  perguntarSePodeCriar: function () {
+    const self = this;
+    if (!Servidor.temServidor()) return;
+    this.esperando(1);
+    Servidor.podeCriar().then(function (r) {
+      self.esperando(-1);
+      self.podeCriar = r.podeCriar !== false;
+      document.getElementById('avisoSoLocal').hidden = self.podeCriar;
+      document.getElementById('criarAqui').hidden = !self.podeCriar;
+    });
+  },
+
+
   /* ---------- As duas portas ---------- */
 
   /* Três formulários numa porta só: convite, mestrar (criar) e
@@ -441,6 +473,9 @@ const Entrada = {
     document.getElementById('campoNome').hidden = volta;
     if (!convite) document.getElementById('conviteAchado').hidden = true;
     if (volta) { document.getElementById('codigoMestre').focus(); return; }
+    /* Daqui não se cria: o campo da campanha está escondido; o foco vai
+       para o que dá para fazer — entrar como Mestre numa mesa que existe. */
+    if (this.porta === 'mestrar' && !this.podeCriar) { document.getElementById('btnVoltaMestre').focus(); return; }
 
     /* O foco vai para o primeiro campo vazio: com o nome lembrado, a
        pessoa cai direto no código (ou no nome da campanha). */
@@ -481,9 +516,9 @@ const Entrada = {
     this.abrirPorta('convite');
 
     const aviso = document.getElementById('conviteAchado');
-    window.plainusCarregando = true;
+    Entrada.esperando(1);
     Servidor.convite(codigo).then(function (campanha) {
-      window.plainusCarregando = false;
+      Entrada.esperando(-1);
       if (campanha.erro) return;
       aviso.textContent = '';
       aviso.appendChild(document.createTextNode('Você foi convidado para '));
@@ -675,7 +710,15 @@ const Entrada = {
        arquivo escolhido. O value é zerado depois para que escolher o
        MESMO arquivo de novo também dispare o change. */
     const arquivo = document.getElementById('arquivoBackup');
-    document.getElementById('btnRestaurar').addEventListener('click', function () { arquivo.click(); });
+    document.getElementById('btnRestaurar').addEventListener('click', function () {
+      /* Restaurar é criar uma campanha: daqui não vale. Diz antes de a
+         pessoa procurar o arquivo, e não depois. */
+      if (!self.podeCriar) {
+        self.mostrarErro('Backups são restaurados no computador onde o servidor está rodando: lá, abra http://localhost:3000.');
+        return;
+      }
+      arquivo.click();
+    });
     arquivo.addEventListener('change', function () {
       if (arquivo.files[0]) self.restaurarBackup(arquivo.files[0]);
       arquivo.value = '';
@@ -701,3 +744,4 @@ Entrada.desenharMesas();
 Entrada.desenharAntigas();
 Entrada.ligar();
 Entrada.lerConvite();
+Entrada.perguntarSePodeCriar();
