@@ -509,7 +509,10 @@ const Jogador = {
         return botao;
       })(),
       criar('div', [
-        criar('h1.nome-ficha', heroi.nome),
+        /* h2: o título da página é o da aba ("Ficha", no cabeçalho); o
+           nome do personagem é o título da SEÇÃO. Dois h1 numa tela
+           confundem quem navega por títulos (leitor de tela). */
+        criar('h2.nome-ficha', heroi.nome),
         criar('div.sub', subtitulo),
         criar('div.botoes-foto', [
           criarBotao('mini-botao', 'foto-escolher', 'imagem', f.foto ? 'Trocar foto' : 'Pôr foto'),

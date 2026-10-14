@@ -50,5 +50,10 @@ ok(quemPede(pedido('127.0.0.1')) === '127.0.0.1', 'sem túnel, no próprio compu
   await saiu;
   fs.rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   console.log(falhas ? falhas + ' FALHAS' : '\nTúnel certo.');
-  process.exit(falhas ? 1 : 0);
+  /* exitCode, e não process.exit(): no Windows, sair à força enquanto as
+     conexões do fetch ainda estão fechando derruba o Node com
+     "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" — o teste
+     falhava DEPOIS de tudo dar certo. Assim o Node sai sozinho, quando
+     elas fecham. */
+  process.exitCode = falhas ? 1 : 0;
 })();

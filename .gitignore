@@ -4,3 +4,8 @@ data/
 
 # O que os testes geram (fotos de tela, downloads, perfil do navegador)
 testes/saida/
+
+# Ferramentas do Claude Code (skills e plugins instalados): são do meu
+# computador, não do site.
+.claude/
+skills-lock.json

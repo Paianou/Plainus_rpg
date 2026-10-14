@@ -527,7 +527,9 @@ const Mapa = {
       entrada.className = 'texto';
       entrada.value = marcador.texto;
       entrada.dataset.marcador = marcador.id;
-      entrada.style.cssText = 'background:transparent;border:0;color:inherit;font:inherit;width:100%;padding:0';
+      /* Sem rótulo à vista (o ícone ao lado diz o tipo): o nome vem do
+         aria-label, como nos campos de PV e CA do Combate. */
+      entrada.setAttribute('aria-label', marcador.tipo === 'perigo' ? 'Texto do marcador de perigo' : 'Texto do marcador');
       item.appendChild(entrada);
 
       const tirar = criar('button.tirar', '×');
