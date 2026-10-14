@@ -10,11 +10,10 @@
    filme), luz (hairlines, brilho no topo dos cards) e movimento
    (a névoa que respira devagar).
 
-   O violeta (--violeta) sobrevive só no FUNDO da página — as duas
-   luzes que derivam atrás do cartão (seção 3). Isso foi pedido de
-   propósito: o degradê de fundo ficou bom, então ele não muda; o
-   resto da interface (cartão, botões, seleção) é que fica mais
-   neutro. Não usar --violeta fora da seção 3.
+   Sem violeta (decidido em 2026-10-12): as luzes de fundo da entrada
+   são azul-gelo e azul. As regras completas, com os tokens e o
+   contraste medido, estão no DESIGN.md — ele manda, se os dois
+   discordarem.
 
    Estes tokens e classes nasceram dos mesmos da mesa-virtual/
    (pasta de referência) — ver mesa-virtual/public/css/style.css —
@@ -52,14 +51,15 @@
   --azul-fundo:    rgba(77, 141, 255, .12);
   --gelo:          #a9c4ff;
 
-  /* Violeta: só existe para as luzes de fundo da tela de entrada
-     (seção 3). Não usar em botões, seleção ou texto. */
-  --violeta: #8b6cff;
-
   /* Texto */
   --texto:    #e6e8f0;
   --texto-2:  #949bb0;
-  --texto-3:  #5d6478;
+  /* --texto-3: o terceiro nível (dicas, detalhes, rótulos). Era #5d6478,
+     com contraste 3:1 — abaixo do mínimo de leitura (4,5:1) em 661
+     textos medidos. #80879b é o tom MAIS APAGADO que ainda passa no
+     fundo mais claro onde ele aparece (4,6:1), para continuar bem
+     abaixo do --texto-2 na hierarquia. Ver DESIGN.md. */
+  --texto-3:  #80879b;
 
   --perigo: #c2413f;
 
@@ -210,10 +210,12 @@ body::after {
   opacity: .55;
   pointer-events: none;
 }
+/* Uma luz azul-gelo e uma azul: dois tons da mesma luz arcana, para dar
+   profundidade sem sair da paleta (era violeta — saiu em 2026-10-12). */
 .pagina-entrada::before {
   top: -14%;
   left: -10%;
-  background: radial-gradient(circle, var(--violeta), transparent 70%);
+  background: radial-gradient(circle, var(--gelo), transparent 70%);
   animation: derivar-a 18s ease-in-out infinite;
 }
 .pagina-entrada::after {
@@ -223,9 +225,11 @@ body::after {
   animation: derivar-b 22s ease-in-out infinite;
 }
 
+/* O gelo é mais claro que o violeta de antes: a opacidade desceu para
+   o fundo não ficar mais aceso do que era. */
 @keyframes derivar-a {
-  0%, 100% { transform: translate(0, 0) scale(1);     opacity: .45; }
-  50%      { transform: translate(4%, 6%) scale(1.12); opacity: .7; }
+  0%, 100% { transform: translate(0, 0) scale(1);     opacity: .28; }
+  50%      { transform: translate(4%, 6%) scale(1.12); opacity: .45; }
 }
 @keyframes derivar-b {
   0%, 100% { transform: translate(0, 0) scale(1);      opacity: .4; }
@@ -1346,6 +1350,10 @@ a.marca-mestre:hover .nome { color: #fff; }
 .linha-iniciativa .quem { flex: 1; min-width: 0; }
 .linha-iniciativa .nome { font-size: 13.5px; color: var(--texto); }
 .linha-iniciativa .estado { font-size: 11px; color: var(--texto-3); margin-top: 1px; }
+/* Sobre fundo realçado (azul ou mais claro), o texto apagado sobe para
+   --texto-2: o --texto-3 só tem contraste suficiente no fundo comum. */
+.linha-iniciativa.vez .estado,
+.linha-iniciativa.vez-simples .estado { color: var(--texto-2); }
 
 /* Já agiu: apaga e risca */
 .linha-iniciativa.agiu { opacity: .45; }
@@ -1566,6 +1574,12 @@ a.marca-mestre:hover .nome { color: #fff; }
   opacity: .6;
 }
 .chip-condicao button:hover { opacity: 1; background: rgba(255, 255, 255, .12); }
+/* ÁREA DE TOQUE: o "×" se desenha com 15px, mas um alvo de dedo (ou
+   de mouse com pressa) precisa de 24px. A camada invisível de 5px em
+   volta aumenta o que aceita o clique, sem mudar o que se vê. Só
+   funciona em botão sem padding nem borda — que é o caso aqui. */
+.chip-condicao button { position: relative; }
+.chip-condicao button::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
 
 /* Registro do combate */
 .registro { display: flex; flex-direction: column; gap: 0; }
@@ -2009,7 +2023,7 @@ a.marca-mestre:hover .nome { color: #fff; }
    decoração. */
 .pilula.aliado { color: #8fd0ae; background: rgba(63, 158, 108, .16); }
 .pilula.hostil { color: #f0a6a2; background: rgba(194, 65, 63, .16); }
-.pilula.morto  { color: var(--texto-3); background: rgba(255, 255, 255, .05); }
+.pilula.morto  { color: var(--texto-2); background: rgba(255, 255, 255, .05); }
 
 /* O retrato com as iniciais, na lista */
 .inicial-npc {
@@ -2273,6 +2287,7 @@ a.marca-mestre:hover .nome { color: #fff; }
 .item-cena .ico { color: var(--texto-3); }
 .item-cena.ativa .ico { color: var(--azul); }
 .item-cena .contagem { margin-left: auto; font-size: 11px; color: var(--texto-3); }
+.item-cena.ativa .contagem { color: var(--texto-2); }   /* fundo realçado: ver .linha-iniciativa.vez .estado */
 
 /* Ficha do token selecionado */
 .ficha-token .nome {
@@ -2322,12 +2337,27 @@ a.marca-mestre:hover .nome { color: #fff; }
 .item-marcador .ico { flex-shrink: 0; margin-top: 2px; color: var(--texto-3); }
 .item-marcador.perigo .ico { color: #e0827d; }
 .item-marcador .texto { flex: 1; min-width: 0; }
+/* O texto do marcador é um campo editável no lugar (mapas.js): parece
+   texto comum, mas tem 24px de altura para ser fácil de acertar. (Este
+   estilo morava no JavaScript; aqui ele segue o resto do site.) */
+.item-marcador input.texto {
+  width: 100%;
+  min-height: 24px;
+  padding: 3px 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
 .item-marcador .tirar {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  /* 24px: o mínimo de um alvo de toque. A margem negativa devolve os
+     4px a mais, para a linha não crescer. */
+  width: 24px;
+  height: 24px;
+  margin: -2px;
   padding: 0;
   font-size: 15px;
   line-height: 1;
@@ -2729,6 +2759,7 @@ a.marca-mestre:hover .nome { color: #fff; }
   border-color: rgba(77, 141, 255, .45);
 }
 .dado.principal .face { color: var(--gelo); }
+.dado.principal .uso { color: var(--texto-2); }   /* fundo realçado */
 
 /* Resultado da última rolagem */
 .resultado {
@@ -2873,16 +2904,29 @@ a.marca-mestre:hover .nome { color: #fff; }
 
 /* Controle de volume */
 .controle-audio { display: flex; align-items: center; gap: 10px; }
+/* O controle tem 24px de altura (a área que aceita clique e toque); a
+   barra que se vê continua com 4px, desenhada na trilha (track). Antes,
+   o controle inteiro tinha 4px — acertar com o dedo era sorte. */
 .controle-audio input[type="range"] {
   flex: 1;
-  height: 4px;
+  height: 24px;
   appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.controle-audio input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
   background: rgba(0, 0, 0, .5);
   border-radius: 999px;
-  cursor: pointer;
+}
+.controle-audio input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: rgba(0, 0, 0, .5);
+  border-radius: 999px;
 }
 .controle-audio input[type="range"]::-webkit-slider-thumb {
   appearance: none;
+  margin-top: -4.5px;   /* centraliza a bolinha (13px) na trilha (4px) */
   width: 13px;
   height: 13px;
   border-radius: 50%;
@@ -3099,6 +3143,11 @@ a.marca-mestre:hover .nome { color: #fff; }
   outline: none;
 }
 .busca-campo input::placeholder { color: var(--texto-3); }
+/* O campo não tem contorno próprio (outline: none acima): quem mostra
+   onde está o foco é a faixa inteira, com a borda azul que todo campo
+   do site ganha no foco. */
+.busca-campo { transition: border-color var(--transicao); }
+.busca-campo:focus-within { border-bottom-color: rgba(77, 141, 255, .55); }
 
 .busca-global kbd {
   display: inline-block;
@@ -3225,7 +3274,9 @@ a.marca-mestre:hover .nome { color: #fff; }
   border-radius: 50%;
 }
 .aviso-item.perigo  .aviso-marca { background: var(--perigo);  box-shadow: 0 0 6px var(--perigo); }
-.aviso-item.atencao .aviso-marca { background: var(--violeta); box-shadow: 0 0 6px var(--violeta); }
+/* Atenção em âmbar: a cor de ESTADO "atenção" (a mesma da vida pela
+   metade — "ferido" é um destes avisos). Nunca como enfeite. */
+.aviso-item.atencao .aviso-marca { background: var(--vida-media); box-shadow: 0 0 6px var(--vida-media); }
 .aviso-item.info    .aviso-marca { background: var(--azul);    box-shadow: 0 0 6px var(--azul); }
 
 .aviso-textos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -3689,10 +3740,13 @@ a.marca-mestre:hover .nome { color: #fff; }
 .erro-dialogo:empty { display: none; }
 
 /* Caixa de marcar com o texto ao lado, clicável inteira. */
+/* O <label> inteiro marca a caixa: ele é o alvo de toque, e por isso
+   tem pelo menos 24px de altura (a caixinha sozinha tem 16). */
 .marcar-opcao {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-height: 24px;
   font-size: 13px;
   color: var(--texto-2);
   cursor: pointer;
@@ -3878,7 +3932,10 @@ a.marca-mestre:hover .nome { color: #fff; }
 .cabeca-ficha { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .cabeca-ficha > div:not(.retrato-heroi) { flex: 1; min-width: 0; }
 .cabeca-ficha .retrato-heroi { width: 56px; height: 56px; font-size: 22px; }
-.nome-ficha { margin: 0; font-size: 1.7rem; }
+.nome-ficha { display: block; margin: 0; font-size: 1.7rem; letter-spacing: .02em; }
+/* Na ficha em leitura ela é um h2 (ver jogador.js): sem o pingo de luz
+   do h2 comum — continua igual ao h1 do formulário. */
+.nome-ficha::before { display: none; }
 .cabeca-ficha .sub { font-size: 13px; color: var(--texto-3); line-height: 1.5; }
 
 .faixa-ficha {
@@ -3985,7 +4042,7 @@ a.marca-mestre:hover .nome { color: #fff; }
 .tabela-atributos input[type="number"]:focus { outline: none; border-color: rgba(77, 141, 255, .55); }
 .tabela-atributos [data-calc^="total"] { font-family: 'Marcellus', Georgia, serif; font-size: 1.1rem; text-align: center; }
 .tabela-atributos [data-calc^="mod"] { color: var(--gelo); text-align: center; }
-.salva-form { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--texto-2); cursor: pointer; }
+.salva-form { display: flex; align-items: center; gap: 6px; min-height: 24px; font-size: 12.5px; color: var(--texto-2); cursor: pointer; }   /* min-height: o rótulo é o alvo de toque (ver .marcar-opcao) */
 .salva-form input, .pericia-form input { accent-color: var(--azul); }
 
 .pericias-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; }
@@ -4244,7 +4301,16 @@ button.pericia { font-size: 13px; }
 .linha-bolinhas { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
 .linha-bolinhas .nome-uso { flex: 1; min-width: 0; }
 .rotulo-bolinhas { min-width: 26px; font-family: 'Marcellus', Georgia, serif; color: var(--texto-2); }
-.bolinhas { display: flex; flex-wrap: wrap; gap: 6px; }
+/* gap de 9px: cada bolinha tem 4px de área de toque invisível além da
+   borda, de cada lado (::after, abaixo) — 16 + 4 + 4 = 24px. Com o gap
+   antigo, de 6px, as áreas de duas vizinhas se sobreporiam e um clique
+   no meio poderia gastar a bolinha errada; com 8px elas se encostam, e
+   o arredondamento de frações de pixel ainda as fazia invadir uma a
+   outra — o 1px a mais é a folga. O inset é -5px porque ele conta de
+   DENTRO da borda de 1px. */
+.bolinhas { display: flex; flex-wrap: wrap; gap: 9px; }
+.bolinha { position: relative; }
+.bolinha::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
 .bolinha {
   width: 16px;
   height: 16px;
@@ -4969,7 +5035,7 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cartao-mesa .campanha-meta { font-size: 12px; line-height: 1.5; color: var(--texto-3); }
+.cartao-mesa .campanha-meta { font-size: 12px; line-height: 1.5; color: var(--texto-2); }
 
 /* A party: bolinhas sobrepostas, como fichas na mesa. */
 .retratos-mesa { display: flex; align-items: center; min-height: 32px; padding-left: 6px; }
@@ -5093,7 +5159,7 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
   box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .25);
 }
 .porta-titulo { font-family: 'Marcellus', Georgia, serif; font-size: 1.2rem; letter-spacing: .02em; }
-.porta-texto { font-size: 13px; line-height: 1.5; color: var(--texto-3); }
+.porta-texto { font-size: 13px; line-height: 1.5; color: var(--texto-2); }
 
 /* O formulário da porta escolhida. */
 .formulario-porta { padding: 22px 0 8px; }
@@ -5233,7 +5299,7 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
   padding: 4px 0;
   font: inherit;
   font-size: 12px;
-  color: var(--texto-3);
+  color: var(--texto-2);
   cursor: pointer;
   background: none;
   border: 0;
@@ -5283,12 +5349,12 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 
 /* ----- A mesa pelo servidor (parte 2) ----- */
 
-/* Aberta sem servidor: o mesmo desenho do aviso, em violeta — é o
-   recado que precisa chamar atenção na tela. */
+/* Aberta sem servidor: o mesmo desenho do aviso, em azul — o acento do
+   site, que é o que chama atenção na tela. */
 .aviso-servidor {
   color: var(--texto);
-  background: rgba(139, 108, 255, .12);
-  border-left-color: var(--violeta);
+  background: var(--azul-fundo);
+  border-left-color: var(--azul);
 }
 
 /* "Abrindo a mesa…": enquanto a campanha não chega do servidor. */
@@ -5308,8 +5374,8 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--violeta);
-  box-shadow: 0 0 12px var(--violeta);
+  background: var(--azul);
+  box-shadow: 0 0 12px var(--azul);
   animation: pulso-carregando 1.1s ease-in-out infinite;
 }
 @keyframes pulso-carregando {
