@@ -101,9 +101,29 @@ const Criacao = {
       });
       return;
     }
-    this.preencherRascunho();
-    this.ligar();
-    this.mostrar(0);
+
+    /* Criar só vale no computador do servidor (ver /api/pode-criar).
+       Pergunta ANTES de ligar as etapas: aberta pelo túnel, a pessoa vê
+       o aviso em vez de preencher tudo e ser recusada no último passo.
+       plainusCarregando: os testes esperam a resposta antes de clicar. */
+    window.plainusCarregando = true;
+    Servidor.podeCriar().then(function (r) {
+      window.plainusCarregando = false;
+      if (r.podeCriar === false) { self.semCriacaoDaqui(); return; }
+      self.preencherRascunho();
+      self.ligar();
+      self.mostrar(0);
+    });
+  },
+
+  /* Aberta por fora: some tudo o que é de preencher, fica o aviso e o
+     link de volta à entrada. */
+  semCriacaoDaqui: function () {
+    document.getElementById('avisoSoLocal').hidden = false;
+    document.getElementById('passos').hidden = true;
+    document.querySelectorAll('.passo').forEach(function (passo) { passo.hidden = true; });
+    document.querySelector('.passos-nav').hidden = true;
+    document.getElementById('linkCancelar').textContent = 'Voltar à entrada';
   },
 
   passoAtual: function () {

@@ -17,7 +17,7 @@
    =================================================================== */
 
 const express = require('express');
-const { conferirCampanha } = require('../modelo.js');
+const { conferirCampanha } = require('../publico/modelo.js');
 const { doProprioComputador } = require('../servidor/api.js');
 
 function ligar(app, armazem, mesa) {

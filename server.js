@@ -17,14 +17,15 @@
 
 
    SÓ ENTREGA O QUE É DO SITE (uma lista branca)
-   Os arquivos do site moram na raiz do repositório, junto com o que
-   NÃO pode sair daqui: este server.js, o package.json, a pasta .git
-   (o histórico inteiro), os testes e, mais tarde, a pasta data/ com
-   as campanhas. Entregar a pasta inteira seria deixar qualquer um com
-   o link baixar tudo isso. Então o servidor entrega só:
-     - as páginas .html, os .js e o .css da raiz (menos o server.js)
-     - a pasta vendor/ (o Three.js)
-   e responde 404 para todo o resto.
+   Os arquivos que o navegador baixa moram em publico/. Todo o resto
+   do repositório NÃO pode sair daqui: este server.js, o package.json,
+   a pasta .git (o histórico inteiro), os testes, o servidor/ e a pasta
+   data/ com as campanhas. Por isso o servidor só olha dentro de
+   publico/, e mesmo ali entrega só:
+     - as páginas .html, os .js e o .css
+     - a pasta publico/vendor/ (o Three.js)
+   e responde 404 para todo o resto. Os endereços não mostram a pasta:
+   publico/mestre.html é entregue como /mestre.html.
 
 
    ONDE ELE ESCUTA
@@ -43,6 +44,8 @@ const { criarApi } = require('./servidor/api.js');
 const { ligarMesa } = require('./servidor/mesa.js');
 
 const RAIZ = __dirname;
+/* O que o navegador baixa: as páginas, os scripts, o estilo. */
+const PUBLICO = path.join(RAIZ, 'publico');
 const PORTA = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 /* Onde as campanhas ficam no disco. A pasta data/ está no .gitignore:
@@ -60,14 +63,13 @@ const quantas = armazem.carregar();
 
 /* ---------- A lista branca ---------- */
 
-const NAO_ENTREGAR = new Set(['server.js']);
 const EXTENSOES_DO_SITE = /\.(html|js|css)$/;
 
 /* Lida uma vez, ao ligar: arquivo novo no site pede reiniciar o
    servidor (é o que acontece de qualquer jeito ao atualizar). */
 const ARQUIVOS_DO_SITE = new Set(
-  fs.readdirSync(RAIZ, { withFileTypes: true })
-    .filter(function (e) { return e.isFile() && EXTENSOES_DO_SITE.test(e.name) && !NAO_ENTREGAR.has(e.name); })
+  fs.readdirSync(PUBLICO, { withFileTypes: true })
+    .filter(function (e) { return e.isFile() && EXTENSOES_DO_SITE.test(e.name); })
     .map(function (e) { return e.name; })
 );
 const PASTAS_DO_SITE = ['vendor'];
@@ -126,13 +128,13 @@ app.use(function (pedido, resposta, seguir) {
 
 /* "/" é a tela de entrada. */
 app.get('/', function (pedido, resposta) {
-  resposta.sendFile(path.join(RAIZ, 'index.html'));
+  resposta.sendFile(path.join(PUBLICO, 'index.html'));
 });
 
-/* Um arquivo da raiz: só se estiver na lista branca. */
+/* Um arquivo de publico/: só se estiver na lista branca. */
 app.get('/:arquivo', function (pedido, resposta, seguir) {
   if (!ARQUIVOS_DO_SITE.has(pedido.params.arquivo)) return seguir();
-  resposta.sendFile(path.join(RAIZ, pedido.params.arquivo));
+  resposta.sendFile(path.join(PUBLICO, pedido.params.arquivo));
 });
 
 /* As imagens das campanhas (servidor/imagens.js). O nome do arquivo é o
@@ -150,7 +152,7 @@ app.get('/img/:arquivo', function (pedido, resposta, seguir) {
 /* As pastas do site (vendor/). express.static já recusa "../" para
    sair da pasta e, com dotfiles: 'deny', arquivos escondidos. */
 PASTAS_DO_SITE.forEach(function (pasta) {
-  app.use('/' + pasta, express.static(path.join(RAIZ, pasta), { dotfiles: 'deny', index: false }));
+  app.use('/' + pasta, express.static(path.join(PUBLICO, pasta), { dotfiles: 'deny', index: false }));
 });
 
 /* As perguntas da tela de entrada (criar, entrar, cartões, backup):

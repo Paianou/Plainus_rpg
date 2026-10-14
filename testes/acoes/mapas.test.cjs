@@ -1,4 +1,4 @@
-const { ACOES } = require('../../acoes.js');
+const { ACOES } = require('../../publico/acoes.js');
 let falhas = 0;
 const ok = (c, t) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + t); if (!c) falhas++; };
 const estado = { cenas: [], combate: { ativo: true, rodada: 1, combatentes: [{ nome: 'Lyra', tipo: 'heroi', pv: 10 }, { nome: 'Goblin', tipo: 'inimigo', pv: 0 }, { nome: 'Orc', tipo: 'inimigo', pv: 15 }], registro: [] } };

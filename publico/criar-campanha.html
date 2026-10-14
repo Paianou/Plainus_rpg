@@ -66,6 +66,12 @@
         <p class="subtitulo" id="subtituloForm">O essencial agora. Tudo pode ser mudado depois.</p>
       </header>
 
+      <!-- Aberta por fora (o link do túnel): criar não vale daqui. O
+           criar-campanha.js pergunta ao servidor ao abrir e, se for o
+           caso, mostra isto NO LUGAR das etapas — antes de a pessoa
+           preencher tudo e ser recusada no fim. -->
+      <p class="aviso-entrada aviso-servidor" id="avisoSoLocal" hidden>Campanhas novas são criadas no computador onde o servidor está rodando: lá, abra <strong>http://localhost:3000</strong> e crie por ali. Depois, mande aos jogadores o link de convite e o código.</p>
+
 
       <!--
         O indicador de etapas. <ol> porque a ordem importa. O JS marca

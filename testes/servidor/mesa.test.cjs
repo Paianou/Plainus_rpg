@@ -6,8 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { io } = require('socket.io-client');
-const { aplicarAcao, novaSemente } = require('../../acoes.js');
-const { estadoVazio } = require('../../modelo.js');
+const { aplicarAcao, novaSemente } = require('../../publico/acoes.js');
+const { estadoVazio } = require('../../publico/modelo.js');
 
 let falhas = 0;
 const ok = (c, t) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + t); if (!c) falhas++; };
