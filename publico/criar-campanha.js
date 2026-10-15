@@ -109,7 +109,8 @@ const Criacao = {
     window.plainusCarregando = true;
     Servidor.podeCriar().then(function (r) {
       window.plainusCarregando = false;
-      if (r.podeCriar === false) { self.semCriacaoDaqui(); return; }
+      if (r.podeCriar === false) { self.semCriacaoDaqui(r.pedeSenha); return; }
+      if (r.local === false) self.exigirSenhaDoMestre();
       self.preencherRascunho();
       self.ligar();
       self.mostrar(0);
@@ -118,8 +119,12 @@ const Criacao = {
 
   /* Aberta por fora: some tudo o que é de preencher, fica o aviso e o
      link de volta à entrada. */
-  semCriacaoDaqui: function () {
-    document.getElementById('avisoSoLocal').hidden = false;
+  semCriacaoDaqui: function (pedeSenha) {
+    const aviso = document.getElementById('avisoSoLocal');
+    /* Com a senha do servidor ligada, o caminho é outro: ela é digitada
+       na entrada, em "Vou mestrar", e conferida lá. */
+    if (pedeSenha) aviso.textContent = 'Pelo link, criar campanha pede a senha do servidor. Volte à entrada, abra "Vou mestrar" e digite a senha lá.';
+    aviso.hidden = false;
     document.getElementById('passos').hidden = true;
     document.querySelectorAll('.passo').forEach(function (passo) { passo.hidden = true; });
     document.querySelector('.passos-nav').hidden = true;
@@ -412,10 +417,27 @@ const Criacao = {
     return document.getElementById('senhaMestre').value;
   },
 
+  /* PELO LINK, A SENHA DO MESTRE É OBRIGATÓRIA
+     O link do túnel rápido muda a cada sessão, e o navegador guarda a
+     chave do Mestre presa ao endereço: no link de amanhã, "Suas mesas"
+     não mostra a mesa criada hoje. Volta-se a ela por "Já tenho uma
+     mesa: entrar como Mestre" — com o código e ESTA senha. Sem ela, o
+     Mestre ficaria para fora da própria mesa. */
+  senhaObrigatoria: false,
+  exigirSenhaDoMestre: function () {
+    this.senhaObrigatoria = true;
+    document.getElementById('tituloSenha').textContent = 'Senha do Mestre (obrigatória pelo link)';
+    document.getElementById('ajudaSenha').textContent = 'O link muda a cada sessão, e o navegador não leva a mesa de um link para o outro. Para voltar a ela, você vai usar o código da mesa e esta senha. Pelo menos 8 caracteres — e não use a senha de outro site.';
+  },
+
   validarSenha: function () {
     const campo = document.getElementById('senhaMestre');
     const repetida = document.getElementById('senhaMestre2');
     const senha = campo.value;
+    if (!senha && !repetida.value && this.senhaObrigatoria && this.modo === 'criar') {
+      this.mostrarErro('Pelo link, a senha do Mestre é obrigatória: é com o código e esta senha que você volta à mesa na próxima sessão.', campo);
+      return false;
+    }
     if (!senha && !repetida.value) return true;
     if (senha.length < 8) { this.mostrarErro('A senha do Mestre precisa de pelo menos 8 caracteres (ou deixe os dois campos em branco).', campo); return false; }
     if (senha.length > 100) { this.mostrarErro('A senha pode ter até 100 caracteres.', campo); return false; }

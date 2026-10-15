@@ -7,8 +7,9 @@
 
      POST /api/campanhas   criar (da criação em etapas, ou de um backup)
                            → { id, codigo, chave }   a chave do Mestre
-                           só no computador do servidor (doProprioComputador)
-     POST /api/pode-criar  daqui pode criar? → { podeCriar } (só para a tela avisar cedo)
+                           no computador do servidor, ou com a senha do
+                           servidor ({ senhaServidor }, PLAINUS_SENHA_SERVIDOR)
+     POST /api/pode-criar  daqui pode criar? → { podeCriar, local, pedeSenha }
      POST /api/convite     o nome da mesa de um código (o link de convite)
      POST /api/entrar      entrar com o código, como jogador
                            → { campanhaId, jogadorId, chave, nome }
@@ -44,6 +45,7 @@
    =================================================================== */
 
 const net = require('net');
+const crypto = require('crypto');
 const express = require('express');
 const { senhaValida } = require('./armazem.js');
 const { imagemDaCena, retratoSeguro } = require('../publico/modelo.js');
@@ -124,6 +126,23 @@ function criarApi(armazem, opcoes) {
   };
   const limite = opcoes && opcoes.semLimite ? function () { return function (p, r, seguir) { seguir(); }; } : limitador;
 
+  /* A SENHA DO SERVIDOR (server.js, PLAINUS_SENHA_SERVIDOR no .env)
+     Pelo link do túnel, quem a digita cria campanha e restaura backup
+     como se estivesse no computador do servidor. Comparada pelo resumo
+     e em tempo constante (como as chaves no armazem.js): o tempo da
+     resposta não conta a quem tenta quantas letras acertou. */
+  const senhaServidor = opcoes && opcoes.senhaServidor ? String(opcoes.senhaServidor) : null;
+  const resumir = function (texto) { return crypto.createHash('sha256').update(String(texto)).digest(); };
+  const senhaDoServidorConfere = function (tentativa) {
+    if (!senhaServidor || typeof tentativa !== 'string' || !tentativa || tentativa.length > 200) return false;
+    return crypto.timingSafeEqual(resumir(tentativa), resumir(senhaServidor));
+  };
+  /* Daqui pode criar? No computador do servidor, sempre; de fora, só
+     com a senha do servidor certa no corpo do pedido. */
+  const podeCriarDaqui = function (pedido) {
+    return doProprioComputador(pedido) || senhaDoServidorConfere(pedido.body && pedido.body.senhaServidor);
+  };
+
   /* Criar campanha (inclusive de um backup, que pode trazer mapas): 8 MB. */
   /* A senha do Mestre é opcional: sem ela, a mesa só abre no navegador
      que a criou (o que é seguro, só menos prático). Vem conferida ANTES
@@ -133,17 +152,22 @@ function criarApi(armazem, opcoes) {
      enchia o servidor de campanhas (até o teto de 200, e aí nem o
      Mestre criava mais), de memória e de disco. Os jogadores entram
      pelo código; quem cria e restaura backup é o Mestre, em casa. */
-  api.post('/campanhas', function (pedido, resposta, seguir) {
-    if (doProprioComputador(pedido)) return seguir();
-    /* Diz POR QUE recusou: "pelo túnel" e "de outro computador" pedem
-       coisas diferentes de quem está tentando. Sem isto, a pessoa via a
-       mesma frase nos dois casos e não tinha como saber o que mudar. */
+  /* A ordem importa: limite e leitura do JSON ANTES da trava, porque a
+     senha do servidor vem no corpo do pedido. */
+  api.post('/campanhas', limite(10), express.json({ limit: '8mb' }), function (pedido, resposta, seguir) {
+    if (podeCriarDaqui(pedido)) return seguir();
+    /* Diz POR QUE recusou: cada caso pede uma coisa diferente de quem
+       está tentando. Com a mesma frase para todos, a pessoa não tinha
+       como saber o que mudar. */
     const pelaInternet = pedido.headers['cf-connecting-ip'] !== undefined;
-    resposta.status(403).json({ erro: 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando. '
-      + (pelaInternet
-        ? 'Esta página está aberta pelo link do túnel (Cloudflare): para criar, abra http://localhost:3000 no computador do servidor.'
-        : 'Este pedido veio de outro computador (' + String(pedido.socket && pedido.socket.remoteAddress).slice(0, 45) + '): para criar, use o computador do servidor, em http://localhost:3000.') });
-  }, limite(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
+    const tentouSenha = !!(pedido.body && pedido.body.senhaServidor);
+    let motivo;
+    if (senhaServidor && tentouSenha) motivo = 'A senha do servidor não confere.';
+    else if (senhaServidor) motivo = 'Pelo link, criar campanha pede a senha do servidor.';
+    else if (pelaInternet) motivo = 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando: abra http://localhost:3000 nele. Para criar pelo link, defina a senha do servidor (PLAINUS_SENHA_SERVIDOR, no arquivo .env — veja o README).';
+    else motivo = 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando. Este pedido veio de outro computador (' + String(pedido.socket && pedido.socket.remoteAddress).slice(0, 45) + '): use o computador do servidor, em http://localhost:3000.';
+    resposta.status(403).json({ erro: motivo });
+  }, function (pedido, resposta) {
     const corpo = pedido.body || {};
     const comSenha = corpo.senha !== undefined && corpo.senha !== null && corpo.senha !== '';
     const problema = comSenha ? senhaValida(corpo.senha) : null;
@@ -168,8 +192,15 @@ function criarApi(armazem, opcoes) {
      avisar ANTES de a pessoa preencher a criação inteira (pelo túnel, o
      aviso só aparecia no fim). Só informa: quem decide continua sendo o
      /campanhas, que recusa do mesmo jeito se alguém pular o aviso. */
-  api.post('/pode-criar', limite(60), function (pedido, resposta) {
-    resposta.json({ podeCriar: doProprioComputador(pedido) });
+  /*   → { podeCriar, local, pedeSenha }
+         local       no computador do servidor (senha do Mestre opcional)
+         pedeSenha   de fora, com a senha do servidor ligada: a tela pede
+                     a senha (e confere aqui, mandando { senhaServidor })
+     O limite é o mesmo do /campanhas: é por aqui que alguém tentaria
+     adivinhar a senha do servidor. */
+  api.post('/pode-criar', limite(10), express.json({ limit: '2kb' }), function (pedido, resposta) {
+    const local = doProprioComputador(pedido);
+    resposta.json({ podeCriar: podeCriarDaqui(pedido), local: local, pedeSenha: !local && !!senhaServidor });
   });
 
   /* O código de convite e a entrada dividem o MESMO limite: é por eles

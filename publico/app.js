@@ -60,6 +60,7 @@ const Entrada = {
 
   porta: null,          /* 'convite' | 'mestrar' | null (as duas portas à vista) */
   podeCriar: true,      /* false: aberta por fora (o túnel) — ver perguntarSePodeCriar */
+  pedeSenha: false,     /* por fora, com a senha do servidor ligada: pede a senha */
 
 
   /* ---------- Mensagens ---------- */
@@ -443,9 +444,21 @@ const Entrada = {
     Servidor.podeCriar().then(function (r) {
       self.esperando(-1);
       self.podeCriar = r.podeCriar !== false;
-      document.getElementById('avisoSoLocal').hidden = self.podeCriar;
-      document.getElementById('criarAqui').hidden = !self.podeCriar;
+      self.pedeSenha = !self.podeCriar && !!r.pedeSenha;
+      self.mostrarCriacao();
     });
+  },
+
+  /* Três jeitos de "Vou mestrar":
+       pode criar (no computador do servidor, ou com a senha já
+         conferida nesta aba)          → os campos de sempre
+       pede a senha do servidor      → os campos + "Senha do servidor"
+       não pode (sem senha ligada)   → o aviso no lugar dos campos */
+  mostrarCriacao: function () {
+    const semJeito = !this.podeCriar && !this.pedeSenha;
+    document.getElementById('avisoSoLocal').hidden = !semJeito;
+    document.getElementById('criarAqui').hidden = semJeito;
+    document.getElementById('campoSenhaServidor').hidden = !this.pedeSenha;
   },
 
 
@@ -475,7 +488,10 @@ const Entrada = {
     if (volta) { document.getElementById('codigoMestre').focus(); return; }
     /* Daqui não se cria: o campo da campanha está escondido; o foco vai
        para o que dá para fazer — entrar como Mestre numa mesa que existe. */
-    if (this.porta === 'mestrar' && !this.podeCriar) { document.getElementById('btnVoltaMestre').focus(); return; }
+    if (this.porta === 'mestrar' && !this.podeCriar) {
+      document.getElementById(this.pedeSenha ? 'senhaServidor' : 'btnVoltaMestre').focus();
+      return;
+    }
 
     /* O foco vai para o primeiro campo vazio: com o nome lembrado, a
        pessoa cai direto no código (ou no nome da campanha). */
@@ -577,12 +593,37 @@ const Entrada = {
       return;
     }
 
+    if (this.podeCriar) { this.irParaCriacao(nome, campanha); return; }
+
+    /* Pelo link: a senha do servidor é conferida AGORA, antes das etapas
+       — senha errada aqui, e não depois de preencher tudo. Certa, fica
+       guardada nesta aba e vai junto quando a campanha for criada. */
+    const self = this;
+    const campoSenha = document.getElementById('senhaServidor');
+    const tentativa = campoSenha.value;
+    if (!tentativa) { this.mostrarErro('Digite a senha do servidor.', campoSenha); return; }
+    const botao = document.getElementById('btnCriar');
+    botao.disabled = true;
+    Servidor.podeCriar(tentativa).then(function (r) {
+      botao.disabled = false;
+      if (!r.podeCriar) {
+        campoSenha.value = '';
+        self.mostrarErro(r.erro || 'A senha do servidor não confere.', campoSenha);
+        return;
+      }
+      SenhaServidor.guardar(tentativa);
+      self.podeCriar = true;
+      self.irParaCriacao(nome, campanha);
+    });
+  },
+
+  /* Leva o que já foi digitado para a tela de criação, que pede o resto. */
+  irParaCriacao: function (nome, campanha) {
     try {
       sessionStorage.setItem(CHAVE_RASCUNHO, JSON.stringify({ mestre: nome, nome: campanha }));
     } catch (erro) {
       /* Sem o rascunho, a criação só começa com os campos em branco. */
     }
-
     location.href = 'criar-campanha.html';
   },
 
@@ -713,9 +754,22 @@ const Entrada = {
     document.getElementById('btnRestaurar').addEventListener('click', function () {
       /* Restaurar é criar uma campanha: daqui não vale. Diz antes de a
          pessoa procurar o arquivo, e não depois. */
-      if (!self.podeCriar) {
+      if (!self.podeCriar && !self.pedeSenha) {
         self.mostrarErro('Backups são restaurados no computador onde o servidor está rodando: lá, abra http://localhost:3000.');
         return;
+      }
+      /* Pelo link, com a senha do servidor: ela vem do campo de "Vou
+         mestrar". Guardada AGORA, sem esperar resposta — a janela de
+         escolher arquivo só abre colada ao clique; quem confere a senha
+         é o servidor, na hora de restaurar. */
+      if (!self.podeCriar) {
+        const campoSenha = document.getElementById('senhaServidor');
+        if (!campoSenha.value) {
+          if (self.porta !== 'mestrar') self.abrirPorta('mestrar');
+          self.mostrarErro('Digite a senha do servidor (aqui em "Vou mestrar") e clique em "Restaurar backup" de novo.', campoSenha);
+          return;
+        }
+        SenhaServidor.guardar(campoSenha.value);
       }
       arquivo.click();
     });

@@ -38,6 +38,23 @@
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+
+/* O ARQUIVO .env — os segredos DESTE computador
+   Linhas NOME=valor, lidas antes de tudo. Ele está no .gitignore: o que
+   mora nele (a senha do servidor) nunca vai para o GitHub. Uma variável
+   que já veio do sistema (ou dos testes) vale mais que a do arquivo.
+   Sem arquivo, tudo segue como sempre. */
+(function lerEnv() {
+  let texto;
+  try { texto = fs.readFileSync(path.join(__dirname, '.env'), 'utf8'); } catch (erro) { return; }
+  texto.split(/\r?\n/).forEach(function (linha) {
+    const achado = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/.exec(linha);
+    if (!achado || linha.trim().startsWith('#')) return;
+    const valor = achado[2].replace(/^(['"])(.*)\1$/, '$2');
+    if (process.env[achado[1]] === undefined) process.env[achado[1]] = valor;
+  });
+})();
+
 const express = require('express');
 const { criarArmazem } = require('./servidor/armazem.js');
 const { criarApi } = require('./servidor/api.js');
@@ -157,7 +174,20 @@ PASTAS_DO_SITE.forEach(function (pasta) {
 
 /* As perguntas da tela de entrada (criar, entrar, cartões, backup):
    servidor/api.js. */
-app.use('/api', criarApi(armazem, { semLimite: !!rotasDeTeste, mesa: function () { return mesa; } }));
+/* A SENHA DO SERVIDOR (PLAINUS_SENHA_SERVIDOR, no .env)
+   Criar campanha e restaurar backup só valem no computador do servidor —
+   ou, pelo link do túnel, com esta senha. É o que deixa o Mestre criar
+   pelo link sem abrir a porta para quem só tem o link. Curta demais (ou
+   ausente), fica desligada: uma senha fraca seria pior que nenhuma. */
+const SENHA_SERVIDOR_MINIMO = 12;
+const senhaServidor = process.env.PLAINUS_SENHA_SERVIDOR || '';
+const senhaServidorLigada = senhaServidor.length >= SENHA_SERVIDOR_MINIMO;
+
+app.use('/api', criarApi(armazem, {
+  semLimite: !!rotasDeTeste,
+  mesa: function () { return mesa; },
+  senhaServidor: senhaServidorLigada ? senhaServidor : null
+}));
 
 /* Os testes do navegador (testes/rodar.mjs) ligam o servidor com
    PLAINUS_ROTAS_DE_TESTE=1 e ganham duas rotas para ler e trocar uma
@@ -202,6 +232,9 @@ servidor.listen(PORTA, HOST, function () {
   console.log('Plainus no ar em http://' + nome + ':' + PORTA);
   console.log('Entregando ' + ARQUIVOS_DO_SITE.size + ' arquivos do site.');
   console.log(quantas + (quantas === 1 ? ' campanha guardada' : ' campanhas guardadas') + ' em ' + PASTA_DADOS + '. Ctrl+C para desligar.');
+  if (senhaServidorLigada) console.log('Senha do servidor: ligada — pelo link do túnel, criar campanha pede a senha.');
+  else if (senhaServidor) console.log('Senha do servidor: DESLIGADA — PLAINUS_SENHA_SERVIDOR tem menos de ' + SENHA_SERVIDOR_MINIMO + ' caracteres.');
+  else console.log('Senha do servidor: desligada — criar campanha só em http://localhost:3000 (veja PLAINUS_SENHA_SERVIDOR no README).');
 });
 
 /* Desligar com calma: Ctrl+C (SIGINT) ou o sistema pedindo (SIGTERM).
