@@ -84,6 +84,115 @@
 }
 
 
+/* ---------- 1b. TOKENS DA DIREÇÃO NOVA: "a mesa, não o jogo" ----------
+   A fonte da verdade é o DESIGN.md (tabelas, contraste medido, regras).
+   Este bloco só DEFINE os valores: nenhuma regra antiga usa estes nomes,
+   então as páginas ainda não migradas ficam exatamente como estavam. As
+   páginas passam a usá-los uma por vez — a começar pela entrada.
+
+   Os nomes foram escolhidos para não colidir com os antigos (--perigo e
+   --texto já existem acima, com outros valores): estado-* e cor-*.
+
+   DOIS MUNDOS: o contêiner diz em qual mundo está, com .mundo-mesa ou
+   .mundo-papel. Os componentes usam só os nomes de USO (--cor-texto,
+   --cor-acento...) e ficam certos nos dois sem saber em qual estão. */
+:root {
+  /* mesa: o tampo escuro (grafite quente, não preto) */
+  --mesa: #1c1b19;
+  --mesa-2: #25231f;
+  --mesa-3: #2f2c27;
+  --giz: #ece7dd;
+  --giz-2: #b3ab9e;
+  --linha-mesa: rgba(236, 231, 221, .12);
+
+  /* papel: a folha (ficha, formulários, documentos) */
+  --papel: #f3f0e9;
+  --papel-2: #e7e2d7;
+  --grafite: #24221e;
+  --grafite-2: #5a554c;
+  --linha-papel: rgba(36, 34, 30, .16);
+
+  /* tinta (o acento, um só) e estado — tom escuro no papel, claro na mesa */
+  --tinta: #2b4b8c;
+  --tinta-clara: #9bb4e6;
+  --estado-perigo: #a8352a;
+  --estado-perigo-claro: #e6908a;
+  --estado-sucesso: #2e6f49;
+  --estado-sucesso-claro: #8cc7a3;
+  --estado-atencao: #8a5a12;
+  --estado-atencao-claro: #d9a650;
+
+  /* quadriculado: o "5 mm" do papel de verdade */
+  --quadricula-papel: rgba(43, 75, 140, .09);
+  --quadricula-mesa: rgba(236, 231, 221, .05);
+  --quadrado: 20px;
+
+  /* tipo: escala 1,25 a partir de 16px (rem: respeita o tamanho de letra
+     escolhido por quem lê). Nada abaixo de 12px. */
+  --fonte: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --fonte-titulo: 'Marcellus', Georgia, serif;
+  --t-legenda: .75rem;      /* 12 */
+  --t-apoio: .875rem;       /* 14 */
+  --t-rotulo: .875rem;      /* 14, peso 600 */
+  --t-corpo: 1rem;          /* 16: também o dos campos (sem zoom no iPhone) */
+  --t-secao: 1.25rem;       /* 20 */
+  --t-titulo: 1.95rem;      /* 31, Marcellus */
+  --t-numero-p: 1.5625rem;  /* 25: CA, PV no cartão */
+  --t-numero-m: 2.4375rem;  /* 39: PV da ficha, iniciativa da vez */
+  --t-numero-g: 3.8125rem;  /* 61: o resultado do d20 */
+
+  /* espaço: base de 4px */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 24px;
+  --e-6: 32px;
+  --e-7: 48px;
+  --e-8: 64px;
+
+  /* forma: raio e sombra carregam hierarquia (ver DESIGN.md) */
+  --r-1: 2px;
+  --r-2: 6px;
+  --faceta: 14px;    /* o corte de 60°, a aresta da face do d20 */
+  --sombra-papel: 0 1px 0 rgba(0, 0, 0, .35), 0 18px 32px -18px rgba(0, 0, 0, .65);
+  --sombra-acima: 0 16px 40px -12px rgba(0, 0, 0, .6);
+
+  /* movimento: nada contínuo, nada que pulse */
+  --m-rapido: 120ms;
+  --m-normal: 200ms;
+  --curva: cubic-bezier(.2, .7, .2, 1);
+}
+
+.mundo-mesa {
+  --cor-fundo: var(--mesa);
+  --cor-fundo-2: var(--mesa-2);
+  --cor-fundo-3: var(--mesa-3);
+  --cor-texto: var(--giz);
+  --cor-apoio: var(--giz-2);
+  --cor-linha: var(--linha-mesa);
+  --cor-acento: var(--tinta-clara);
+  --cor-perigo: var(--estado-perigo-claro);
+  --cor-sucesso: var(--estado-sucesso-claro);
+  --cor-atencao: var(--estado-atencao-claro);
+  --cor-quadricula: var(--quadricula-mesa);
+}
+
+.mundo-papel {
+  --cor-fundo: var(--papel);
+  --cor-fundo-2: var(--papel-2);
+  --cor-fundo-3: var(--papel-2);
+  --cor-texto: var(--grafite);
+  --cor-apoio: var(--grafite-2);
+  --cor-linha: var(--linha-papel);
+  --cor-acento: var(--tinta);
+  --cor-perigo: var(--estado-perigo);
+  --cor-sucesso: var(--estado-sucesso);
+  --cor-atencao: var(--estado-atencao);
+  --cor-quadricula: var(--quadricula-papel);
+}
+
+
 /* ---------- 2. BASE ---------- */
 * { box-sizing: border-box; }
 

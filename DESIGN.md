@@ -44,7 +44,9 @@ Regras:
 - Cada mundo tem a própria tinta: o acento é o mesmo (tinta azul), em
   dois tons — escuro sobre o papel, claro sobre a mesa.
 - Componente nenhum muda de cor "porque está no outro mundo" por acaso:
-  ele vem em duas versões escritas, `.mesa` e `.papel` (ver Tokens).
+  ele usa só os nomes de uso (`--cor-texto`, `--cor-acento`...), e quem
+  diz o mundo é o contêiner, com a classe `.mundo-mesa` ou `.mundo-papel`
+  (ver Tokens). O mesmo botão fica certo nos dois.
 
 ### 2. A faceta do d20 é a assinatura
 
@@ -295,14 +297,20 @@ Em cada mundo, os nomes de USO apontam para a superfície certa, para o
 componente ser escrito uma vez só:
 
 ```css
-.mesa  { --cor-fundo: var(--mesa);  --cor-texto: var(--giz);     --cor-apoio: var(--giz-2);
-         --cor-linha: var(--linha-mesa);  --cor-acento: var(--tinta-clara);
-         --cor-perigo: var(--estado-perigo-claro); --cor-sucesso: var(--estado-sucesso-claro);
-         --cor-atencao: var(--estado-atencao-claro); --cor-quadricula: var(--quadricula-mesa); }
-.papel { --cor-fundo: var(--papel); --cor-texto: var(--grafite); --cor-apoio: var(--grafite-2);
-         --cor-linha: var(--linha-papel); --cor-acento: var(--tinta);
-         --cor-perigo: var(--estado-perigo); --cor-sucesso: var(--estado-sucesso);
-         --cor-atencao: var(--estado-atencao); --cor-quadricula: var(--quadricula-papel); }
+.mundo-mesa {
+  --cor-fundo: var(--mesa);   --cor-fundo-2: var(--mesa-2);   --cor-fundo-3: var(--mesa-3);
+  --cor-texto: var(--giz);    --cor-apoio: var(--giz-2);      --cor-linha: var(--linha-mesa);
+  --cor-acento: var(--tinta-clara);
+  --cor-perigo: var(--estado-perigo-claro);  --cor-sucesso: var(--estado-sucesso-claro);
+  --cor-atencao: var(--estado-atencao-claro); --cor-quadricula: var(--quadricula-mesa);
+}
+.mundo-papel {
+  --cor-fundo: var(--papel);  --cor-fundo-2: var(--papel-2);  --cor-fundo-3: var(--papel-2);
+  --cor-texto: var(--grafite); --cor-apoio: var(--grafite-2); --cor-linha: var(--linha-papel);
+  --cor-acento: var(--tinta);
+  --cor-perigo: var(--estado-perigo);  --cor-sucesso: var(--estado-sucesso);
+  --cor-atencao: var(--estado-atencao); --cor-quadricula: var(--quadricula-papel);
+}
 ```
 
 Um componente escreve `var(--cor-texto)`, `var(--cor-acento)`... e fica
@@ -337,7 +345,7 @@ como números, e só esses quatro.)
 | Passo | Estado |
 |---|---|
 | 1. Este DESIGN.md | feito (2026-10-14) |
-| 2. Tokens no `:root` do style.css (definidos; as regras antigas intactas) | a fazer |
+| 2. Tokens no `:root` do style.css (definidos; as regras antigas intactas) | feito (2026-10-14): 6 páginas com estilo final idêntico antes e depois |
 | 3. Protótipo: só a tela de entrada, na branch `redesenho-mesa` | a fazer |
 | 4. Comparação antes/depois, e aprovação | a fazer |
 | 5. As outras 10 telas, uma por vez | depois da aprovação |
