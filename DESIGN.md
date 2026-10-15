@@ -1,264 +1,349 @@
-# DESIGN.md - Plainus (minha-mesa)
+# DESIGN.md - Plainus RPG
 
-A identidade visual da mesa, escrita como regra. Descreve o que o site
-JÁ é (o `style.css` e o `CLAUDE.md`), não um visual novo. Quando o código
-e este arquivo discordarem, este arquivo diz o que é o certo; a seção
-"Divergências medidas" lista onde o código ainda não chegou lá.
+A fonte da verdade do visual. Quando o CSS e este arquivo discordarem,
+este arquivo diz o que é o certo.
 
-Qualquer ferramenta de design (inclusive as skills de "deslop") lê este
-arquivo primeiro e o respeita. Escolhas daqui que contrariam regras
-genéricas dessas ferramentas são DECISÕES, não descuido (ver "Decisões
-que não se discutem").
+Substitui a direção anterior ("pedra fria e luz arcana", outubro de 2026),
+que está no histórico do Git. Este arquivo descreve a direção NOVA; as
+páginas migram uma por vez (ver "Migração", no fim).
 
 
-## Contexto
+## A tese: a mesa, não o jogo
 
-- Tipo: aplicativo de mesa virtual (VTT) para D&D 5e. Painel denso de
-  ferramenta (Mestre) + painel de jogador, também no celular.
-- Posicionamento: utilitário, com clima. Não é SaaS, não vende nada.
-- Público: o Mestre (Thiago) e um grupo pequeno de amigos.
-- Ação principal: jogar a sessão. O Mestre controla o mundo; cada
-  jogador, o próprio personagem.
-- Adjetivos: frio, arcano, contido, preciso, noturno.
-- Tradução visual:
-  - frio: superfícies grafite com um fio de azul, nunca marrom ou creme
-  - arcano: um único acento de luz azul, e nenhum outro
-  - contido: um ornamento gótico, não vários; nada de dourado
-  - preciso: hairlines de 1px, números tabulares, alinhamento rigoroso
-  - noturno: fundo quase preto, texto quase branco, grão de filme
-- Essência (3 palavras): pedra fria, luz arcana.
-- Modo: só escuro. Densidade: densa no Mestre, equilibrada no jogador.
-- Restrições: HTML/CSS/JS puro, sem framework; CSP sem estilo inline em
-  atributo (ver server.js); sem emoji na interface.
+O Plainus não substitui um videogame: substitui uma MESA, com papel, dado e
+lápis. Parecendo videogame (quase-preto, acento brilhante, catedral, brilho
+arcano), ele compete com Roll20 e Foundry no terreno deles, com o visual
+mais reconhecível de interface gerada por IA. Parecendo a mesa, ele tem um
+ponto de vista que nenhum dos dois tem.
+
+O vocabulário visual vem dos materiais do RPG de mesa: papel quadriculado,
+grafite, tinta de caneta, a faceta do dado, o formulário impresso da ficha.
+
+- Tipo: aplicativo de sessão (denso, uso longo) + documentos (a ficha).
+- Público: o Mestre e um grupo pequeno de amigos, no computador e no celular.
+- Adjetivos: tátil, legível, sóbrio, analógico, preciso.
+- Essência: papel sobre a mesa.
 
 
-## Estética
+## As cinco decisões
 
-- Direção: pedra fria e luz arcana (sob medida).
-- Traço que organiza tudo: superfícies em camadas de grafite separadas
-  por luz (hairline + brilho no topo), não por bordas grossas.
-- Assinatura: o arco gótico (`.arco-gotico`) no cabeçalho, o ÚNICO
-  ornamento literal, junto com o grão de filme sobre a página toda e a
-  névoa que respira devagar na entrada.
+### 1. Dois mundos, não um
 
+Duas superfícies completas e deliberadas. Nenhuma é "o tema"; cada tela
+pertence a uma delas, ou põe uma folha de papel sobre a mesa.
 
-## Decisões que não se discutem
+| Mundo | O que é | Onde |
+|---|---|---|
+| **Mesa** (escura) | o ambiente da sessão: a sala, o tampo, o mapa | Visão Geral, Combate, Mapas, rolador, chat, presença, menus |
+| **Papel** (clara) | o documento: leitura longa e preenchimento | ficha do jogador, criação/edição de campanha, a folha da entrada, diário, verbetes do compêndio e bestiário |
 
-Vêm do `CLAUDE.md` e já valem no código. Ferramentas genéricas podem
-apontar algumas como "padrão de IA"; aqui elas ficam.
+Regras:
+- O papel é uma FOLHA: tem borda, sombra de papel sobre a mesa e margem.
+  Nunca encosta nas bordas da janela no computador. Assim fica claro que
+  é um objeto em cima da mesa, e não um tema que falhou ao carregar.
+- Cada mundo tem a própria tinta: o acento é o mesmo (tinta azul), em
+  dois tons — escuro sobre o papel, claro sobre a mesa.
+- Componente nenhum muda de cor "porque está no outro mundo" por acaso:
+  ele vem em duas versões escritas, `.mesa` e `.papel` (ver Tokens).
 
-- **Inter na interface.** Escolhida pela legibilidade em tamanho pequeno
-  e pelos números tabulares, num painel denso. A personalidade vem do
-  Marcellus nos títulos, não da fonte do corpo.
-- **Azul elétrico é o único acento** (foco, seleção, botão secundário,
-  hover, luzes de fundo). **Sem violeta**, em lugar nenhum: decidido em
-  2026-10-12 (achado desnecessário); o token `--violeta` saiu do CSS em
-  2026-10-13.
-- **Sem dourado.** O âmbar `--vida-media` existe só como cor de ESTADO
-  "atenção" (vida pela metade, aviso de nível atenção no sino), nunca
-  em borda, título ou fundo decorativo.
-- **Sem emoji.** Ícones são SVG em traço que herdam a cor do texto.
-- **Gótico com parcimônia:** um ornamento marcante, não enfeite espalhado.
+### 2. A faceta do d20 é a assinatura
 
+O arco gótico sai. No lugar, a face do icosaedro: um TRIÂNGULO. Não se
+desenha dado; usa-se a forma, sempre com a mesma geometria:
 
-## Tipografia
+- **Ângulo:** 60°, o da aresta da face do d20. Todo corte e todo marcador
+  usa esse ângulo — é ele que faz a forma ser reconhecível.
+- **Canto de faceta** (`--faceta: 14px`): um canto cortado a 60°, no canto
+  superior direito, só em cartões que importam (a folha da entrada, o
+  resultado do dado, o cartão do combatente da vez). Nunca em todos.
+- **Marcador:** um triângulo cheio de 8px no lugar do pingo de luz antes
+  dos títulos de seção, e como marcador do item ativo na navegação.
+- **Separador de seção:** linha de 1px com o triângulo de 8px no meio.
+- **Moldura de retrato:** o hexágono da silhueta do d20 visto de frente.
 
-- Títulos e números de destaque: **Marcellus** (Google Fonts, OFL), peso 400,
-  `letter-spacing: .02em`. Usado em `h1`, `h2`, `.marca`.
-- Interface: **Inter** (Google Fonts, OFL), pesos 400/500/600/700.
-  Alternativas: 'Segoe UI', system-ui.
-- Base: 15px, `line-height: 1.5`.
-- Números: `font-feature-settings: 'tnum' 1` na página toda (os valores
-  não dançam quando mudam).
-- Escala alvo (para novas telas): 11 / 12 / 13 / 15 / 18 / 24 / 32 px.
-  Mínimo para texto legível: 11px; 9-10px só em rótulo de uma palavra
-  em caixa alta, nunca em frase.
+### 3. Quadriculado
+
+O papel quadriculado é o fundo dos lugares onde se desenha ou se planeja:
+o mapa, a área de anotação, o cabeçalho de uma seção de papel.
+
+- Quadrado de 20px (o "5 mm" do papel de verdade), linha de 1px.
+- No papel: tinta azul a 9% (`--quadricula-papel`). Na mesa: giz a 5%
+  (`--quadricula-mesa`).
+- No máximo UMA região quadriculada por tela, e nunca atrás de parágrafo
+  de leitura. É fundo de seção, não papel de parede.
+
+### 4. O número é o herói
+
+O resultado do d20, o PV, a CA, a iniciativa são o design. Eles usam a
+escala de destaque (`--t-numero-*`), em Inter peso 600, numerais tabulares
+(`font-variant-numeric: tabular-nums`) e espaçamento apertado (-0,02em). O
+rótulo do número é pequeno e quieto; o número é grande. Nada de brilho em
+volta: o tamanho já basta.
+
+### 5. Escalas que não existiam
+
+Medição do style.css antigo (2026-10-14): nenhum token de espaçamento nem
+de tipo; só 317 de 789 espaçamentos múltiplos de 4 (com 5, 7, 9, 11, 13...
+em dezenas de lugares); fontes de 8,5 a 16px em passos de meio pixel, em
+px e rem misturados. Os passos abaixo partem do que mais se usava (8, 12,
+16) e fecham numa base de 4px.
 
 
 ## Cor
 
-Paleta (token -> OKLCH | hex). Tudo no código usa `var(--token)`.
+Todas as cores do site vêm destes tokens. Valor escrito à mão fora deles
+é erro (o style.css antigo tinha `rgba(77,141,255,...)` 130 vezes).
 
-Superfícies (do mais fundo ao mais alto):
-- `--breu`: oklch(13.9% 0.005 263) | #08090b (fundo da página)
-- `--cripta`: oklch(16.3% 0.009 264) | #0c0e12
-- `--pedra`: oklch(20.5% 0.010 268) | #15171c (cartão)
-- `--pedra-2`: oklch(23.5% 0.012 264) | #1b1e24
-- `--pedra-3`: oklch(26.9% 0.014 267) | #23262d (elevado, hover)
+### Mesa
 
-Linhas e relevo:
-- `--hairline`: rgba(255,255,255,.07) (separadores)
-- `--hairline-forte`: rgba(255,255,255,.13) (bordas de controle)
-- `--relevo`: rgba(255,255,255,.055) (brilho no topo, `inset 0 1px 0`)
+| Token | Hex | Papel |
+|---|---|---|
+| `--mesa` | `#1c1b19` | o tampo: fundo das telas de sessão (grafite quente, não preto) |
+| `--mesa-2` | `#25231f` | painéis e cartões sobre o tampo |
+| `--mesa-3` | `#2f2c27` | elevado: hover, item ativo, menu aberto |
+| `--giz` | `#ece7dd` | texto principal sobre a mesa |
+| `--giz-2` | `#b3ab9e` | texto de apoio sobre a mesa |
+| `--linha-mesa` | `rgba(236,231,221,.12)` | bordas e divisões sobre a mesa |
 
-Texto:
-- `--texto`: oklch(93.2% 0.011 275) | #e6e8f0 (principal)
-- `--texto-2`: oklch(69.1% 0.032 271) | #949bb0 (secundário)
-- `--texto-3`: oklch(62.4% 0.031 270) | #80879b (dica, detalhe, rótulo, placeholder).
-  Era #5d6478 (contraste 3:1). É o tom mais apagado que ainda passa 4,5:1
-  no fundo comum. **Sobre fundo realçado** (linha da vez, item ativo,
-  pílula, cartão em degradê), o texto apagado usa `--texto-2`, porque
-  ali o `--texto-3` não tem contraste.
+### Papel
 
-Acento (luz arcana):
-- `--azul`: oklch(65.8% 0.182 261) | #4d8dff
-- `--azul-fundo`: rgba(77,141,255,.12)
-- `--gelo`: oklch(82.1% 0.089 265) | #a9c4ff (texto sobre fundo azul)
-- ~~`--violeta`~~ #8b6cff: fora da paleta e do CSS desde 2026-10-13.
-  As luzes de fundo da entrada são `--gelo` e `--azul`.
+| Token | Hex | Papel |
+|---|---|---|
+| `--papel` | `#f3f0e9` | a folha (um branco de papel, não creme) |
+| `--papel-2` | `#e7e2d7` | campo, linha de tabela, seção dentro da folha |
+| `--grafite` | `#24221e` | texto principal sobre o papel |
+| `--grafite-2` | `#5a554c` | texto de apoio sobre o papel |
+| `--linha-papel` | `rgba(36,34,30,.16)` | bordas e divisões sobre o papel |
 
-Estado (informação, não decoração):
-- `--perigo`: oklch(55.8% 0.165 25) | #c2413f (borda/fundo de erro, botão perigoso)
-- texto de erro: oklch(83.4% 0.068 23) | #f2b8b4 (ainda sem token; ver Divergências)
-- texto de sucesso: oklch(80.4% 0.082 161) | #8fd0ae (ainda sem token)
-- `--vida` / `--vida-media` / `--vida-baixa`: #3f9e6c / #b8873c / #b5413f
-  (barra de vida: bem / ferido / quase caindo). O âmbar também marca o
-  aviso de nível "atenção" no sino (perigo = vermelho, info = azul).
-  Fora disso, nunca.
+### Tinta (o acento — um só, em dois tons)
 
-Distribuição: ~70 grafite / ~25 texto / ~5 azul. O azul aparece pouco
-para continuar chamando atenção.
+| Token | Hex | Onde |
+|---|---|---|
+| `--tinta` | `#2b4b8c` | sobre o papel: link, foco, botão principal, seleção |
+| `--tinta-clara` | `#9bb4e6` | sobre a mesa: o mesmo papel |
+
+### Estado (informação, nunca enfeite)
+
+| Token (papel / mesa: `-claro`) | Sobre o papel | Sobre a mesa | Uso |
+|---|---|---|---|
+| `--estado-perigo` | `#a8352a` | `#e6908a` | erro, dano, inimigo, "abatido" |
+| `--estado-sucesso` | `#2e6f49` | `#8cc7a3` | cura, vida cheia, confirmado |
+| `--estado-atencao` | `#8a5a12` | `#d9a650` | ferido, aviso de atenção |
+
+(O prefixo `estado-` não é enfeite: `--perigo` já existe no CSS antigo, com
+outro valor. Os nomes novos não podem colidir com os antigos enquanto as
+duas direções convivem — senão as páginas ainda não migradas mudariam de
+cor sozinhas.)
+
+O âmbar é cor de ESTADO. Sem dourado como enfeite (continua valendo).
+
+### Contraste medido (WCAG, texto comum pede 4,5:1)
+
+| Par | Razão |
+|---|---|
+| giz / mesa | 13,97 |
+| giz-2 / mesa · mesa-2 · mesa-3 | 7,57 · 6,90 · 6,11 |
+| tinta-clara / mesa · mesa-3 | 8,25 · 6,66 |
+| perigo · sucesso · atenção (claros) / mesa-2 | 6,51 · 8,08 · 7,11 |
+| grafite / papel · papel-2 | 13,95 · 12,29 |
+| grafite-2 / papel · papel-2 | 6,50 · 5,73 |
+| tinta / papel · papel-2 | 7,42 · 6,53 |
+| papel / tinta (texto do botão principal) | 7,42 |
+| perigo · sucesso · atenção / papel | 5,75 · 5,29 · 5,19 |
+
+Não há terceiro nível de texto: o apoio é `--giz-2` / `--grafite-2`, e
+ambos passam com folga. Texto mais apagado que isso não existe.
 
 
-## Espaço, cantos, sombra
+## Tipografia
 
-- Cantos: `--r-p` 8px (controles pequenos, pílulas de canto), `--r-m`
-  12px (botões, campos, cartões), `--r-g` 18px (o cartão principal).
-  Círculo: `50%` (retratos, pontos). Pílula: `999px`.
-- Sombra: elevação suave, em três degraus (`--sombra-baixa`, `--sombra`,
-  `--sombra-alta`), sempre junto do brilho de topo
-  `inset 0 1px 0 var(--relevo)`. A borda é hairline (1px, translúcida),
-  nunca grossa.
-- Espaçamento: múltiplos de 4px; apertado dentro de um grupo, folgado
-  entre grupos.
+- **Inter** — interface, texto e NÚMEROS (tabulares). Pesos 400 e 600.
+- **Marcellus** — só o título da tela e o nome da campanha. Mais nada.
+- Unidade: `rem` (respeita o tamanho de letra que a pessoa escolheu).
+  Base 16px.
+- **Sem caixa alta em rótulo.** Hierarquia por peso e cor. (O CSS antigo
+  tinha `text-transform: uppercase` em 41 regras.) Exceção nenhuma.
+
+| Token | Tamanho | Linha | Peso | Uso |
+|---|---|---|---|---|
+| `--t-legenda` | 12px · .75rem | 1.4 | 400 | data, contador, meta |
+| `--t-apoio` | 14px · .875rem | 1.45 | 400 | dica, texto de apoio, interface densa da mesa |
+| `--t-rotulo` | 14px · .875rem | 1.4 | 600 | rótulo de campo e de número |
+| `--t-corpo` | 16px · 1rem | 1.55 | 400 | texto, campos (16px evita o zoom do iPhone) |
+| `--t-secao` | 20px · 1.25rem | 1.3 | 600 | título de seção (Inter) |
+| `--t-titulo` | 31px · 1.95rem | 1.15 | 400 | título da tela (Marcellus) |
+| `--t-numero-p` | 25px · 1.5625rem | 1 | 600 | CA, PV no cartão |
+| `--t-numero-m` | 39px · 2.4375rem | 1 | 600 | PV da ficha, iniciativa da vez |
+| `--t-numero-g` | 61px · 3.8125rem | 1 | 600 | o resultado do d20 |
+
+Escala de razão 1,25 a partir de 16 (12,8 · 16 · 20 · 25 · 31 · 39 · 49 ·
+61), com 12 e 14 como passos de interface. Menor que 12px: não existe.
 
 
-## Layout
+## Espaçamento
 
-- Mestre: barra do topo + códice (navegação lateral) + três colunas.
-- Jogador: barra própria, abas, lateral que desce no meio da tela.
-- Quebra principal: **720px** (celular). Telas médias: 1100px.
-- Celular: nenhuma rolagem de lado (os testes conferem em 390px).
+Base de 4px. Nenhum valor fora destes passos.
+
+| Token | px | Uso típico |
+|---|---|---|
+| `--e-1` | 4 | ícone e texto; dentro de um chip |
+| `--e-2` | 8 | entre itens de um grupo |
+| `--e-3` | 12 | dentro de um controle compacto |
+| `--e-4` | 16 | entre campos; margem do cartão no celular |
+| `--e-5` | 24 | margem do cartão; entre grupos |
+| `--e-6` | 32 | entre seções |
+| `--e-7` | 48 | margem da folha de papel |
+| `--e-8` | 64 | respiro de página |
+
+Ritmo: apertado dentro do grupo (`--e-2`), folgado entre grupos (`--e-5`
+ou mais). Um valor igual em todo lugar é o "quase certo" que se quer
+evitar.
 
 
-## Componentes e estados
+## Forma e profundidade
 
-- Botão principal (`.botao`): cheio, degradê grafite, hairline forte,
-  brilho de topo. Hover: sobe 1px e ganha borda e sombra azuladas.
-- Botão secundário (`.botao.fantasma`): contorno azul, texto `--gelo`,
-  fundo azul a 8%.
-- Botão perigoso (`.botao.perigo`): fundo vermelho translúcido.
-- Pequeno (`.botao.pequeno`). Desabilitado: sem hover.
-- Hierarquia por importância, não por cor: um botão cheio por área.
-- Campo (`.campo`): label sempre visível acima (placeholder não é label).
-  Campo compacto sem label à vista (linhas de formulário, texto editável
-  no lugar) leva `aria-label`, como os de PV e CA do Combate.
-- Foco de campo: borda `rgba(77,141,255,.55)` + anel de 3px. Campo sem
-  borda própria (a busca Ctrl+K) mostra o foco na faixa que o contém
-  (`:focus-within`).
-- Erro (`.erro-entrada`): faixa com borda esquerda `--perigo`, some
-  sozinha quando vazia (`:empty`), `role="alert"`.
-- Recado (`.recados`): aviso flutuante que some sozinho.
-- Foco: `:focus-visible { outline: 2px solid var(--azul); outline-offset: 3px }`
-  na página toda. Nunca remover sem pôr outro no lugar.
-- Vazio: frase que diz o que fazer ("Passe o código de convite...").
+Raio e sombra carregam HIERARQUIA. Não existe "o raio do card".
+
+| Coisa | Raio | Profundidade |
+|---|---|---|
+| Campo, botão, chip (no papel e na mesa) | `--r-1: 2px` | nenhuma: borda de 1px |
+| Painel/cartão sobre a mesa | `--r-2: 6px` | nenhuma: deitado no tampo, borda `--linha-mesa` |
+| Folha de papel sobre a mesa | `--r-1` + canto de faceta | `--sombra-papel` (a folha sobre o tampo) |
+| Menu, diálogo (acima de tudo) | `--r-2` | `--sombra-acima` |
+| Cartão que importa | `--r-2` + canto de faceta | a do mundo onde está |
+
+- `--sombra-papel`: `0 1px 0 rgba(0,0,0,.35), 0 18px 32px -18px rgba(0,0,0,.65)`
+- `--sombra-acima`: `0 16px 40px -12px rgba(0,0,0,.6)`
+- **Sem brilho.** Nenhuma sombra colorida, nenhum glow, nenhum pulsar (o
+  CSS antigo tinha 34 sombras azuis). Destaque é cor, peso e tamanho.
+- **Sem pílula** (raio 999px). Chip é retângulo de `--r-1`.
+
+
+## Foco e interação
+
+- Foco: contorno de 2px na tinta do mundo (`--tinta` no papel,
+  `--tinta-clara` na mesa), afastado 2px. Sem brilho.
+- Item ativo da navegação: o marcador triangular, não um fundo brilhante.
+- Hover só onde existe mouse: `@media (hover: hover)`. No toque, o efeito
+  não gruda.
+- Alvo de toque: 24px no mínimo; 44px em tela de toque
+  (`@media (pointer: coarse)`).
 
 
 ## Movimento
 
-- Padrão: `--transicao` = 180ms `cubic-bezier(.22,.61,.36,1)` (sai rápido,
-  pousa suave).
-- Anima transform e opacity; hover sobe 1px, nunca pula.
-- Névoa e luzes de fundo: lentas, para respirar, não para chamar atenção.
-- `prefers-reduced-motion: reduce` é respeitado (6 regras no CSS).
+- Duração: `--m-rapido: 120ms` (hover, foco), `--m-normal: 200ms` (abrir
+  menu, trocar aba). Nada contínuo, nada que pulse.
+- Saída suave: `cubic-bezier(.2, .7, .2, 1)`. Anima só transform e opacity.
+- `prefers-reduced-motion: reduce` desliga TODA animação e transição — sem
+  lista de exceções (no CSS antigo, `pulsar` e `surgir-menu` escapavam).
 
 
-## Ícones
+## Responsivo
 
-- SVG em traço desenhado à mão (`icones.js`), grade 24x24, traço 1.6,
-  pontas e junções arredondadas, `stroke: currentColor` (herda a cor).
-- Tamanho padrão 16px; 14-22px conforme o lugar.
-- Criaturas (`bichos.js`): silhuetas CHEIAS, porque contorno em token de
-  34px vira borrão.
+Do celular para cima (`min-width`), quatro larguras e só elas:
 
+| Token (nome) | A partir de | O que muda |
+|---|---|---|
+| celular | 0 | uma coluna; folha de papel ocupa a largura menos `--e-4` |
+| `--q-tablet` | 720px | duas colunas onde houver |
+| `--q-notebook` | 1024px | a mesa ganha o painel lateral |
+| `--q-larga` | 1280px | três colunas da sessão |
 
-## Imagens
-
-- Mapas e retratos vêm dos usuários, recomprimidos em JPEG (imagens.js).
-- Fundo de cartão de mesa: o mapa da cena, bem apagado
-  (`.fundo-mesa`: `grayscale(.6) brightness(.55)`, opacidade .35).
-- Texto sobre imagem: a imagem é que escurece e some, nunca o texto;
-  o contraste do texto continua o da superfície.
+Nada de largura fixa em px para coluna: `minmax()`, `clamp()` e `%`. (O
+CSS antigo tinha 8 larguras de quebra diferentes, e colunas fixas na mesa.)
 
 
-## Acessibilidade
+## Tokens (a fonte da verdade, em CSS)
 
-Contraste medido (WCAG):
-- `--texto` sobre `--pedra`: 14.7 (AA)
-- `--texto-2` sobre `--pedra`: 6.5 (AA)
-- `--azul` sobre `--pedra`: 5.6 (AA)
-- `--texto-3` sobre `--pedra`: 5.0 (AA). Sobre fundo realçado, usar
-  `--texto-2` (ver Cor).
-- Medição na página desenhada (2026-10-13): 1.994 textos em 22 telas,
-  **0 abaixo de AA** (eram 661, todos de `--texto-3`).
-- Erro (#f2b8b4) sobre `--pedra`: ~9 (AA).
-- Títulos: **um `<h1>` por tela**, o nome da tela (no jogador, o da aba).
-  Seções abaixo dele são `<h2>`. Tela sem título visível no desenho
-  (Visão Geral) leva o `<h1 class="so-leitor">`: lido, mas fora da vista.
-- Alvo de toque: 24px no mínimo, 44px no celular. Ícone pequeno (o "×"
-  de 15px, a bolinha de 16px) mantém o desenho e ganha área invisível
-  com `::after { position: absolute; inset: -Npx }` — só em botão sem
-  padding; com borda, o inset conta de dentro dela. Alvos vizinhos com
-  área invisível precisam de folga entre si (senão um clique pega o
-  errado). Caixa de marcar: o `<label>` que a envolve é o alvo, com
-  `min-height: 24px`. Controle deslizante: 24px de altura, a barra
-  desenhada na trilha.
-- Medição na página desenhada (2026-10-13): 0 alvos abaixo de 24px nas
-  22 telas (eram 8 tipos; o teste clica a 12px do centro, nos 4 lados).
-- Cor nunca é o único sinal (a barra de vida também tem texto).
+```css
+:root {
+  /* mesa */
+  --mesa: #1c1b19; --mesa-2: #25231f; --mesa-3: #2f2c27;
+  --giz: #ece7dd; --giz-2: #b3ab9e; --linha-mesa: rgba(236, 231, 221, .12);
+  /* papel */
+  --papel: #f3f0e9; --papel-2: #e7e2d7;
+  --grafite: #24221e; --grafite-2: #5a554c; --linha-papel: rgba(36, 34, 30, .16);
+  /* tinta e estado (tom escuro = papel; claro = mesa) */
+  --tinta: #2b4b8c; --tinta-clara: #9bb4e6;
+  --estado-perigo: #a8352a; --estado-perigo-claro: #e6908a;
+  --estado-sucesso: #2e6f49; --estado-sucesso-claro: #8cc7a3;
+  --estado-atencao: #8a5a12; --estado-atencao-claro: #d9a650;
+  /* quadriculado */
+  --quadricula-papel: rgba(43, 75, 140, .09);
+  --quadricula-mesa: rgba(236, 231, 221, .05);
+  --quadrado: 20px;
+  /* tipo */
+  --fonte: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --fonte-titulo: 'Marcellus', Georgia, serif;
+  --t-legenda: .75rem; --t-apoio: .875rem; --t-rotulo: .875rem; --t-corpo: 1rem;
+  --t-secao: 1.25rem; --t-titulo: 1.95rem;
+  --t-numero-p: 1.5625rem; --t-numero-m: 2.4375rem; --t-numero-g: 3.8125rem;
+  /* espaço */
+  --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px;
+  --e-5: 24px; --e-6: 32px; --e-7: 48px; --e-8: 64px;
+  /* forma */
+  --r-1: 2px; --r-2: 6px; --faceta: 14px;
+  --sombra-papel: 0 1px 0 rgba(0, 0, 0, .35), 0 18px 32px -18px rgba(0, 0, 0, .65);
+  --sombra-acima: 0 16px 40px -12px rgba(0, 0, 0, .6);
+  /* movimento */
+  --m-rapido: 120ms; --m-normal: 200ms; --curva: cubic-bezier(.2, .7, .2, 1);
+}
+```
+
+Em cada mundo, os nomes de USO apontam para a superfície certa, para o
+componente ser escrito uma vez só:
+
+```css
+.mesa  { --cor-fundo: var(--mesa);  --cor-texto: var(--giz);     --cor-apoio: var(--giz-2);
+         --cor-linha: var(--linha-mesa);  --cor-acento: var(--tinta-clara);
+         --cor-perigo: var(--estado-perigo-claro); --cor-sucesso: var(--estado-sucesso-claro);
+         --cor-atencao: var(--estado-atencao-claro); --cor-quadricula: var(--quadricula-mesa); }
+.papel { --cor-fundo: var(--papel); --cor-texto: var(--grafite); --cor-apoio: var(--grafite-2);
+         --cor-linha: var(--linha-papel); --cor-acento: var(--tinta);
+         --cor-perigo: var(--estado-perigo); --cor-sucesso: var(--estado-sucesso);
+         --cor-atencao: var(--estado-atencao); --cor-quadricula: var(--quadricula-papel); }
+```
+
+Um componente escreve `var(--cor-texto)`, `var(--cor-acento)`... e fica
+certo nos dois mundos sem saber em qual está. (Prefixo `cor-`: `--texto`
+já existe no CSS antigo.)
+
+(As media queries não aceitam variável: as quatro larguras são escritas
+como números, e só esses quatro.)
 
 
-## Divergências medidas (outubro de 2026)
+## O que não se faz
 
-Onde o `style.css` ainda não segue as regras acima. Item corrigido fica
-riscado, com a data.
+- Caixa alta em rótulo. Brilho, glow, pulsar. Pílula. Raio e sombra iguais
+  em todos os cartões. Cor fora dos tokens. Fonte menor que 12px. Valor de
+  espaço fora da escala. Mais de uma região quadriculada por tela.
+- Dourado como enfeite. Emoji na interface (ícones continuam SVG em traço
+  que herdam a cor do texto).
+- Desenhar dados como decoração: a faceta é uma FORMA, não uma ilustração.
 
-1. **Cores sem token:** texto de erro escrito na mão (#f2b8b4 x17,
-   #f0a6a2 x14, #e0827d x6), texto de sucesso (#8fd0ae x7), e cerca de
-   290 `rgba(...)` soltos (variações de azul, hairline e perigo).
-2. **Canto fora da escala:** `6px` aparece 34 vezes (mais que `--r-g`);
-   ou vira token, ou vira `--r-p`.
-3. **Tamanhos de fonte:** cerca de 17 tamanhos diferentes, de 8.5px a
-   16px, incluindo 8.5px, 9px e 9.5px em vários lugares.
-4. ~~**Contraste:** `--texto-3` (3.0) é usado 148 vezes, muitas em texto
-   pequeno (dicas de 11-12px).~~ Corrigido em 2026-10-13.
-5. **Durações:** 160, 180, 200, 220, 260, 280, 300 e 700ms convivem;
-   falta uma escala (rápido / normal / lento).
-6. **Quebras de tela:** além de 720px e 1100px, existem 760, 900, 980,
-   1180 e 1500px, uma vez cada.
-7. ~~**Violeta ainda no CSS**~~ Corrigido em 2026-10-13, nos quatro
-   lugares: luz de fundo da entrada (-> `--gelo`), marca de "atenção" no
-   sino (-> âmbar), aviso "aberta sem servidor" e ponto de "Abrindo a
-   mesa" (-> azul).
-8. **Texto miúdo que é frase** (auditoria de 2026-10-13, ainda aberto):
-   rótulos de 8,5-9px que não são uma palavra em caixa alta —
-   `.campo-form label`, `.passos li`, `.titulo-grupo-tabela`,
-   `.titulo-coluna .sub`, `.busca-grupo`, `.dado .uso`.
+
+## Preservado da versão anterior
+
+- As "portas" da entrada (tenho um convite / vou mestrar), com o
+  formulário revelado depois da escolha.
+- `role="alert"` (erro) e `role="status"` (aviso) nas mensagens.
+- Um `<h1>` por tela; campo com rótulo visível ou `aria-label`; foco
+  sempre visível; alvos de toque de pelo menos 24px; todo o comportamento.
+
+
+## Migração
+
+| Passo | Estado |
+|---|---|
+| 1. Este DESIGN.md | feito (2026-10-14) |
+| 2. Tokens no `:root` do style.css (definidos; as regras antigas intactas) | a fazer |
+| 3. Protótipo: só a tela de entrada, na branch `redesenho-mesa` | a fazer |
+| 4. Comparação antes/depois, e aprovação | a fazer |
+| 5. As outras 10 telas, uma por vez | depois da aprovação |
 
 
 ## Changelog
 
-- 2026-10-12: primeira versão, escrita a partir do style.css e do
-  CLAUDE.md, com as divergências medidas.
-- 2026-10-12: violeta sai da identidade; azul elétrico é o único acento.
-- 2026-10-13: `--texto-3` de #5d6478 para #80879b; texto apagado sobre
-  fundo realçado passa a `--texto-2` (7 regras). Contraste: 661 -> 0.
-- 2026-10-13: um `<h1>` por tela: Visão Geral ganhou o seu (só leitor de
-  tela); o nome do personagem na Ficha virou `<h2>` (visual igual).
-- 2026-10-13: rótulo no "Nome avulso" (Combate) e no texto dos
-  marcadores (Mapas); a busca Ctrl+K mostra o foco.
-- 2026-10-13: alvos de toque com 24px: "×" das condições e dos
-  marcadores, texto do marcador (e o estilo dele saiu do JS para o CSS),
-  bolinhas de magia (gap 6 -> 9px), volume, rótulos de caixa de marcar.
-- 2026-10-13: violeta fora do CSS (4 lugares; o token também saiu);
-  âmbar passa a marcar o aviso de "atenção".
+- 2026-10-14: direção nova, "a mesa, não o jogo". Substitui "pedra fria e
+  luz arcana" (2026-10-12/13), que fica no histórico do Git.
