@@ -41,6 +41,23 @@ que não se discutem").
   ornamento literal, junto com o grão de filme sobre a página toda e a
   névoa que respira devagar na entrada.
 
+### Referências de RPG (2026-10-15)
+
+Detalhes do mundo da mesa de RPG, POR CIMA da direção acima — sem mudar
+cor nem acabamento. Por enquanto, só na tela de entrada.
+
+- **Papel quadriculado** atrás do título (`.entrada-marca.com-quadriculado`):
+  quadrados de 20px, linhas na cor `--hairline`, sumindo para baixo. É o
+  papel de mapa da mesa. Uma região quadriculada por tela, no máximo.
+- **Retratos em hexágono** (`.retrato-mini`): a silhueta do d20 visto de
+  frente. A moldura é feita em duas camadas (o `clip-path` do hexágono
+  cortaria uma borda comum); a do seu personagem ("meu") é azul.
+
+Tentativa recusada (2026-10-14, branch `redesenho-mesa`): a direção "a
+mesa, não o jogo", com a folha de papel clara, tinta azul-escura e sem
+brilho. Vista na tela, não agradou: o escuro com o azul elétrico é a cara
+da mesa. Não voltar a ela sem pedido.
+
 
 ## Decisões que não se discutem
 
@@ -262,3 +279,5 @@ riscado, com a data.
   bolinhas de magia (gap 6 -> 9px), volume, rótulos de caixa de marcar.
 - 2026-10-13: violeta fora do CSS (4 lugares; o token também saiu);
   âmbar passa a marcar o aviso de "atenção".
+- 2026-10-15: referências de RPG na entrada: papel quadriculado atrás do
+  título e retratos em hexágono. Cores e acabamento sem mudança.
