@@ -135,7 +135,14 @@ function criarApi(armazem, opcoes) {
      pelo código; quem cria e restaura backup é o Mestre, em casa. */
   api.post('/campanhas', function (pedido, resposta, seguir) {
     if (doProprioComputador(pedido)) return seguir();
-    resposta.status(403).json({ erro: 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando.' });
+    /* Diz POR QUE recusou: "pelo túnel" e "de outro computador" pedem
+       coisas diferentes de quem está tentando. Sem isto, a pessoa via a
+       mesma frase nos dois casos e não tinha como saber o que mudar. */
+    const pelaInternet = pedido.headers['cf-connecting-ip'] !== undefined;
+    resposta.status(403).json({ erro: 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando. '
+      + (pelaInternet
+        ? 'Esta página está aberta pelo link do túnel (Cloudflare): para criar, abra http://localhost:3000 no computador do servidor.'
+        : 'Este pedido veio de outro computador (' + String(pedido.socket && pedido.socket.remoteAddress).slice(0, 45) + '): para criar, use o computador do servidor, em http://localhost:3000.') });
   }, limite(10), express.json({ limit: '8mb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
     const comSenha = corpo.senha !== undefined && corpo.senha !== null && corpo.senha !== '';
