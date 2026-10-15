@@ -111,11 +111,16 @@ Todas as cores do site vêm destes tokens. Valor escrito à mão fora deles
 
 | Token | Hex | Papel |
 |---|---|---|
-| `--papel` | `#f3f0e9` | a folha (um branco de papel, não creme) |
-| `--papel-2` | `#e7e2d7` | campo, linha de tabela, seção dentro da folha |
-| `--grafite` | `#24221e` | texto principal sobre o papel |
-| `--grafite-2` | `#5a554c` | texto de apoio sobre o papel |
-| `--linha-papel` | `rgba(36,34,30,.16)` | bordas e divisões sobre o papel |
+| `--papel` | `#eff0ec` | a folha: branco frio de papel de cópia (NÃO creme — ver nota) |
+| `--papel-2` | `#e3e5df` | campo, linha de tabela, seção dentro da folha |
+| `--grafite` | `#22231f` | texto principal sobre o papel |
+| `--grafite-2` | `#565951` | texto de apoio sobre o papel |
+| `--linha-papel` | `rgba(34,35,31,.16)` | bordas e divisões sobre o papel |
+
+**Nota sobre o papel (2026-10-14):** a primeira versão usava `#f3f0e9`,
+praticamente o `#F4F1EA` creme que é hoje um dos fundos mais típicos de
+interface gerada por IA (creme + serifa + acento terracota). Trocado por
+um branco FRIO de papel de cópia: a ficha impressa, não o pergaminho.
 
 ### Tinta (o acento — um só, em dois tons)
 
@@ -147,11 +152,11 @@ O âmbar é cor de ESTADO. Sem dourado como enfeite (continua valendo).
 | giz-2 / mesa · mesa-2 · mesa-3 | 7,57 · 6,90 · 6,11 |
 | tinta-clara / mesa · mesa-3 | 8,25 · 6,66 |
 | perigo · sucesso · atenção (claros) / mesa-2 | 6,51 · 8,08 · 7,11 |
-| grafite / papel · papel-2 | 13,95 · 12,29 |
-| grafite-2 / papel · papel-2 | 6,50 · 5,73 |
-| tinta / papel · papel-2 | 7,42 · 6,53 |
-| papel / tinta (texto do botão principal) | 7,42 |
-| perigo · sucesso · atenção / papel | 5,75 · 5,29 · 5,19 |
+| grafite / papel · papel-2 | 13,81 · 12,45 |
+| grafite-2 / papel · papel-2 | 6,23 · 5,62 |
+| tinta / papel · papel-2 | 7,37 · 6,65 |
+| papel / tinta (texto do botão principal) | 7,37 |
+| perigo · sucesso · atenção / papel | 5,72 · 5,26 · 5,17 (atenção / papel-2: 4,66) |
 
 Não há terceiro nível de texto: o apoio é `--giz-2` / `--grafite-2`, e
 ambos passam com folga. Texto mais apagado que isso não existe.
@@ -264,8 +269,8 @@ CSS antigo tinha 8 larguras de quebra diferentes, e colunas fixas na mesa.)
   --mesa: #1c1b19; --mesa-2: #25231f; --mesa-3: #2f2c27;
   --giz: #ece7dd; --giz-2: #b3ab9e; --linha-mesa: rgba(236, 231, 221, .12);
   /* papel */
-  --papel: #f3f0e9; --papel-2: #e7e2d7;
-  --grafite: #24221e; --grafite-2: #5a554c; --linha-papel: rgba(36, 34, 30, .16);
+  --papel: #eff0ec; --papel-2: #e3e5df;
+  --grafite: #22231f; --grafite-2: #565951; --linha-papel: rgba(34, 35, 31, .16);
   /* tinta e estado (tom escuro = papel; claro = mesa) */
   --tinta: #2b4b8c; --tinta-clara: #9bb4e6;
   --estado-perigo: #a8352a; --estado-perigo-claro: #e6908a;
@@ -288,6 +293,9 @@ CSS antigo tinha 8 larguras de quebra diferentes, e colunas fixas na mesa.)
   --r-1: 2px; --r-2: 6px; --faceta: 14px;
   --sombra-papel: 0 1px 0 rgba(0, 0, 0, .35), 0 18px 32px -18px rgba(0, 0, 0, .65);
   --sombra-acima: 0 16px 40px -12px rgba(0, 0, 0, .6);
+  /* com canto de faceta, o clip-path corta a box-shadow: a sombra vai
+     num invólucro, como filtro */
+  --sombra-papel-filtro: drop-shadow(0 1px 0 rgba(0, 0, 0, .35)) drop-shadow(0 14px 14px rgba(0, 0, 0, .45));
   /* movimento */
   --m-rapido: 120ms; --m-normal: 200ms; --curva: cubic-bezier(.2, .7, .2, 1);
 }
@@ -346,7 +354,7 @@ como números, e só esses quatro.)
 |---|---|
 | 1. Este DESIGN.md | feito (2026-10-14) |
 | 2. Tokens no `:root` do style.css (definidos; as regras antigas intactas) | feito (2026-10-14): 6 páginas com estilo final idêntico antes e depois |
-| 3. Protótipo: só a tela de entrada, na branch `redesenho-mesa` | a fazer |
+| 3. Protótipo: só a tela de entrada, na branch `redesenho-mesa` | feito (2026-10-14): seção 39 do style.css, sob `.entrada-nova` |
 | 4. Comparação antes/depois, e aprovação | a fazer |
 | 5. As outras 10 telas, uma por vez | depois da aprovação |
 

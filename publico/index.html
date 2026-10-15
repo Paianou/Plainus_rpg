@@ -45,27 +45,31 @@
     Poderia ser uma <div>, mas a tag semântica diz o que o bloco É,
     e isso ajuda leitores de tela e buscadores.
   -->
-  <main class="pagina-entrada">
-    <div class="entrada-caixa">
+  <!--
+    A DIREÇÃO NOVA ("a mesa, não o jogo" — DESIGN.md), só nesta tela por
+    enquanto: as regras novas valem só sob .entrada-nova (seção 39 do
+    style.css). A criação de campanha e os acessos usam as mesmas
+    classes da entrada e continuam como eram até a direção ser aprovada.
+      .mundo-mesa    o fundo é o tampo da mesa (escuro)
+      .folha-sombra  a sombra da folha sobre o tampo (o canto cortado
+                     da folha cortaria uma box-shadow; por isso a
+                     sombra mora num invólucro, como drop-shadow)
+      .mundo-papel   a folha: clara, o formulário
+  -->
+  <main class="pagina-entrada entrada-nova mundo-mesa">
+    <div class="folha-sombra">
+    <div class="entrada-caixa mundo-papel">
 
       <!-- ============ CABEÇALHO: o único ornamento literal da tela ============ -->
 
       <!-- Aberta sem servidor (duplo clique): o que fazer. -->
       <p class="aviso-entrada aviso-servidor" id="avisoServidor" hidden>A mesa agora roda pelo servidor. Na pasta <strong>minha-mesa</strong>, rode <strong>npm start</strong> e abra <strong>http://localhost:3000</strong>.</p>
 
+      <!-- O cabeçalho da folha: a faixa quadriculada (a única da tela) e,
+           embaixo, o separador com a faceta do d20 (CSS: ::after). O arco
+           gótico saiu: a assinatura agora é a faceta — o canto cortado da
+           folha e o triângulo do separador. -->
       <header class="entrada-marca">
-        <!--
-          Um arco gótico desenhado a traço — o "selo" do site. aria-hidden:
-          é enfeite, o leitor de tela ignora. O caminho .brilho é o mesmo
-          arco, mais grosso e desfocado atrás, para dar a luz pulsando.
-        -->
-        <svg class="arco-gotico" viewBox="0 0 74 58" aria-hidden="true">
-          <path class="brilho" d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
-          <path d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
-          <path d="M18 57 L18 30 Q37 10 56 30 L56 57" opacity="0.45" />
-          <path d="M28 57 L28 35 Q37 24 46 35 L46 57" opacity="0.28" />
-          <path d="M37 14 L37 57" opacity="0.22" />
-        </svg>
 
         <h1 class="titulo">Plainus RPG</h1>
         <!-- O app.js troca o texto quando há mesas: quem volta não
@@ -244,6 +248,7 @@
         <input type="file" id="arquivoBackup" accept=".json,application/json" hidden>
       </div>
 
+    </div>
     </div>
   </main>
 

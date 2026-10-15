@@ -106,11 +106,11 @@
   --linha-mesa: rgba(236, 231, 221, .12);
 
   /* papel: a folha (ficha, formulários, documentos) */
-  --papel: #f3f0e9;
-  --papel-2: #e7e2d7;
-  --grafite: #24221e;
-  --grafite-2: #5a554c;
-  --linha-papel: rgba(36, 34, 30, .16);
+  --papel: #eff0ec;
+  --papel-2: #e3e5df;
+  --grafite: #22231f;
+  --grafite-2: #565951;
+  --linha-papel: rgba(34, 35, 31, .16);
 
   /* tinta (o acento, um só) e estado — tom escuro no papel, claro na mesa */
   --tinta: #2b4b8c;
@@ -157,6 +157,10 @@
   --faceta: 14px;    /* o corte de 60°, a aresta da face do d20 */
   --sombra-papel: 0 1px 0 rgba(0, 0, 0, .35), 0 18px 32px -18px rgba(0, 0, 0, .65);
   --sombra-acima: 0 16px 40px -12px rgba(0, 0, 0, .6);
+  /* a mesma sombra de papel, para um elemento com canto de faceta: o
+     clip-path que corta o canto corta também a box-shadow, então a
+     sombra vai num invólucro, como filtro */
+  --sombra-papel-filtro: drop-shadow(0 1px 0 rgba(0, 0, 0, .35)) drop-shadow(0 14px 14px rgba(0, 0, 0, .45));
 
   /* movimento: nada contínuo, nada que pulse */
   --m-rapido: 120ms;
@@ -5557,3 +5561,472 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 
 /* Uma mesa que o servidor não abre mais: apagada, sem o mapa. */
 .cartao-mesa.mesa-sem-acesso { opacity: .7; }
+
+
+/* ==========================================================
+   39. A ENTRADA NA DIREÇÃO NOVA — "a mesa, não o jogo" (protótipo)
+
+   Só a tela de entrada, por enquanto: TUDO aqui vale sob .entrada-nova
+   (o <main> do index.html). A criação de campanha e os acessos usam as
+   mesmas classes (.entrada-caixa, .campo, .botao...) e continuam como
+   eram até a direção ser aprovada. Aprovada, estas regras viram a base
+   e o prefixo sai. A fonte da verdade é o DESIGN.md.
+
+   A cena: o tampo da mesa (.mundo-mesa) e, sobre ele, uma folha de
+   papel (.mundo-papel) com o canto cortado a 60° — a aresta da face do
+   d20. Os componentes usam só os nomes de uso (--cor-*): o mundo é dito
+   pelo contêiner.
+
+   O recuo interno da folha é UMA variável (--margem-folha): todo campo,
+   porta, aviso e linha começa na mesma borda, como num formulário
+   impresso. (No CSS antigo eram 44px escritos à mão em ~10 regras, e
+   26px no celular.)
+   ========================================================== */
+
+/* ----- O tampo ----- */
+.entrada-nova {
+  --margem-folha: var(--e-5);
+  padding: var(--e-4);
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-fundo);
+}
+/* As duas luzes que derivavam no fundo: saem (brilho decorativo). */
+.entrada-nova::before,
+.entrada-nova::after { content: none; }
+
+/* ----- A folha ----- */
+.entrada-nova .folha-sombra {
+  width: 100%;
+  max-width: 640px;
+  filter: var(--sombra-papel-filtro);
+}
+.entrada-nova .entrada-caixa {
+  max-width: none;
+  color: var(--cor-texto);
+  background: var(--cor-fundo);
+  border: 0;
+  border-radius: var(--r-1);
+  box-shadow: none;
+  backdrop-filter: none;
+  animation: none;
+  /* O canto de faceta: o corte vai de --faceta antes do canto, na borda
+     de cima, até --faceta × tan(60°) abaixo dele, na borda direita — a
+     mesma inclinação da aresta da face do d20. */
+  clip-path: polygon(0 0, calc(100% - var(--faceta)) 0, 100% calc(var(--faceta) * 1.732), 100% 100%, 0 100%);
+}
+
+/* ----- O cabeçalho: a única faixa quadriculada da tela ----- */
+.entrada-nova .entrada-marca {
+  position: relative;
+  padding: var(--e-6) var(--margem-folha) var(--e-5);
+  text-align: left;
+  background-color: var(--cor-fundo);
+  background-image:
+    linear-gradient(var(--cor-quadricula) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cor-quadricula) 1px, transparent 1px);
+  background-size: var(--quadrado) var(--quadrado);
+  background-position: -1px -1px;
+  border-bottom: 1px solid var(--cor-linha);
+}
+/* Sem o triângulo no separador do cabeçalho: logo abaixo vem um título
+   de seção, que já leva a faceta — dois triângulos empilhados viravam
+   enfeite. Aqui a linha basta. */
+.entrada-nova .titulo {
+  margin: 0 0 var(--e-2);
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-titulo);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0;
+  color: var(--cor-texto);
+}
+.entrada-nova .subtitulo {
+  max-width: 60ch;
+  font-size: var(--t-corpo);
+  line-height: 1.55;
+  letter-spacing: 0;
+  color: var(--cor-apoio);
+}
+
+/* ----- Títulos de seção: a face do d20 no lugar do pingo de luz ----- */
+.entrada-nova h2 {
+  gap: var(--e-2);
+  margin: 0 0 var(--e-4);
+  font-family: var(--fonte);
+  font-size: var(--t-secao);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+  color: var(--cor-texto);
+}
+.entrada-nova h2::before {
+  width: 8px;
+  height: 7px;
+  border-radius: 0;
+  background: var(--cor-acento);
+  box-shadow: none;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* ----- Foco: a tinta do mundo, sem brilho ----- */
+.entrada-nova :focus-visible {
+  outline: 2px solid var(--cor-acento);
+  outline-offset: 2px;
+}
+
+/* ----- As portas ----- */
+.entrada-nova .portas {
+  grid-template-columns: 1fr;
+  gap: var(--e-3);
+  padding: var(--e-5) var(--margem-folha) var(--e-6);
+}
+.entrada-nova .porta,
+.entrada-nova .porta:hover {
+  gap: var(--e-2);
+  padding: var(--e-4);
+  color: var(--cor-texto);
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-1);
+  box-shadow: none;
+  transform: none;
+  transition: border-color var(--m-rapido) var(--curva), background-color var(--m-rapido) var(--curva);
+}
+.entrada-nova .porta-icone {
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--e-1);
+  color: var(--cor-acento);
+  background: transparent;
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-1);
+  box-shadow: none;
+}
+.entrada-nova .porta-titulo {
+  font-family: var(--fonte);
+  font-size: var(--t-corpo);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.entrada-nova .porta-texto {
+  font-size: var(--t-apoio);
+  line-height: 1.45;
+  color: var(--cor-apoio);
+}
+
+/* ----- O formulário de cada porta ----- */
+.entrada-nova .formulario-porta { padding: var(--e-5) 0 var(--e-2); }
+/* O título da porta divide a linha com o "Voltar": sem a margem de baixo
+   que todo h2 desta tela ganha (senão os dois desalinham). */
+.entrada-nova .cabeca-porta h2 { margin: 0; }
+.entrada-nova .formulario-porta.abrindo { animation-duration: var(--m-normal); }
+.entrada-nova .cabeca-porta {
+  gap: var(--e-3);
+  padding: 0 var(--margem-folha);
+  margin-bottom: var(--e-5);
+}
+.entrada-nova .voltar-porta,
+.entrada-nova .voltar-porta:hover {
+  gap: var(--e-1);
+  padding: var(--e-2) var(--e-3) var(--e-2) var(--e-2);
+  font-size: var(--t-apoio);
+  color: var(--cor-apoio);
+  background: transparent;
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-1);
+}
+.entrada-nova .convite-achado {
+  margin: 0 var(--margem-folha) var(--e-5);
+  padding: var(--e-3) var(--e-4);
+  font-size: var(--t-apoio);
+  color: var(--cor-texto);
+  background: var(--cor-fundo-2);
+  border-left: 2px solid var(--cor-acento);
+  border-radius: 0 var(--r-1) var(--r-1) 0;
+}
+.entrada-nova .convite-achado strong { font-size: var(--t-corpo); color: var(--cor-texto); }
+
+/* Campo: rótulo em peso e cor, NUNCA em caixa alta; o campo com 16px
+   (o iPhone dá zoom em campo menor que isso). */
+.entrada-nova .campo {
+  padding: 0 var(--margem-folha);
+  margin-bottom: var(--e-5);
+}
+.entrada-nova .campo label {
+  margin-bottom: var(--e-2);
+  font-size: var(--t-rotulo);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--cor-texto);
+}
+.entrada-nova .campo input,
+.entrada-nova .campo input:hover {
+  padding: var(--e-3);
+  font-size: var(--t-corpo);
+  color: var(--cor-texto);
+  background: var(--cor-fundo-2);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-1);
+  transition: border-color var(--m-rapido) var(--curva);
+}
+.entrada-nova .campo input::placeholder { color: var(--cor-apoio); }
+.entrada-nova .campo input:focus {
+  outline: 2px solid var(--cor-acento);
+  outline-offset: 2px;
+  background: var(--cor-fundo);
+  border-color: var(--cor-linha);
+  box-shadow: none;
+}
+/* O código de convite É texto em maiúsculas (K7QM-2XRP-9HVD): aqui o
+   formato é do conteúdo, não um rótulo. Inter com numerais tabulares,
+   para os quatro blocos alinharem. */
+.entrada-nova .codigo-entrada {
+  font-family: var(--fonte);
+  font-size: var(--t-secao);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .08em;
+  text-indent: .08em;
+}
+.entrada-nova .ajuda-campo {
+  margin: var(--e-2) 0 0;
+  font-size: var(--t-apoio);
+  line-height: 1.45;
+  color: var(--cor-apoio);
+}
+
+/* ----- Botões: tinta chapada, sem degradê e sem brilho ----- */
+.entrada-nova .botao,
+.entrada-nova .botao:hover {
+  min-height: 44px;
+  padding: var(--e-3) var(--e-4);
+  font-size: var(--t-corpo);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--cor-fundo);
+  background: var(--cor-acento);
+  border: 1px solid var(--cor-acento);
+  border-radius: var(--r-1);
+  box-shadow: none;
+  transform: none;
+  transition: background-color var(--m-rapido) var(--curva);
+}
+.entrada-nova .botao.fantasma,
+.entrada-nova .botao.fantasma:hover {
+  color: var(--cor-acento);
+  background: transparent;
+}
+.entrada-nova .botao:disabled { opacity: .6; cursor: default; }
+.entrada-nova .link-porta {
+  padding: var(--e-2) 0;
+  font-size: var(--t-apoio);
+  color: var(--cor-acento);
+  text-decoration-color: var(--cor-linha);
+}
+
+/* ----- Mensagens (role="alert" e role="status" ficam no HTML) ----- */
+.entrada-nova .erro-entrada,
+.entrada-nova .aviso-entrada {
+  margin: 0 var(--margem-folha) var(--e-5);
+  padding: var(--e-3) var(--e-4);
+  font-size: var(--t-apoio);
+  line-height: 1.45;
+  border-radius: 0 var(--r-1) var(--r-1) 0;
+}
+.entrada-nova .erro-entrada {
+  color: var(--cor-perigo);
+  background: var(--cor-fundo-2);
+  border-left: 2px solid var(--cor-perigo);
+}
+.entrada-nova .aviso-entrada {
+  color: var(--cor-texto);
+  background: var(--cor-fundo-2);
+  border-left: 2px solid var(--cor-acento);
+}
+.entrada-nova .entrada-caixa > .aviso-entrada:first-child { margin-top: var(--e-5); }
+
+/* ----- Suas mesas: cartões deitados sobre a folha ----- */
+.entrada-nova .campanhas-salvas {
+  margin: var(--e-5) var(--margem-folha) 0;
+  padding-bottom: var(--e-5);
+  border-bottom: 1px solid var(--cor-linha);
+}
+.entrada-nova .campanhas-salvas h2 { margin-bottom: var(--e-3); }
+.entrada-nova .dica-backup {
+  margin: var(--e-3) 0 0;
+  font-size: var(--t-apoio);
+  line-height: 1.45;
+  color: var(--cor-apoio);
+}
+.entrada-nova .lista-mesas {
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--e-3);
+}
+.entrada-nova .cartao-mesa,
+.entrada-nova .cartao-mesa:hover {
+  gap: var(--e-2);
+  padding: var(--e-4);
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-1);
+  box-shadow: none;
+  transform: none;
+  transition: border-color var(--m-rapido) var(--curva);
+}
+/* O mapa da cena atual: no papel, um carimbo cinza e bem apagado. */
+.entrada-nova .fundo-mesa {
+  filter: grayscale(1);
+  opacity: .12;
+  mix-blend-mode: multiply;
+}
+.entrada-nova .selo-mesa {
+  padding: 2px var(--e-2);
+  font-size: var(--t-legenda);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  background: transparent;
+  border-radius: var(--r-1);
+}
+.entrada-nova .selo-mesa.mestre { color: var(--cor-acento); box-shadow: inset 0 0 0 1px var(--cor-acento); }
+.entrada-nova .selo-mesa.jogador { color: var(--cor-apoio); box-shadow: inset 0 0 0 1px var(--cor-linha); }
+.entrada-nova .cartao-mesa .campanha-nome {
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-secao);
+  line-height: 1.3;
+  color: var(--cor-texto);
+}
+.entrada-nova .cartao-mesa .campanha-meta {
+  font-size: var(--t-apoio);
+  line-height: 1.45;
+  color: var(--cor-apoio);
+}
+.entrada-nova .campanha-backup { color: var(--cor-apoio); }
+.entrada-nova .campanha-backup.nunca { color: var(--cor-acento); }
+/* Retrato: a moldura em hexágono — a silhueta do d20 visto de frente. */
+.entrada-nova .retrato-mini {
+  color: var(--cor-apoio);
+  background: var(--cor-fundo-2);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.entrada-nova .retrato-mini.meu { color: var(--cor-fundo); background: var(--cor-acento); }
+.entrada-nova .retrato-mini.mais,
+.entrada-nova .sem-party { font-size: var(--t-legenda); color: var(--cor-apoio); }
+.entrada-nova .botao-mesa,
+.entrada-nova .botao-mesa:hover {
+  padding: var(--e-2) var(--e-3);
+  font-size: var(--t-apoio);
+  font-weight: 600;
+  color: var(--cor-acento);
+  background: transparent;
+  border: 1px solid var(--cor-acento);
+  border-radius: var(--r-1);
+}
+.entrada-nova .botao-opcoes,
+.entrada-nova .botao-opcoes:hover {
+  width: 32px;
+  height: 32px;
+  color: var(--cor-apoio);
+  background: transparent;
+  border-radius: var(--r-1);
+}
+.entrada-nova .itens-menu-mesa {
+  padding: var(--e-1);
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-2);
+  box-shadow: var(--sombra-acima);
+}
+.entrada-nova .itens-menu-mesa button,
+.entrada-nova .itens-menu-mesa button:hover {
+  padding: var(--e-2) var(--e-3);
+  font-size: var(--t-apoio);
+  color: var(--cor-texto);
+  background: transparent;
+  border-radius: var(--r-1);
+}
+.entrada-nova .itens-menu-mesa button.perigo,
+.entrada-nova .itens-menu-mesa button.perigo:hover { color: var(--cor-perigo); background: transparent; }
+.entrada-nova .campanhas-antigas .linha-antiga {
+  gap: var(--e-3);
+  padding: var(--e-3) 0;
+  border-top: 1px solid var(--cor-linha);
+}
+
+/* ----- Restaurar backup: o rodapé da folha ----- */
+.entrada-nova .restaurar-backup {
+  gap: var(--e-3);
+  margin: 0 var(--margem-folha);
+  padding: var(--e-4) 0 var(--e-5);
+  font-size: var(--t-apoio);
+  color: var(--cor-apoio);
+  border-top: 1px solid var(--cor-linha);
+}
+.entrada-nova .botao-compacto,
+.entrada-nova .botao-compacto:hover {
+  padding: var(--e-2) var(--e-4);
+  font-size: var(--t-apoio);
+  font-weight: 600;
+  color: var(--cor-texto);
+  background: transparent;
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--r-1);
+}
+
+/* ----- Hover: só onde existe mouse (no toque, o efeito não gruda) ----- */
+@media (hover: hover) {
+  .entrada-nova .porta:hover,
+  .entrada-nova .cartao-mesa:hover { border-color: var(--cor-acento); }
+  .entrada-nova .porta:hover { background: var(--cor-fundo-2); }
+  .entrada-nova .voltar-porta:hover { color: var(--cor-texto); border-color: var(--cor-apoio); }
+  .entrada-nova .campo input:hover { border-color: var(--cor-apoio); }
+  /* A tinta escurece um pouco — color-mix com preto, para não criar um
+     token só para isso. */
+  .entrada-nova .botao:hover { background: color-mix(in oklab, var(--cor-acento), black 16%); }
+  .entrada-nova .botao.fantasma:hover,
+  .entrada-nova .botao-mesa:hover,
+  .entrada-nova .botao-opcoes:hover,
+  .entrada-nova .itens-menu-mesa button:hover,
+  .entrada-nova .botao-compacto:hover { background: var(--cor-fundo-2); }
+  .entrada-nova .link-porta:hover { text-decoration-color: currentColor; }
+}
+
+/* ----- Toque: alvos de 44px ----- */
+@media (pointer: coarse) {
+  .entrada-nova .voltar-porta,
+  .entrada-nova .link-porta,
+  .entrada-nova .botao-mesa,
+  .entrada-nova .botao-compacto { min-height: 44px; }
+  .entrada-nova .botao-opcoes { width: 44px; height: 44px; }
+}
+
+/* ----- Do celular para cima ----- */
+@media (min-width: 480px) {
+  .entrada-nova .portas { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 720px) {
+  .entrada-nova { --margem-folha: var(--e-7); padding: var(--e-7) var(--e-5); }
+}
+/* O CSS antigo encolhe as margens em 720px com valores fixos (26px):
+   aqui, abaixo de 720px, quem manda continua sendo --margem-folha. */
+@media (max-width: 719px) {
+  .entrada-nova .campanhas-salvas,
+  .entrada-nova .convite-achado,
+  .entrada-nova .aviso-entrada,
+  .entrada-nova .restaurar-backup { margin-left: var(--margem-folha); margin-right: var(--margem-folha); }
+  .entrada-nova .cabeca-porta,
+  .entrada-nova .portas { padding-left: var(--margem-folha); padding-right: var(--margem-folha); }
+}
+
+/* ----- Movimento reduzido: tudo parado, sem lista de exceções ----- */
+@media (prefers-reduced-motion: reduce) {
+  .entrada-nova *,
+  .entrada-nova *::before,
+  .entrada-nova *::after { animation: none !important; transition: none !important; }
+}
