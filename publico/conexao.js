@@ -101,7 +101,9 @@ const Conexao = {
       const s = self.sessao;
       self.socket.emit('entrar', { campanhaId: s.campanhaId, papel: s.papel, jogadorId: s.jogadorId, chave: s.chave }, function (resposta) {
         if (!resposta || resposta.erro) {
-          /* Chave que não abre: não adianta tentar de novo. */
+          /* Chave que não abre: não adianta tentar de novo — e a
+             campanha guardada nesta aba não vale mais. */
+          self.esquecerCampanha();
           self.socket.io.reconnection(false);
           self.socket.disconnect();
           self.mudarEstado('caiu');
@@ -147,6 +149,7 @@ const Conexao = {
     if (pacote.papel === 'mestre' && pacote.estado && typeof pacote.estado === 'object') {
       const texto = JSON.stringify(pacote.estado);
       this.textoDoServidor = texto;
+      this.guardarCampanha(texto);
       /* Ainda há ação do Mestre a caminho: a tela já mostra ela, e a
          campanha que chegou agora ainda NÃO (o servidor a aplica depois).
          Trocar a tela agora faria a mudança sumir por um instante e
@@ -176,8 +179,43 @@ const Conexao = {
     }
   },
 
+  /* ---------- A última campanha, guardada NESTA aba ----------
+     Cada tela do Mestre é uma página: trocar de tela é abrir outra
+     página, reconectar e esperar a campanha chegar ("Abrindo a mesa…").
+     Guardando a última campanha que chegou, a tela seguinte já se
+     desenha com ela, na hora, e se atualiza quando a oficial chega
+     (layout.js, iniciar) — milissegundos depois.
+     Só no painel do Mestre (o jogador nunca recebe a campanha inteira).
+     sessionStorage: é desta aba só, e some quando ela fecha. Cheio ou
+     bloqueado, tudo segue como antes (com o "Abrindo"). */
+  CHAVE_CAMPANHA: 'plainus:ultima-campanha',
+
+  guardarCampanha: function (texto) {
+    const s = this.sessao;
+    if (!s || s.papel !== 'mestre') return;
+    try { sessionStorage.setItem(this.CHAVE_CAMPANHA, JSON.stringify({ campanhaId: s.campanhaId, texto: texto })); } catch (erro) { /* sem espaço: fica sem atalho */ }
+  },
+
+  /* A campanha guardada, se for desta sessão (desta campanha, como Mestre). */
+  campanhaGuardada: function (sessao) {
+    if (!sessao || sessao.papel !== 'mestre') return null;
+    try {
+      const guardada = JSON.parse(sessionStorage.getItem(this.CHAVE_CAMPANHA));
+      if (!guardada || guardada.campanhaId !== sessao.campanhaId || typeof guardada.texto !== 'string') return null;
+      const estado = JSON.parse(guardada.texto);
+      return estado && typeof estado === 'object' ? estado : null;
+    } catch (erro) {
+      return null;
+    }
+  },
+
+  esquecerCampanha: function () {
+    try { sessionStorage.removeItem(this.CHAVE_CAMPANHA); } catch (erro) { /* nada a fazer */ }
+  },
+
   foraDaMesa: function (motivo) {
     const texto = String(motivo || 'O seu acesso a esta mesa não vale mais.').slice(0, 300);
+    this.esquecerCampanha();
     if (this.socket) this.socket.io.reconnection(false);
     const s = this.sessao;
     if (s) Acessos.esquecer(s.campanhaId, s.papel, s.jogadorId);

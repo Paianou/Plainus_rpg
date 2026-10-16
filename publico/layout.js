@@ -168,6 +168,26 @@ const Layout = {
       return;                                   /* a tela não monta */
     }
 
+    /* Trocando de tela, a aba já tem a última campanha que chegou
+       (conexao.js, campanhaGuardada): a tela se desenha NA HORA com ela,
+       sem o "Abrindo a mesa…", e se redesenha quando a oficial chegar —
+       milissegundos depois. Se a chave não abrir mais a mesa, a tela
+       desenhada some e fica o motivo. */
+    const guardada = Conexao.campanhaGuardada(sessao);
+    if (guardada) {
+      Memoria.substituir(guardada);
+      this.montar(aoPronto);
+      Conexao.abrir(sessao).then(function () {
+        document.dispatchEvent(new CustomEvent('plainus:externo'));
+        document.dispatchEvent(new CustomEvent('plainus:mudou'));
+      }, function (motivo) {
+        document.getElementById('app').hidden = true;
+        self.mostrarRestrito(null, motivo);
+      });
+      return;
+    }
+
+    /* Primeira abertura nesta aba: espera a campanha chegar. */
     this.mostrarCarregando();
     Conexao.abrir(sessao).then(function () {
       self.tirarCarregando();
@@ -176,6 +196,15 @@ const Layout = {
       self.tirarCarregando();
       self.mostrarRestrito(null, motivo);
     });
+  },
+
+  /* A entrada da tela: o mesmo movimento do painel do jogador (os blocos
+     sobem 8px e aparecem, um depois do outro) — style.css, seção 35. */
+  animarEntrada: function () {
+    const area = document.querySelector('.area-trabalho');
+    if (!area) return;
+    area.classList.add('entrando');
+    setTimeout(function () { area.classList.remove('entrando'); }, 700);
   },
 
   /* "Abrindo a mesa…" — o tempo de a campanha chegar do servidor
@@ -207,6 +236,7 @@ const Layout = {
        no Estado da campanha, que acabou de chegar do servidor. */
 
     document.getElementById('app').hidden = false;
+    this.animarEntrada();
 
     this.montarTopo();
     this.montarCodice();

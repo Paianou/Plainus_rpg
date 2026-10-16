@@ -4958,7 +4958,8 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 }
 
 #principal.entrando > *,
-.cabeca-aba.entrando > * {
+.cabeca-aba.entrando > *,
+.area-trabalho.entrando > * {
   animation: aba-entra .34s cubic-bezier(.2, .7, .2, 1) both;
 }
 .cabeca-aba.entrando > :nth-child(2) { animation-delay: .03s; }
@@ -4968,6 +4969,13 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 #principal.entrando > :nth-child(3) { animation-delay: .14s; }
 #principal.entrando > :nth-child(4) { animation-delay: .18s; }
 #principal.entrando > :nth-child(n+5) { animation-delay: .22s; }
+/* As telas do Mestre (layout.js, animarEntrada): o mesmo movimento, nos
+   blocos da área de trabalho. */
+.area-trabalho.entrando > :nth-child(1) { animation-delay: .06s; }
+.area-trabalho.entrando > :nth-child(2) { animation-delay: .10s; }
+.area-trabalho.entrando > :nth-child(3) { animation-delay: .14s; }
+.area-trabalho.entrando > :nth-child(4) { animation-delay: .18s; }
+.area-trabalho.entrando > :nth-child(n+5) { animation-delay: .22s; }
 .nav-jogador.entrando .codice-link.ativo::before { animation: aba-marca .3s cubic-bezier(.2, .7, .2, 1) both; }
 
 @media (max-width: 720px) {
@@ -4980,6 +4988,7 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 @media (prefers-reduced-motion: reduce) {
   #principal.entrando > *,
   .cabeca-aba.entrando > *,
+  .area-trabalho.entrando > *,
   .nav-jogador.entrando .codice-link.ativo::before { animation: none; }
 }
 
