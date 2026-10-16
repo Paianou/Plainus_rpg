@@ -207,6 +207,8 @@ async function novaAba() {
     tamanho: async (w, alt) => { await c('Emulation.setDeviceMetricsOverride', { width: w, height: alt || 900, deviceScaleFactor: 1, mobile: w < 600 }); await espera(300); },
     frente: async () => { await c('Page.bringToFront'); },
     emular: async (f) => { await c('Emulation.setEmulatedMedia', { features: f }); },
+    /* O protocolo da aba, cru: mouse e teclado "de verdade" (Input.*). */
+    cmd: c,
     fechar: async () => { s.close(); await fetch('http://127.0.0.1:9333/json/close/' + alvo.id).catch(() => {}); }
   };
   return aba;

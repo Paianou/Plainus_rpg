@@ -174,7 +174,10 @@ const Mapa = {
 
     area.appendChild(criar('div.separador-vertical'));
 
-    area.appendChild(criarBotao('mini-botao', 'trazer', 'npcs', 'Trazer combatentes'));
+    /* O grupo (o mesmo ícone da aba Grupo) entra para explorar; os
+       combatentes, para lutar. Os dois só põem quem ainda não está. */
+    area.appendChild(criarBotao('mini-botao', 'trazer-grupo', 'npcs', 'Trazer o grupo'));
+    area.appendChild(criarBotao('mini-botao', 'trazer', 'combate', 'Trazer combatentes'));
     area.appendChild(criarBotao('mini-botao', 'grade', 'tabelas', this.mostrarGrade ? 'Ocultar grade' : 'Mostrar grade'));
 
     if (this.regua) {
@@ -760,6 +763,16 @@ const Mapa = {
   },
 
 
+  /* Traz os heróis da party, fora do combate: cada jogador passa a
+     andar com o próprio token no painel dele (visao.js, moverMeuToken). */
+  trazerGrupo: function () {
+    const r = Acoes.executar('trazerGrupoAoMapa', { cenaId: this.cena().id });
+    if (r.erro) { Layout.recado(r.erro); return; }
+    this.render();
+    Layout.recado(r.entraram + (r.entraram === 1 ? ' herói entrou' : ' heróis entraram') + ' no mapa. Cada jogador já pode andar com o seu.');
+  },
+
+
   trocarCena: function (id) {
     const r = Acoes.executar('escolherCena', { id: id });
     if (r.erro) return;
@@ -1040,6 +1053,7 @@ function ligarPainel() {
       case 'editar-cena':    Mapa.abrirJanela('editar'); break;
       case 'apagar-cena':    Mapa.apagarCena(); break;
       case 'trazer':         Mapa.trazerCombatentes(); break;
+      case 'trazer-grupo':   Mapa.trazerGrupo(); break;
       case 'tirar-token':    Mapa.tirarToken(); break;
       case 'centro':         Mapa.aoCentro(); break;
       case 'tirar-marcador': Mapa.tirarMarcador(alvo.dataset.id); break;

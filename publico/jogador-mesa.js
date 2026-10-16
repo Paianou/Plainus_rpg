@@ -45,12 +45,17 @@ const MesaJogador = {
       ]));
     }
 
-    area.appendChild(this.montarCena(visao.cena, meu));
+    area.appendChild(this.montarCena(visao.cena, meu, combate));
     area.appendChild(this.montarCombate(combate));
   },
 
 
-  montarCena: function (cena, meu) {
+  /* Arrastando o próprio token agora? Enquanto sim, uma visão nova que
+     chegue não redesenha a aba (jogador.js, ocupado) — senão o token
+     sumiria da mão no meio do gesto. */
+  arrastando: false,
+
+  montarCena: function (cena, meu, combate) {
     const cartao = criar('div.cartao', [criarComIcone('h2', 'mapa', cena ? cena.nome : 'A cena', 16)]);
 
     if (!cena) {
@@ -58,15 +63,113 @@ const MesaJogador = {
       return cartao;
     }
 
+    /* Dá para andar? Precisa ter token na cena — e, no combate, ser a
+       sua vez. É a mesma regra que o servidor confere (visao.js,
+       moverMeuToken); aqui ela só decide o que a tela oferece. */
+    const meuToken = cena.tokens.find(function (t) { return t.meu; });
+    const lutando = !!(combate && combate.ativo && combate.combatentes.some(function (c) { return c.meu; }));
+    const minhaVez = lutando && combate.combatentes.some(function (c) { return c.meu && c.vez; });
+    const andar = !!meuToken && (!lutando || minhaVez);
+
     const mapa = criar('div.mapa.mapa-jogador');
     /* O seu token aparece destacado: "você está aqui". */
-    mapa.appendChild(Planta.desenhar(cena, { destacar: meu ? meu.nome : null }));
+    const planta = Planta.desenhar(cena, { destacar: meu ? meu.nome : null, andar: andar });
+    mapa.appendChild(planta);
     if (cena.visibilidade) {
       mapa.appendChild(criar('div.mapa-faixa', [criar('span.mapa-selo', cena.visibilidade)]));
     }
     cartao.appendChild(mapa);
-    cartao.appendChild(criar('p.dica.legenda-mapa-jogador', 'Cada quadrado tem 1,5 m. Quem move os tokens é o Mestre.'));
+
+    let legenda = 'Quem move os tokens é o Mestre.';
+    if (andar) legenda = 'Arraste o seu token para andar — ou clique nele e use as setas.';
+    else if (meuToken) legenda = 'No combate, você anda na sua vez.';
+    else if (meu) legenda = 'O Mestre ainda não pôs você no mapa.';
+    cartao.appendChild(criar('p.dica.legenda-mapa-jogador', 'Cada quadrado tem 1,5 m. ' + legenda));
+
+    if (andar) this.ligarAndar(planta, cena, meuToken);
     return cartao;
+  },
+
+
+  /* O próprio token, pela mão ou pelo teclado. Mesma conta do mapas.js
+     do Mestre: o ponto da tela vira ponto do SVG (getScreenCTM, porque
+     o mapa está escalado) e o ponto vira célula. Durante o arrasto só o
+     grupo do token se move; ao soltar, a casa vai para o servidor
+     (enviarMeuToken), que confere parede, casa ocupada e a vez. */
+  ligarAndar: function (svg, cena, token) {
+    const self = this;
+    const grupo = svg.querySelector('.token-meu');
+    if (!grupo) return;
+    let arrasto = null;
+
+    function ponto(evento) {
+      const p = svg.createSVGPoint();
+      p.x = evento.clientX;
+      p.y = evento.clientY;
+      const matriz = svg.getScreenCTM();
+      return matriz ? p.matrixTransform(matriz.inverse()) : { x: 0, y: 0 };
+    }
+
+    function andarPara(col, lin) {
+      col = Math.max(0, Math.min(cena.colunas - 1, col));
+      lin = Math.max(0, Math.min(cena.linhas - 1, lin));
+      if (col === token.col && lin === token.lin) return false;
+      enviarMeuToken(col, lin);
+      return true;
+    }
+
+    grupo.addEventListener('pointerdown', function (evento) {
+      if (evento.button !== 0) return;
+      evento.preventDefault();
+      grupo.focus();
+      arrasto = { inicio: ponto(evento), moveu: false };
+      self.arrastando = true;
+      grupo.classList.add('pegando');
+      /* Sem a captura, um movimento rápido escapa do token (ver mapas.js). */
+      try { grupo.setPointerCapture(evento.pointerId); } catch (erro) { /* segue sem captura */ }
+    });
+
+    grupo.addEventListener('pointermove', function (evento) {
+      if (!arrasto) return;
+      /* O botão já foi solto, fora do token (o pointerup não chegou
+         aqui): o gesto acabou. Sem isto o token ficaria "na mão" — e a
+         aba pararia de receber as novidades (ver arrastando). */
+      if (evento.buttons === 0) { soltar(); return; }
+      const p = ponto(evento);
+      arrasto.dx = p.x - arrasto.inicio.x;
+      arrasto.dy = p.y - arrasto.inicio.y;
+      arrasto.moveu = true;
+      grupo.setAttribute('transform', 'translate(' + arrasto.dx + ',' + arrasto.dy + ')');
+    });
+
+    /* Soltou: encaixa na casa onde caiu o CENTRO do token. Redesenha
+       sempre — mesmo num clique sem arrastar —, porque o que chegou do
+       servidor durante o gesto esperou por ele (como no mapas.js). */
+    function soltar() {
+      if (!arrasto) return;
+      const fim = arrasto;
+      arrasto = null;
+      self.arrastando = false;
+      if (fim.moveu) {
+        andarPara(Math.floor((token.col * CELULA + CELULA / 2 + fim.dx) / CELULA),
+          Math.floor((token.lin * CELULA + CELULA / 2 + fim.dy) / CELULA));
+      }
+      Jogador.render();
+    }
+    grupo.addEventListener('pointerup', soltar);
+    grupo.addEventListener('pointercancel', soltar);
+    /* O navegador soltou a captura por conta própria (a aba perdeu o
+       foco, por exemplo): o gesto acabou também. */
+    grupo.addEventListener('lostpointercapture', soltar);
+
+    /* As setas andam uma casa. O foco volta ao token depois do redesenho
+       (jogador.js, render) — dá para andar várias casas seguidas. */
+    grupo.addEventListener('keydown', function (evento) {
+      const passo = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[evento.key];
+      if (!passo) return;
+      evento.preventDefault();
+      if (andarPara(token.col + passo[0], token.lin + passo[1])) Jogador.render();
+    });
   },
 
 

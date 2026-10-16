@@ -4223,6 +4223,15 @@ button.pericia { font-size: 13px; }
    (feito para ficar colada num título) e a esconderia sob a planta. */
 .cartao .dica.legenda-mapa-jogador { margin: 8px 0 0; }
 
+/* O próprio token, que o jogador arrasta (jogador-mesa.js, ligarAndar).
+   A mão, como no .token-mapa do Mestre. touch-action: none deixa o dedo
+   arrastar o token em vez de rolar a página. O foco do teclado acende
+   o anel pontilhado ("você está aqui") em azul, sem a moldura
+   retangular que o navegador desenharia em volta do grupo. */
+.token-meu { cursor: grab; touch-action: none; outline: none; }
+.token-meu.pegando { cursor: grabbing; }
+.token-meu:focus-visible .anel-meu { stroke: var(--azul); stroke-width: 3; stroke-dasharray: none; }
+
 .cabeca-combate-jogador { margin: -6px 0 12px; font-size: 12px; color: var(--texto-3); }
 .iniciativa-jogador { display: flex; flex-direction: column; gap: 6px; }
 .linha-jogador {

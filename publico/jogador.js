@@ -141,6 +141,9 @@ const Jogador = {
     this.renderLateral();
 
     const area = document.getElementById('principal');
+    /* Quem anda com o token pelas setas continua com o foco nele depois
+       do redesenho (jogador-mesa.js, ligarAndar). */
+    const focoNoToken = !!(document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('token-meu'));
     area.textContent = '';
 
     const entrando = this.entrando;
@@ -187,6 +190,7 @@ const Jogador = {
     }
 
     if (this.aba === 'ficha') this.agendarTour();
+    if (focoNoToken && area.querySelector('.token-meu')) area.querySelector('.token-meu').focus();
 
     if (entrando) this.animarEntrada();
   },
@@ -1422,7 +1426,7 @@ const Jogador = {
      busca das regras). Espera: o Estado já está atualizado na memória,
      e o próximo clique redesenha com ele. */
   ocupado: function () {
-    if (this.rascunho) return true;
+    if (this.rascunho || MesaJogador.arrastando) return true;
     const foco = document.activeElement;
     return !!(foco && foco.closest && foco.closest('#principal') && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName));
   }

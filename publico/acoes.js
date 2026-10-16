@@ -219,7 +219,11 @@ function acharHeroi(estado, id) {
 /* ---------- As cenas (mapas.js) ----------
    Uma cena: { id, nome, visibilidade, colunas, linhas, imagem?,
    paredes: [[col, lin, largura, altura]...], tokens: [...],
-   marcadores: [...] }. */
+   marcadores: [...] }.
+   O token de um herói guarda o heroiId: é por ele que o servidor sabe
+   qual token o jogador dono daquele herói pode mover (visao.js,
+   moverMeuToken). Pelo nome não dá — o nome muda, e dois podem ter o
+   mesmo. */
 
 const COLUNAS = [5, 60];
 const LINHAS = [5, 40];
@@ -302,6 +306,29 @@ function celulaLivre(cena) {
   return null;
 }
 
+/* O token deste herói na cena. Um token antigo, de antes do heroiId,
+   com o mesmo nome do herói, é adotado: passa a ser dele. */
+function tokenDoHeroi(cena, heroi) {
+  const seu = cena.tokens.find(function (t) { return t.heroiId === heroi.id; });
+  if (seu) return seu;
+  const antigo = cena.tokens.find(function (t) { return !t.heroiId && t.tipo === 'heroi' && t.nome === heroi.nome; });
+  if (antigo) antigo.heroiId = heroi.id;
+  return antigo || null;
+}
+
+/* Um token novo numa célula livre perto do meio. Sem lugar (ou com 200
+   tokens), não entra — e devolve false. */
+function colocarToken(cena, nome, tipo, heroi) {
+  if (cena.tokens.length >= 200) return false;
+  const livre = celulaLivre(cena);
+  if (!livre) return false;
+  const nomeToken = String(nome || '?').slice(0, 60) || '?';
+  const token = { id: novoId('t'), nome: nomeToken, inicial: nomeToken.charAt(0).toUpperCase(), tipo: tipo, col: livre.col, lin: livre.lin };
+  if (heroi) token.heroiId = heroi.id;
+  cena.tokens.push(token);
+  return true;
+}
+
 /* Uma cena inteira conferida — para o "Desfazer" de apagar cena, que
    devolve uma cena que veio de fora (da tela, ou pela rede). */
 function cenaValida(c) {
@@ -320,7 +347,9 @@ function cenaValida(c) {
   const dentro = function (x) { return { col: inteiro(x.col, 0, colunas - 1, 0), lin: inteiro(x.lin, 0, linhas - 1, 0) }; };
   cena.tokens = (Array.isArray(c.tokens) ? c.tokens : []).slice(0, 200).filter(function (t) { return t && idValido(t.id); }).map(function (t) {
     const nomeToken = texto(t.nome, 60) || '?';
-    return Object.assign({ id: t.id, nome: nomeToken, inicial: nomeToken.charAt(0).toUpperCase(), tipo: t.tipo === 'heroi' ? 'heroi' : 'inimigo' }, dentro(t));
+    const token = Object.assign({ id: t.id, nome: nomeToken, inicial: nomeToken.charAt(0).toUpperCase(), tipo: t.tipo === 'heroi' ? 'heroi' : 'inimigo' }, dentro(t));
+    if (token.tipo === 'heroi' && idValido(t.heroiId)) token.heroiId = t.heroiId;
+    return token;
   });
   cena.marcadores = (Array.isArray(c.marcadores) ? c.marcadores : []).slice(0, 200).filter(function (m) { return m && idValido(m.id); }).map(function (m) {
     return Object.assign({ id: m.id, tipo: m.tipo === 'perigo' ? 'perigo' : 'nota', texto: texto(m.texto, 200) || 'Marcador' }, dentro(m));
@@ -918,17 +947,28 @@ const ACOES = {
     let entraram = 0;
     combateDe(estado).combatentes.forEach(function (combatente) {
       if (combatente.pv <= 0) return;
-      if (cena.tokens.some(function (t) { return t.nome === combatente.nome; })) return;
-      if (cena.tokens.length >= 200) return;
-      const livre = celulaLivre(cena);
-      if (!livre) return;
-      cena.tokens.push({
-        id: novoId('t'), nome: combatente.nome, inicial: combatente.nome.charAt(0).toUpperCase(),
-        tipo: combatente.tipo === 'heroi' ? 'heroi' : 'inimigo', col: livre.col, lin: livre.lin
-      });
-      entraram += 1;
+      const heroi = combatente.heroiId ? acharHeroi(estado, combatente.heroiId) : null;
+      if (heroi ? tokenDoHeroi(cena, heroi) : cena.tokens.some(function (t) { return t.nome === combatente.nome; })) return;
+      if (colocarToken(cena, combatente.nome, combatente.tipo === 'heroi' ? 'heroi' : 'inimigo', heroi)) entraram += 1;
     });
     if (!entraram) return { erro: 'Todo mundo do combate já está no mapa.' };
+    return { entraram: entraram };
+  },
+
+  /* Os heróis da party entram no mapa, fora do combate — para a
+     exploração: cada jogador passa a andar com o próprio token. Quem
+     já tem token nesta cena fica onde está. */
+  trazerGrupoAoMapa: function (estado, dados) {
+    const cena = acharCena(estado, dados.cenaId);
+    if (!cena) return { erro: 'Cena não encontrada.' };
+    const herois = estado.herois || [];
+    if (!herois.length) return { erro: 'Ninguém criou personagem ainda.' };
+    let entraram = 0;
+    herois.forEach(function (heroi) {
+      if (tokenDoHeroi(cena, heroi)) return;
+      if (colocarToken(cena, heroi.nome, 'heroi', heroi)) entraram += 1;
+    });
+    if (!entraram) return { erro: 'O grupo inteiro já está no mapa.' };
     return { entraram: entraram };
   },
 

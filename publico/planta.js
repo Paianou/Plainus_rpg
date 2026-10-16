@@ -20,25 +20,32 @@
    esconder na hora de desenhar é esconder com CSS, e o dado já teria
    chegado ao navegador.
 
-   A interação (arrastar, medir, pintar parede) continua no mapas.js,
-   que tem o próprio desenho com os eventos ligados.
+   A interação do Mestre (arrastar, medir, pintar parede) continua no
+   mapas.js, que tem o próprio desenho com os eventos ligados. Aqui há
+   só o ponto de apoio para o jogador andar: cada token num <g> com
+   data-token, e o token "meu" (visao.js marca) pronto para ser pego —
+   os eventos ficam no jogador-mesa.js.
 
    Uso:
      Planta.desenhar(cena)                          -> <svg>
      Planta.desenhar(cena, { destacar: 'Lyra' })    -> com um token aceso
+     Planta.desenhar(cena, { andar: true })         -> o token meu pode ser pego
    =================================================================== */
 
 const Planta = {
 
   desenhar: function (cena, opcoes) {
     const destacar = opcoes && opcoes.destacar;
+    const andar = !!(opcoes && opcoes.andar);
     const NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(NS, 'svg');
     const largura = cena.colunas * CELULA;
     const altura = cena.linhas * CELULA;
 
     svg.setAttribute('viewBox', '0 0 ' + largura + ' ' + altura);
-    svg.setAttribute('role', 'img');
+    /* Com um token para pegar, o mapa é um grupo (um "img" esconde do
+       leitor de tela tudo o que tem dentro, inclusive o botão). */
+    svg.setAttribute('role', andar ? 'group' : 'img');
     svg.setAttribute('aria-label', 'Planta da cena: ' + cena.nome);
 
     function no(tag, atributos) {
@@ -139,16 +146,29 @@ const Planta = {
       };
       const cor = cores[token.tipo] || cores.npc;
 
+      /* Cada token num grupo: arrastar é mover o grupo inteiro (círculo,
+         letra e nome juntos). O meu, quando dá para andar, entra na
+         ordem do Tab e diz o que faz — as setas também andam. */
+      const grupo = no('g', { class: 'token-planta' });
+      grupo.dataset.token = token.id;
+      if (andar && token.meu) {
+        grupo.setAttribute('class', 'token-planta token-meu');
+        grupo.setAttribute('tabindex', '0');
+        grupo.setAttribute('role', 'button');
+        grupo.setAttribute('aria-label', token.nome + ': arraste, ou use as setas, para andar');
+      }
+      svg.appendChild(grupo);
+
       /* O token destacado (o personagem de quem está olhando) ganha um
          anel a mais — é o "você está aqui" do mapa. */
-      if (destacar && token.nome === destacar) {
-        svg.appendChild(no('circle', {
-          cx: p.x, cy: p.y, r: CELULA / 2 + 3,
+      if (token.meu || (destacar && token.nome === destacar)) {
+        grupo.appendChild(no('circle', {
+          class: 'anel-meu', cx: p.x, cy: p.y, r: CELULA / 2 + 3,
           fill: 'none', stroke: '#e6e8f0', 'stroke-width': 2, 'stroke-dasharray': '4 3'
         }));
       }
 
-      svg.appendChild(no('circle', {
+      grupo.appendChild(no('circle', {
         cx: p.x, cy: p.y, r: CELULA / 2 - 3,
         fill: cor.fundo, stroke: cor.aro, 'stroke-width': 2
       }));
@@ -163,7 +183,7 @@ const Planta = {
         silhueta.setAttribute('transform',
           'translate(' + p.x + ',' + p.y + ') ' + silhueta.getAttribute('transform'));
         silhueta.setAttribute('fill', '#0a0c10');
-        svg.appendChild(silhueta);
+        grupo.appendChild(silhueta);
       } else {
         const letra = no('text', {
           x: p.x, y: p.y + 7, 'text-anchor': 'middle',
@@ -171,7 +191,7 @@ const Planta = {
           'font-family': 'Marcellus, serif', 'font-weight': 'bold'
         });
         letra.textContent = token.inicial;
-        svg.appendChild(letra);
+        grupo.appendChild(letra);
       }
 
       /* Só o primeiro nome: numa planta pequena os rótulos inteiros se
@@ -181,7 +201,7 @@ const Planta = {
         fill: 'rgba(230,232,240,.78)', 'font-size': 15, 'font-family': 'Inter, sans-serif'
       });
       nome.textContent = token.nome.split(' ')[0];
-      svg.appendChild(nome);
+      grupo.appendChild(nome);
     });
 
     return svg;

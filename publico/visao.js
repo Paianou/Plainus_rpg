@@ -93,7 +93,7 @@ function visaoDoJogador(estado, jogadorId) {
       };
     }),
 
-    cena: cenaPublica(estado),
+    cena: cenaPublica(estado, meu),
     combate: combatePublico(estado, meu),
 
     /* Do diário, só o que a party viveu: o resumo. As notas do Mestre
@@ -165,12 +165,19 @@ function mensagensDoJogador(estado, jogadorId) {
 }
 
 
+/* A cena em jogo — a mesma regra para a visão e para moverMeuToken. */
+function cenaEmJogo(estado) {
+  const cenas = estado.cenas || [];
+  return cenas.find(function (x) { return x.id === estado.cenaAtual; }) || cenas[0] || null;
+}
+
 /* A cena em jogo, sem os marcadores: eles são as notas do Mestre
    sobre a sala ("Glifo de Chamas, CD 15", "a coroa está aqui"). Um
-   jogador que visse o marcador de armadilha nunca cairia nela. */
-function cenaPublica(estado) {
-  const cenas = estado.cenas || [];
-  const cena = cenas.find(function (x) { return x.id === estado.cenaAtual; }) || cenas[0];
+   jogador que visse o marcador de armadilha nunca cairia nela.
+   Cada token diz se é o "meu" de quem está olhando — é o que a tela
+   usa para deixar arrastar só esse. */
+function cenaPublica(estado, meu) {
+  const cena = cenaEmJogo(estado);
   if (!cena) return null;
 
   return {
@@ -180,7 +187,7 @@ function cenaPublica(estado) {
     imagem: cena.imagem,
     marcadores: [],
     tokens: cena.tokens.map(function (t) {
-      return { id: t.id, nome: t.nome, inicial: t.inicial, tipo: t.tipo, col: t.col, lin: t.lin };
+      return { id: t.id, nome: t.nome, inicial: t.inicial, tipo: t.tipo, col: t.col, lin: t.lin, meu: !!(meu && t.heroiId === meu.id) };
     })
   };
 }
@@ -322,6 +329,15 @@ const ACOES_JOGADOR = {
     heroi.pv = antigo.pv >= antigo.pvMax ? heroi.pvMax : Math.min(antigo.pv, heroi.pvMax);
     estado.herois[posicao] = Object.assign({}, antigo, heroi);
 
+    /* O token dele, em qualquer cena, acompanha o nome. */
+    (estado.cenas || []).forEach(function (cena) {
+      (cena.tokens || []).forEach(function (t) {
+        if (t.heroiId !== heroi.id || !heroi.nome) return;
+        t.nome = heroi.nome;
+        t.inicial = heroi.nome.charAt(0).toUpperCase();
+      });
+    });
+
     /* Se ele estiver no combate, nome, CA e PV máximo acompanham. */
     ((estado.combate && estado.combate.combatentes) || []).forEach(function (c) {
       if (c.heroiId !== heroi.id) return;
@@ -346,6 +362,41 @@ const ACOES_JOGADOR = {
       c.condicoes = (c.condicoes || []).filter(function (x) { return x !== 'Concentrando'; });
       if (dados.concentrando) c.condicoes.push('Concentrando');
     });
+    return {};
+  },
+
+  /* Andar com o próprio token na cena em jogo. Só o token do SEU herói
+     (o heroiId, que o Mestre pôs ao trazer o grupo — acoes.js), só
+     dentro da cena, nunca para dentro de parede nem para cima de outro
+     token. No combate, só na sua vez: fora dela, quem anda é quem está
+     agindo. Quantos metros cabem no turno, o Mestre julga — o servidor
+     não conta deslocamento. */
+  moverMeuToken: function (estado, sessao, dados) {
+    if (sessao.papel !== 'jogador') return { erro: 'Só jogador.' };
+    const meu = (estado.herois || []).find(function (h) { return h.dono === sessao.jogadorId; });
+    if (!meu) return { erro: 'Você ainda não tem personagem nesta campanha.' };
+    const cena = cenaEmJogo(estado);
+    const token = cena && (cena.tokens || []).find(function (t) { return t.heroiId === meu.id; });
+    if (!token) return { erro: 'Seu personagem ainda não está no mapa. Peça ao Mestre.' };
+
+    const combate = estado.combate;
+    const lista = (combate && combate.combatentes) || [];
+    if (combate && combate.ativo && lista.some(function (c) { return c.heroiId === meu.id; })) {
+      const vez = lista.find(function (x) { return !x.agiu && x.pv > 0; });
+      if (!vez || vez.heroiId !== meu.id) return { erro: 'No combate, você anda na sua vez.' };
+    }
+
+    const col = inteiro(dados.col, 0, cena.colunas - 1, null);
+    const lin = inteiro(dados.lin, 0, cena.linhas - 1, null);
+    if (col === null || lin === null) return { erro: 'Casa inválida.' };
+    if (col === token.col && lin === token.lin) return {};
+    const parede = (cena.paredes || []).some(function (p) {
+      return col >= p[0] && col < p[0] + p[2] && lin >= p[1] && lin < p[1] + p[3];
+    });
+    if (parede) return { erro: 'Ali tem parede.' };
+    if (cena.tokens.some(function (t) { return t !== token && t.col === col && t.lin === lin; })) return { erro: 'Essa casa já está ocupada.' };
+    token.col = col;
+    token.lin = lin;
     return {};
   },
 
@@ -447,6 +498,15 @@ function enviarMeuHeroi(sessao, heroi) {
 }
 function enviarConcentracao(sessao, concentrando) { Conexao.acaoJogador('concentracao', { concentrando: !!concentrando }); return null; }
 function enviarRolagem(sessao, rolagem) { Conexao.acaoJogador('rolagem', { rolagem: rolagem }); return null; }
+/* O token anda na tela já (como a ficha): a visão que volta do servidor
+   confirma — ou, se ele recusou, devolve o token para onde estava. */
+function enviarMeuToken(col, lin) {
+  const cena = Conexao.visao && Conexao.visao.cena;
+  const token = cena && cena.tokens.find(function (t) { return t.meu; });
+  if (token) { token.col = col; token.lin = lin; }
+  Conexao.acaoJogador('moverMeuToken', { col: col, lin: lin });
+  return null;
+}
 function enviarMensagem(sessao, canal, texto) {
   const limpo = String(texto || '').trim();
   if (!limpo) return 'Escreva alguma coisa.';
