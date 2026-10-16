@@ -91,7 +91,11 @@ const Jogador = {
     Chat.ligar();
     const self = this;
     Chat.aoMudarLidas = function () {
-      if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') self.montarNav(self.abasVisiveis());
+      /* As duas navegações mostram a pílula do chat: as duas se refazem. */
+      if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') {
+        self.montarNav(self.abasVisiveis());
+        self.montarAbas(self.abasVisiveis());
+      }
       if (self.visao) self.vigiarMesa(self.visao);
     };
 
@@ -148,6 +152,7 @@ const Jogador = {
     const formulario = !this.visao.meuHeroi || this.modo === 'editar';
     this.mostrarNav(!formulario);
     document.getElementById('cabecaAba').hidden = formulario;
+    document.getElementById('abasJogador').hidden = formulario;
 
     if (!this.visao.meuHeroi) {
       if (!this.rascunho) this.guardarRascunho(this.rascunhoNovo());
@@ -167,6 +172,7 @@ const Jogador = {
     if (!abas.some(function (a) { return a[0] === this.aba; }, this)) this.aba = 'ficha';
 
     this.montarNav(abas);
+    this.montarAbas(abas);
     this.montarCabeca(abas);
     const heroi = this.visao.meuHeroi;
     switch (this.aba) {
@@ -192,7 +198,7 @@ const Jogador = {
      dos filhos (o resumo da ficha) enquanto estiver aplicado.
      Quem pediu "reduzir movimento" no sistema não vê nada disso (CSS). */
   animarEntrada: function () {
-    ['principal', 'cabecaAba', 'navJogador'].forEach(function (id) {
+    ['principal', 'navJogador'].forEach(function (id) {
       const el = document.getElementById(id);
       el.classList.remove('entrando');
       void el.offsetWidth;   /* força o navegador a "esquecer" a animação anterior */
@@ -200,7 +206,7 @@ const Jogador = {
     });
     clearTimeout(this.fimEntrada);
     this.fimEntrada = setTimeout(function () {
-      ['principal', 'cabecaAba', 'navJogador'].forEach(function (id) {
+      ['principal', 'navJogador'].forEach(function (id) {
         document.getElementById(id).classList.remove('entrando');
       });
     }, 700);
@@ -309,36 +315,72 @@ const Jogador = {
     document.querySelector('.colunas-jogador').classList.toggle('sem-nav', !mostrar);
   },
 
-  /* O cabeçalho da área: o nome da aba aberta, para que ela serve e,
-     à direita, as pílulas — o mesmo lugar e o mesmo desenho da fileira
-     de abas do painel do Mestre, para os dois se alinharem. */
+  /* O cabeçalho da área: o nome da aba aberta e para que ela serve. */
   montarCabeca: function (lista) {
     const self = this;
     const cabeca = document.getElementById('cabecaAba');
     const aba = lista.find(function (a) { return a[0] === self.aba; }) || lista[0];
-    const meu = this.visao.meuHeroi;
-    const combate = this.visao.combate;
 
+    /* Com a fileira de abas no topo (montarAbas), o nome da aba aberta
+       já está à vista, na aba acesa: o cabeçalho repetiria. Ele fica
+       só para o leitor de tela (.so-leitor, no jogador.html) — o <h1> da
+       página, como na Visão Geral do Mestre. As pílulas foram para a fileira. */
     cabeca.textContent = '';
-    cabeca.appendChild(criar('div.cabeca-aba-icone', Icone.svg(aba[1], 18)));
-    cabeca.appendChild(criar('div.cabeca-aba-texto', [
-      criar('h1', aba[2]),
-      criar('p', aba[3])
-    ]));
+    cabeca.appendChild(criar('h1', aba[2]));
+    cabeca.appendChild(criar('p', aba[3]));
+  },
 
-    const pilulas = criar('div.cabeca-aba-pilulas');
-    if (combate && combate.ativo) pilulas.appendChild(criar('span.pilula.perigo', 'Em combate'));
-    pilulas.appendChild(criar('span.pilula', 'Sessão ' + this.visao.campanha.sessao));
-    pilulas.appendChild(criar('span.pilula.azul', 'Nível ' + (meu.nivel || 1)));
-    cabeca.appendChild(pilulas);
+  /* A pílula de cada aba — a MESMA nas duas navegações (a lateral e a
+     fileira do topo): mensagens novas no Chat (enquanto ele não está
+     aberto); "Sua vez" ou "Combate" na Mesa. Uma regra só: copiada nas
+     duas, um dia uma delas mostraria a pílula errada. */
+  pilulaDaAba: function (id, ativa) {
+    if (id === 'chat' && !ativa) {
+      const novas = Chat.naoLidas();
+      if (novas) return criar('span.pilula.azul', String(novas));
+    }
+    if (id === 'mesa') {
+      const combate = this.visao.combate;
+      const minhaVez = !!(combate && combate.ativo && combate.combatentes.some(function (c) { return c.vez && c.meu; }));
+      if (minhaVez) return criar('span.pilula.azul', 'Sua vez');
+      if (combate && combate.ativo) return criar('span.pilula.perigo', 'Combate');
+    }
+    return null;
+  },
+
+  /* O acesso rápido no topo: as mesmas abas, no desenho das abas do
+     Mestre (.aba, com aria-pressed como lá). O clique é o mesmo da
+     navegação lateral (data-acao="aba"). */
+  montarAbas: function (lista) {
+    const self = this;
+    const area = document.getElementById('abasJogador');
+    area.textContent = '';
+    lista.forEach(function (trio) {
+      const ativa = self.aba === trio[0];
+      const botao = criar('button.aba' + (ativa ? '.ativa' : ''));
+      botao.type = 'button';
+      botao.dataset.acao = 'aba';
+      botao.dataset.aba = trio[0];
+      botao.setAttribute('aria-pressed', ativa ? 'true' : 'false');
+      botao.appendChild(Icone.svg(trio[1], 15));
+      botao.appendChild(criar('span', trio[2]));
+      const pilula = self.pilulaDaAba(trio[0], ativa);
+      if (pilula) botao.appendChild(pilula);
+      area.appendChild(botao);
+    });
+
+    /* À direita, o que o cabeçalho mostrava — no mesmo lugar onde o
+       Mestre vê "Cap." e "Nível médio". ("Em combate" não vem: a aba
+       Mesa já mostra "Combate" ou "Sua vez".) */
+    area.appendChild(criar('div.espaco'));
+    area.appendChild(criar('span.pilula', 'Sessão ' + this.visao.campanha.sessao));
+    area.appendChild(criar('span.pilula.azul', 'Nível ' + (this.visao.meuHeroi.nivel || 1)));
   },
 
   montarNav: function (lista) {
     const self = this;
     const nav = document.getElementById('navJogador');
     const meu = this.visao.meuHeroi;
-    const combate = this.visao.combate;
-    const minhaVez = !!(combate && combate.ativo && combate.combatentes.some(function (c) { return c.vez && c.meu; }));
 
     nav.textContent = '';
 
@@ -363,14 +405,8 @@ const Jogador = {
       botao.appendChild(Icone.svg(trio[1], 17));
       botao.appendChild(criar('span', trio[2]));
 
-      /* Mensagens novas no chat, enquanto ele não está aberto. */
-      if (trio[0] === 'chat' && !ativa) {
-        const novas = Chat.naoLidas();
-        if (novas) botao.appendChild(criar('span.pilula.azul', String(novas)));
-      }
-
-      if (trio[0] === 'mesa' && minhaVez) botao.appendChild(criar('span.pilula.azul', 'Sua vez'));
-      else if (trio[0] === 'mesa' && combate && combate.ativo) botao.appendChild(criar('span.pilula.perigo', 'Combate'));
+      const pilula = self.pilulaDaAba(trio[0], ativa);
+      if (pilula) botao.appendChild(pilula);
 
       nav.appendChild(botao);
     });
@@ -1164,8 +1200,11 @@ const Jogador = {
                depois e, achando a aba já trocada, não faz nada. */
             location.hash = 'aba=' + self.aba;
           }
+          /* O foco volta para a aba ativa DA MESMA navegação que foi
+             clicada (a fileira do topo ou a lateral). */
+          const doTopo = !!alvo.closest('#abasJogador');
           self.render();
-          const ativa = document.querySelector('.nav-jogador .codice-link.ativo');
+          const ativa = document.querySelector(doTopo ? '#abasJogador .aba.ativa' : '.nav-jogador .codice-link.ativo');
           if (ativa) ativa.focus();
           break;
         }

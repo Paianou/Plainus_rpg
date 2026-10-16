@@ -4888,41 +4888,16 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 }
 
 
-/* ---------- 35. CABEÇALHO DA ABA E ENTRADA (painel do jogador) ----------
-   O cabeçalho ocupa, no jogador, o lugar da fileira de abas do Mestre
-   (.abas-mesa): mesma hairline embaixo, mesmo respiro — assim o primeiro
-   cartão dos dois painéis começa na mesma altura. */
-
-.cabeca-aba {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 14px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid var(--hairline);
+/* ---------- 35. FILEIRA DE ABAS E ENTRADA (painel do jogador) ----------
+   O acesso rápido do jogador é a mesma fileira de abas do Mestre
+   (.abas-mesa, seção 15), com a mesma linha e o mesmo respiro — é ela
+   que põe o primeiro cartão dos dois painéis na mesma altura. O título
+   da aba (#cabecaAba) fica só para o leitor de tela (.so-leitor).
+   Até 1100px ela some: ali o próprio códice já vira uma faixa de abas no
+   topo (seção 25 e .nav-jogador), e as duas fileiras seriam iguais. */
+@media (max-width: 1100px) {
+  .abas-jogador { display: none; }
 }
-.cabeca-aba-icone {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  color: var(--azul);
-  background: var(--azul-fundo);
-  border-radius: var(--r-p);
-  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, .22), inset 0 1px 0 var(--relevo);
-}
-.cabeca-aba-texto { min-width: 0; }
-.cabeca-aba h1 {
-  margin: 0;
-  font-family: 'Marcellus', Georgia, serif;
-  font-size: 20px;
-  font-weight: 400;
-  line-height: 1.2;
-  color: var(--texto);
-}
-.cabeca-aba p { margin: 2px 0 0; font-size: 12px; color: var(--texto-3); }
-.cabeca-aba-pilulas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-left: auto; }
 
 /* A marca da aba ativa: um fio de luz azul na borda esquerda do link.
    Vale para os dois códices (Mestre e jogador) — é a mesma peça. */
@@ -4958,12 +4933,9 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 }
 
 #principal.entrando > *,
-.cabeca-aba.entrando > *,
 .area-trabalho.entrando > * {
   animation: aba-entra .34s cubic-bezier(.2, .7, .2, 1) both;
 }
-.cabeca-aba.entrando > :nth-child(2) { animation-delay: .03s; }
-.cabeca-aba.entrando > :nth-child(3) { animation-delay: .06s; }
 #principal.entrando > :nth-child(1) { animation-delay: .06s; }
 #principal.entrando > :nth-child(2) { animation-delay: .10s; }
 #principal.entrando > :nth-child(3) { animation-delay: .14s; }
@@ -4978,16 +4950,8 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 .area-trabalho.entrando > :nth-child(n+5) { animation-delay: .22s; }
 .nav-jogador.entrando .codice-link.ativo::before { animation: aba-marca .3s cubic-bezier(.2, .7, .2, 1) both; }
 
-@media (max-width: 720px) {
-  .cabeca-aba { gap: 10px; padding-bottom: 12px; margin-bottom: 14px; }
-  .cabeca-aba-icone { width: 34px; height: 34px; }
-  .cabeca-aba h1 { font-size: 18px; }
-  .cabeca-aba-pilulas { display: none; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   #principal.entrando > *,
-  .cabeca-aba.entrando > *,
   .area-trabalho.entrando > *,
   .nav-jogador.entrando .codice-link.ativo::before { animation: none; }
 }

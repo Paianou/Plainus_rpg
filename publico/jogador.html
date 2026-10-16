@@ -57,9 +57,15 @@
       <nav class="codice nav-jogador" id="navJogador" aria-label="Seções do painel"></nav>
 
       <main class="area-trabalho">
-        <!-- Onde você está: o nome da aba e para que ela serve (o lugar
-             que as abas Panorama/Grupo/Cena ocupam no Mestre). -->
-        <div class="cabeca-aba" id="cabecaAba"></div>
+        <!-- Onde você está: o nome da aba e para que ela serve. Só para o
+             leitor de tela (a aba acesa logo abaixo já diz isso a quem vê),
+             e antes das abas, como o <h1> da Visão Geral do Mestre. -->
+        <div class="so-leitor" id="cabecaAba"></div>
+
+        <!-- O acesso rápido: as abas numa fileira, no mesmo lugar e com o
+             mesmo desenho (.abas-mesa, .aba) das abas Panorama/Grupo/Cena/
+             Ferramentas do Mestre. O jogador.js monta (montarAbas). -->
+        <div class="abas-mesa abas-jogador" id="abasJogador"></div>
 
         <!-- O conteúdo da aba e, à direita, campanha, dados e party. -->
         <div class="colunas-jogador">
