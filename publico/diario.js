@@ -121,6 +121,11 @@ const Diario = {
 
   render: function () {
     const itens = this.filtrar();
+    /* Nada aberto? Abre o primeiro da lista (já com a busca e os
+       filtros): o painel do lado mostra uma ficha em vez de um
+       "Escolha…" sozinho no meio do vazio. Os quatro painéis de lista
+       e ficha (compêndio, bestiário, diário, NPCs) fazem igual. */
+    if (!this.selecionado && this.modo !== 'edicao' && this.aba !== 'pendencias' && itens.length) this.selecionado = itens[0].id;
 
     this.renderLista(itens);
     this.renderDetalhe();
@@ -279,8 +284,8 @@ const Diario = {
       vazio.style.border = '0';
       vazio.appendChild(Icone.svg('diario', 28));
       vazio.appendChild(criar('div', this.aba === 'sessoes'
-        ? 'Escolha uma sessão para ler.'
-        : 'Escolha um segredo.'));
+        ? 'Nenhuma sessão nesta lista.'
+        : 'Nenhum segredo nesta lista.'));
       area.appendChild(vazio);
       return;
     }
@@ -674,6 +679,9 @@ const Diario = {
 
     campo.addEventListener('input', function () {
       self.busca = campo.value;
+      /* Buscar é procurar outra coisa: o painel abre o primeiro
+         resultado, em vez de ficar no que estava aberto. */
+      if (self.modo !== 'edicao') self.selecionado = null;
       self.render();
     });
 

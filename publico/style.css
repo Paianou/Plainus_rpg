@@ -1027,6 +1027,14 @@ a.marca-mestre:hover .nome { color: #fff; }
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   align-items: start;
 }
+/* A pilha do Rolador (mestre.js, montarColunaFerramentas) é um item
+   só da grade: Rolador e Rolagens da mesa, um embaixo do outro. */
+.pilha-rolador { gap: 14px; }
+/* No Panorama de três colunas, as rolagens da mesa saem: ali a coluna
+   das ferramentas já é a mais comprida das três. */
+@media (min-width: 1501px) {
+  .colunas-mesa:not(.foco) .cartao-rolagens-mesa { display: none; }
+}
 
 /* Cabeçalho de coluna */
 .titulo-coluna {
@@ -1486,7 +1494,23 @@ a.marca-mestre:hover .nome { color: #fff; }
   grid-template-columns: minmax(0, 1fr) 330px;
   gap: 16px;
   align-items: start;
+  /* A tela de combate se comporta como aplicativo: as colunas vão até o
+     fim da janela (o cabeçalho da página e a barra do topo somam uns
+     230px), mesmo com pouca gente na ordem. */
+  min-height: calc(100vh - 230px);
 }
+.entrar-combate { margin-top: 14px; }
+/* O Registro: preso ao rolar (como o detalhe do compêndio), esticado até
+   o fim da coluna e, no máximo, da altura da janela — o que passar
+   disso rola dentro do cartão. */
+.coluna-registro {
+  align-self: stretch;
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 96px);
+}
+.coluna-registro > .cartao { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.coluna-registro .registro { flex: 1; min-height: 0; overflow-y: auto; }
 
 /* Uma linha de combatente: mais informação que a da visão geral. */
 .combatente {
@@ -3381,7 +3405,10 @@ a.marca-mestre:hover .nome { color: #fff; }
 
   .colunas-mesa { grid-template-columns: minmax(0, 1fr); }
   .coluna-ferramentas { grid-column: auto; }
-  .colunas-combate { grid-template-columns: minmax(0, 1fr); }
+  .colunas-combate { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  /* Numa coluna só, o registro desce para baixo da ordem e deixa de ser
+     preso e esticado — como o detalhe do compêndio, logo abaixo. */
+  .coluna-registro { position: static; max-height: none; }
 
   /* O detalhe do compêndio desce para baixo da lista e deixa de ser
      grudado no topo — num layout de uma coluna, sticky só atrapalha. */
@@ -4288,8 +4315,17 @@ button.pericia { font-size: 13px; }
 /* --- O rolador --- */
 .grade-dados-jogador { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .grade-dados-jogador .dado { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-size: 14px; color: var(--texto); }
-.rolador-jogador .titulo-grupo { margin: 14px 0 8px; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
-.rolador-jogador .dica { margin: 10px 0 0; }
+.rolador-jogador .titulo-grupo,
+.cartao-em-combate .titulo-grupo { margin: 14px 0 8px; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
+/* O cartão "Em combate" (jogador-uso.js, cartaoEmCombate): vida e CA
+   lado a lado, e a vez em azul quando é a sua. As linhas de ataque e
+   de magia são as da ficha (.linha-uso, seção 31). */
+.lista-combate { display: grid; grid-template-columns: 1fr 1fr; }
+.cartao-em-combate .sub.minha-vez { color: var(--azul); }
+/* O mesmo respiro do h2 dos outros cartões laterais até o conteúdo. */
+.cartao-em-combate .titulo-coluna { margin-bottom: 14px; }
+.rolador-jogador .dica,
+.cartao-rolagens-mesa .dica { margin: 10px 0 0; }
 
 .registro-rolagens { display: flex; flex-direction: column; gap: 6px; }
 .rolagem-mesa {

@@ -133,6 +133,11 @@ const Elenco = {
 
   render: function () {
     const itens = this.filtrar();
+    /* Nada aberto? Abre o primeiro da lista (já com a busca e os
+       filtros): o painel do lado mostra uma ficha em vez de um
+       "Escolha…" sozinho no meio do vazio. Os quatro painéis de lista
+       e ficha (compêndio, bestiário, diário, NPCs) fazem igual. */
+    if (!this.selecionado && this.modo !== 'edicao' && itens.length) this.selecionado = itens[0].id;
 
     this.renderLista(itens);
     this.renderDetalhe();
@@ -246,8 +251,8 @@ const Elenco = {
       vazio.style.border = '0';
       vazio.appendChild(Icone.svg('npcs', 28));
       vazio.appendChild(criar('div', this.lista === 'npcs'
-        ? 'Escolha alguém para ver a ficha.'
-        : 'Escolha uma facção.'));
+        ? 'Ninguém nesta lista.'
+        : 'Nenhuma facção nesta lista.'));
       area.appendChild(vazio);
       return;
     }
@@ -621,6 +626,9 @@ const Elenco = {
 
     campo.addEventListener('input', function () {
       self.filtro.busca = campo.value;
+      /* Buscar é procurar outra coisa: o painel abre o primeiro
+         resultado, em vez de ficar no que estava aberto. */
+      if (self.modo !== 'edicao') self.selecionado = null;
       self.render();
     });
 

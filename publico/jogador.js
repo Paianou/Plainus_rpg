@@ -472,6 +472,13 @@ const Jogador = {
       ['Regras da casa', v.campanha.regra]
     ].filter(function (par) { return par[1]; });
 
+    /* Na aba Mesa, durante o combate, o turno vem primeiro: ataques e
+       magias à mão ao lado da ordem de iniciativa (jogador-uso.js). */
+    if (v.meuHeroi && this.modo !== 'editar' && this.aba === 'mesa') {
+      const emCombate = UsoFicha.cartaoEmCombate(v);
+      if (emCombate) area.appendChild(emCombate);
+    }
+
     const sobre = criar('div.cartao', [criarComIcone('h2', 'campanha', 'A campanha', 16)]);
     const grade = criar('dl.lista-sobre');
     itens.forEach(function (par) {

@@ -245,7 +245,9 @@ const Combate = {
 
     const icones = { dano: 'menos', cura: 'mais', turno: 'passo', magia: 'magia', entrada: 'mais', saida: 'remover' };
 
-    registro.slice(0, 12).forEach(function (evento) {
+    /* Todo o registro guardado: o cartão vai até o fim da tela e rola
+       por dentro (style.css, .coluna-registro). */
+    registro.forEach(function (evento) {
       const linha = criar('div.registro-linha.' + (evento.tipo || ''));
       linha.appendChild(Icone.svg(icones[evento.tipo] || 'diario', 14));
       linha.appendChild(criar('span', evento.texto));

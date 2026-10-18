@@ -144,6 +144,11 @@ const Compendio = {
 
   render: function () {
     const itens = this.filtrar();
+    /* Nada aberto? Abre o primeiro da lista (já com a busca e os
+       filtros): o painel do lado mostra uma ficha em vez de um
+       "Escolha…" sozinho no meio do vazio. Os quatro painéis de lista
+       e ficha (compêndio, bestiário, diário, NPCs) fazem igual. */
+    if (!this.selecionado && itens.length) this.selecionado = itens[0];
 
     this.renderLista(itens);
     this.renderDetalhe();
@@ -245,7 +250,7 @@ const Compendio = {
       const vazio = criar('div.vazio');
       vazio.style.border = '0';
       vazio.appendChild(Icone.svg('compendio', 28));
-      vazio.appendChild(criar('div', 'Escolha algo na lista para ler aqui.'));
+      vazio.appendChild(criar('div', 'Nada nesta lista para ler aqui.'));
       area.appendChild(vazio);
       return;
     }
@@ -389,6 +394,9 @@ const Compendio = {
     /* 'input' e não 'keyup': pega também colar com o mouse. */
     campo.addEventListener('input', function () {
       self.filtro.busca = campo.value;
+      /* Buscar é procurar outra coisa: o painel abre o primeiro
+         resultado, em vez de ficar no que estava aberto. */
+      self.selecionado = null;
       self.render();
     });
 

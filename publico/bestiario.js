@@ -166,6 +166,11 @@ const Bestiario = {
 
   render: function () {
     const fichas = this.filtrar();
+    /* Nada aberto? Abre o primeiro da lista (já com a busca e os
+       filtros): o painel do lado mostra uma ficha em vez de um
+       "Escolha…" sozinho no meio do vazio. Os quatro painéis de lista
+       e ficha (compêndio, bestiário, diário, NPCs) fazem igual. */
+    if (!this.selecionado && this.modo !== 'edicao' && fichas.length) this.selecionado = fichas[0].nome;
 
     this.renderLista(fichas);
     this.renderDetalhe();
@@ -264,7 +269,7 @@ const Bestiario = {
       const vazio = criar('div.vazio');
       vazio.style.border = '0';
       vazio.appendChild(Icone.svg('bestiario', 28));
-      vazio.appendChild(criar('div', 'Escolha uma criatura para ver a ficha, ou crie uma nova.'));
+      vazio.appendChild(criar('div', 'Nenhuma criatura nesta lista. Crie uma nova.'));
       area.appendChild(vazio);
       return;
     }
@@ -818,6 +823,9 @@ const Bestiario = {
 
     campo.addEventListener('input', function () {
       self.filtro.busca = campo.value;
+      /* Buscar é procurar outra coisa: o painel abre o primeiro
+         resultado, em vez de ficar no que estava aberto. */
+      if (self.modo !== 'edicao') self.selecionado = null;
       self.render();
     });
 

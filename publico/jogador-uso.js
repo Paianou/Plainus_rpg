@@ -113,26 +113,88 @@ const UsoFicha = {
 
 
   cartaoAtaques: function (f) {
-    const self = this;
     const cartao = criar('div.cartao', [criarComIcone('h2', 'combate', 'Ataques', 16)]);
 
     if (!f.ataques.length) {
       cartao.appendChild(criar('p.dica', 'Nenhum ataque cadastrado. Em "Editar ficha", escolha as armas da lista ou escreva os seus.'));
       return cartao;
     }
+    this.linhasAtaques(f).forEach(function (linha) { cartao.appendChild(linha); });
+    return cartao;
+  },
 
-    f.ataques.forEach(function (ataque, i) {
+  /* Uma linha por ataque, com os botões de atacar e de dano. A ficha e
+     o cartão "Em combate" (abaixo) usam as mesmas: um clique faz o
+     mesmo nos dois lugares. */
+  linhasAtaques: function (f) {
+    const self = this;
+    return f.ataques.map(function (ataque, i) {
       const atacar = criarBotao('mini-botao.botao-uso', 'atacar', 'combate', 'Atacar ' + comSinal(Ficha.bonusAtaque(f, ataque)));
       atacar.dataset.indice = i;
       const dano = criarBotao('mini-botao.botao-uso', 'dano', 'dados', 'Dano ' + Ficha.textoDano(f, ataque));
       dano.dataset.indice = i;
       if (self.criticoDe === i) dano.classList.add('critico-pendente');
 
-      cartao.appendChild(criar('div.linha-uso', [
+      return criar('div.linha-uso', [
         criar('div.nome-uso', ataque.nome),
         criar('div.botoes-uso', [atacar, dano])
-      ]));
+      ]);
     });
+  },
+
+
+  /* NA ABA MESA, DURANTE O COMBATE: o que se usa no turno, sem trocar
+     de aba — vida e CA, a concentração, os ataques e as magias prontas.
+     Vai no topo da coluna lateral (jogador.js, renderLateral), que é
+     onde sobrava espaço ao lado da ordem de iniciativa. Só aparece com
+     o combate ativo e o personagem dentro dele. */
+  cartaoEmCombate: function (visao) {
+    const combate = visao.combate;
+    const meu = combate && combate.ativo && combate.combatentes.find(function (c) { return c.meu; });
+    if (!meu || !visao.meuHeroi) return null;
+    const vez = combate.combatentes.find(function (c) { return c.vez; });
+    const f = this.completar(JSON.parse(JSON.stringify(visao.meuHeroi.ficha)));
+
+    const cartao = criar('div.cartao.cartao-em-combate', [
+      criar('div.titulo-coluna', [
+        criarComIcone('h2', 'combate', 'Em combate', 16),
+        criar('span.sub' + (meu.vez ? '.minha-vez' : ''), meu.vez ? 'Sua vez' : (vez ? 'Vez de ' + vez.nome.split(' ')[0] : 'Rodada ' + combate.rodada))
+      ]),
+      criar('dl.lista-sobre.lista-combate', [
+        criar('div', [criar('dt', 'Pontos de vida'), criar('dd', meu.pv + ' / ' + meu.pvMax)]),
+        criar('div', [criar('dt', 'Armadura'), criar('dd', 'CA ' + visao.meuHeroi.ca)])
+      ])
+    ]);
+    if (f.concentrando) cartao.appendChild(this.avisoConcentracao(f));
+
+    cartao.appendChild(criar('div.titulo-grupo', 'Ataques'));
+    if (!f.ataques.length) cartao.appendChild(criar('p.dica', 'Nenhum ataque cadastrado. Em "Editar ficha", escolha as armas da lista ou escreva os seus.'));
+    this.linhasAtaques(f).forEach(function (linha) { cartao.appendChild(linha); });
+
+    /* As magias que dá para conjurar agora: truques, e as preparadas
+       (ou todas, para quem não prepara) — a mesma regra da aba Magias. */
+    if (f.atributoMagia) {
+      const prontas = f.magias
+        .map(function (nome) { return MAGIAS.find(function (m) { return m.nome === nome; }); })
+        .filter(function (m) { return m && (m.nivel === 0 || !f.preparaMagias || f.preparadas.indexOf(m.nome) !== -1); })
+        .sort(function (a, b) { return a.nivel - b.nivel || a.nome.localeCompare(b.nome); });
+      cartao.appendChild(criar('div.titulo-grupo', 'Magias prontas · CD ' + Ficha.cdMagia(f)));
+      cartao.appendChild(criar('div.linha-botoes', [
+        criarBotao('mini-botao.botao-uso', 'ataque-magico', 'magia', 'Ataque mágico ' + comSinal(Ficha.ataqueMagia(f)))
+      ]));
+      prontas.forEach(function (magia) {
+        const conjurar = criarBotao('mini-botao.botao-uso', 'conjurar', 'magia', 'Conjurar');
+        conjurar.dataset.nome = magia.nome;
+        /* O nível antes do nome, como na aba Magias (span.nivel-magia). */
+        cartao.appendChild(criar('div.linha-uso', [
+          criar('div', [
+            criar('span.nivel-magia', magia.nivel === 0 ? 'T' : magia.nivel + 'º'),
+            criar('span.nome-uso', magia.nome)
+          ]),
+          criar('div.botoes-uso', [conjurar])
+        ]));
+      });
+    }
     return cartao;
   },
 

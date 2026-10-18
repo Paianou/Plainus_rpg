@@ -151,6 +151,35 @@ const Painel = {
     if (this.mostra('ferramentas')) caixa.appendChild(this.montarColunaFerramentas());
 
     area.appendChild(caixa);
+    if (this.aba === 'grupo') this.equilibrarGrupo(caixa.querySelector('.coluna-herois'));
+  },
+
+
+  /* A aba Grupo põe as fichas em grade. O CSS sozinho enche as fileiras
+     da esquerda para a direita, e 5 heróis numa tela larga viravam
+     4 + 1: um herói sozinho na fileira de baixo, e um buraco do lado.
+     Aqui: quantas cabem por fileira (330px cada, como na seção 16b do
+     style.css), quantas fileiras isso dá — e as fichas repartidas por
+     igual nelas (5 → 3 + 2). O ResizeObserver refaz a conta quando a
+     largura muda, sem esperar outro redesenho. */
+  equilibrarGrupo: function (coluna) {
+    if (this.observadorGrupo) this.observadorGrupo.disconnect();
+    if (!coluna || typeof ResizeObserver === 'undefined') return;
+    const fichas = coluna.querySelectorAll(':scope > .heroi').length;
+    if (!fichas) return;
+    function contar() {
+      const largura = coluna.clientWidth;
+      const vao = parseFloat(getComputedStyle(coluna).columnGap) || 0;
+      const cabem = Math.max(1, Math.floor((largura + vao) / (330 + vao)));
+      const fileiras = Math.ceil(fichas / cabem);
+      /* Cabem todos numa fileira? Então as colunas de sempre: 1 ou 2
+         heróis não se esticam pela tela inteira. */
+      const colunas = fileiras === 1 ? cabem : Math.ceil(fichas / fileiras);
+      coluna.style.gridTemplateColumns = 'repeat(' + colunas + ', minmax(0, 1fr))';
+    }
+    this.observadorGrupo = new ResizeObserver(contar);
+    this.observadorGrupo.observe(coluna);
+    contar();
   },
 
 
@@ -481,11 +510,39 @@ const Painel = {
 
   /* ----- Coluna 3: as ferramentas ----- */
 
+  /* O Rolador e as Rolagens da mesa ficam numa pilha: quando a coluna
+     se abre em grade (a aba Ferramentas, ou o Panorama até 1500px), a
+     pilha é a coluna da esquerda e termina perto do Compêndio, em vez
+     de o Rolador acabar na metade e deixar um buraco embaixo. No
+     Panorama largo (três colunas) as rolagens saem pelo CSS: ali esta
+     coluna já é a mais comprida. */
   montarColunaFerramentas: function () {
     const coluna = criar('aside.coluna-mesa.coluna-ferramentas');
-    coluna.appendChild(this.montarRolador());
+    coluna.appendChild(criar('div.coluna-mesa.pilha-rolador', [this.montarRolador(), this.montarRolagensMesa()]));
     coluna.appendChild(this.montarCompendio());
     return coluna;
+  },
+
+
+  /* As rolagens dos jogadores, como cada um as vê na aba Mesa
+     (jogador-mesa.js, RoladorJogador): o mesmo registro, as mesmas
+     palavras. Antes o Mestre não via o que a mesa rolava no painel. */
+  montarRolagensMesa: function () {
+    const cartao = criar('div.cartao.cartao-rolagens-mesa', [criar('div.titulo-coluna', [criarComIcone('h2', 'dados', 'Rolagens da mesa', 17)])]);
+    const registro = criar('div.registro-rolagens');
+    const rolagens = Estado.rolagensMesa || [];
+    if (!rolagens.length) registro.appendChild(criar('p.dica', 'Ninguém rolou nada ainda.'));
+    rolagens.slice(0, 8).forEach(function (r) {
+      registro.appendChild(criar('div.rolagem-mesa' + (r.marca ? '.' + r.marca : ''), [
+        criar('div', [
+          criar('div.quem', (r.personagem || r.autor) + ' — ' + r.texto),
+          criar('div.formula', r.formula)
+        ]),
+        criar('div.total', String(r.total))
+      ]));
+    });
+    cartao.appendChild(registro);
+    return cartao;
   },
 
 

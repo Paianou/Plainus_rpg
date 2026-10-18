@@ -78,13 +78,11 @@
 
             <!-- O combate.js preenche. Nasce vazio de propósito. -->
             <div id="listaCombatentes"></div>
-          </section>
 
-
-          <!-- ============ Coluna 2: entrar no combate + registro ============ -->
-          <aside class="coluna-mesa">
-
-            <div class="cartao">
+            <!-- Entrar no combate fica embaixo da ordem: somar alguém é
+                 somar à lista. Antes ficava na coluna da direita, e a
+                 lista curta deixava um buraco embaixo dela. -->
+            <div class="cartao entrar-combate">
               <h2><span data-ico="mais" data-tamanho="17"></span> Entrar no combate</h2>
               <p class="dica">Escolha um monstro do catálogo ou digite um nome avulso. A iniciativa é rolada na hora.</p>
 
@@ -104,6 +102,11 @@
                 <button class="mini-botao" type="button" data-acao="add-party">Trazer a party</button>
               </div>
             </div>
+          </section>
+
+
+          <!-- ============ Coluna 2: o registro, da altura da tela ============ -->
+          <aside class="coluna-mesa coluna-registro">
 
             <div class="cartao">
               <h2><span data-ico="diario" data-tamanho="17"></span> Registro</h2>
