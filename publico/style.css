@@ -890,6 +890,36 @@ a.marca-mestre:hover .nome { color: #fff; }
 }
 .codice-link.ativo .ico { color: var(--azul); }
 
+/* O grupo do site (Perfil, Configurações, Ajuda, Sair): no pé do
+   códice — o margin-top:auto empurra o grupo para baixo, longe das
+   seções da campanha —, com uma linha em cima. A Regra ativa vem logo
+   depois dele. */
+.codice-site {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+.codice-site + .regra-ativa { margin-top: 12px; }
+
+/* O códice do Mestre fica preso sob a barra do topo, como o do jogador
+   (.nav-jogador, seção 29): em páginas compridas (o Panorama, o
+   Compêndio), o grupo do site e a Regra ativa ficam sempre à vista, em
+   vez de irem parar no fim da página. */
+@media (min-width: 1101px) {
+  .app-mesa > .corpo-mesa > .codice {
+    position: sticky;
+    top: var(--altura-barra, 62px);       /* medida pelo layout.js (ligarTopo) */
+    align-self: start;
+    height: calc(100vh - var(--altura-barra, 62px));
+    height: calc(100dvh - var(--altura-barra, 62px));
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
 /* Cartãozinho do rodapé do códice */
 .regra-ativa {
   margin-top: auto;
@@ -3403,6 +3433,8 @@ a.marca-mestre:hover .nome { color: #fff; }
   .codice-titulo { width: 100%; margin-bottom: 4px; }
   .codice-link { font-size: 12px; padding: 7px 10px; }
   .regra-ativa { margin-top: 0; width: 100%; }
+  /* Na faixa do topo, o grupo do site segue a mesma fileira. */
+  .codice-site { flex-direction: row; flex-wrap: wrap; gap: 6px; margin-top: 0; padding-top: 0; border-top: 0; }
 
   .colunas-mesa { grid-template-columns: minmax(0, 1fr); }
   .coluna-ferramentas { grid-column: auto; }
@@ -3737,7 +3769,9 @@ a.marca-mestre:hover .nome { color: #fff; }
 }
 .sobre-campanha .dica { margin: 0; padding: 0 16px 14px; font-size: 12px; color: var(--texto-3); }
 .sobre-acoes { padding: 0 16px 14px; }
-.sobre-acoes .mini-botao { text-decoration: none; }
+/* Um link com cara de mini-botão (Editar campanha, Abrir acessos) não
+   leva o sublinhado de link: é igual aos botões do lado. */
+a.mini-botao { text-decoration: none; }
 
 /* A frase de abertura da etapa opcional, e o "Pular" logo abaixo dos
    campos — texto com cara de link, para não competir com Continuar. */
@@ -4136,6 +4170,8 @@ a.marca-mestre:hover .nome { color: #fff; }
   .nav-jogador::-webkit-scrollbar { display: none; }
   .nav-jogador .codice-titulo { display: none; }
   .nav-jogador .codice-link { flex-shrink: 0; padding: 8px 11px; white-space: nowrap; }
+  /* O grupo do site entra na mesma fileira, sem quebrar nem encolher. */
+  .nav-jogador .codice-site { flex-wrap: nowrap; flex-shrink: 0; gap: 4px; }
   .nav-jogador .codice-link .pilula { margin-left: 4px; }
 }
 @media (max-width: 720px) {
@@ -5534,3 +5570,21 @@ button.retrato-heroi:hover { border-color: rgba(77, 141, 255, .6); box-shadow: 0
 
 /* Uma mesa que o servidor não abre mais: apagada, sem o mapa. */
 .cartao-mesa.mesa-sem-acesso { opacity: .7; }
+
+
+/* ---------- 36. CONFIGURAÇÕES (configuracoes.html) ----------
+   Os cartões em colunas de jornal (columns), e não em grade: cartões de
+   alturas diferentes lado a lado deixariam buracos embaixo dos curtos;
+   em colunas, cada um começa logo depois do anterior. */
+.grade-configuracoes { columns: 2 380px; column-gap: 16px; }
+.grade-configuracoes > .cartao { break-inside: avoid; margin-bottom: 16px; }
+/* O texto que explica uma opção: o tom das dicas pequenas. */
+.explica-uso { margin-top: 2px; font-size: 12px; line-height: 1.5; color: var(--texto-3); }
+p.explica-uso { margin: 12px 0 0; }
+.grade-configuracoes .linha-botoes { margin-top: 12px; }
+.grade-configuracoes .lista-sobre + .lista-sobre { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+/* O código, como na entrada: letras espaçadas, fácil de ditar. */
+.codigo-convite { font-family: 'Marcellus', Georgia, serif; font-size: 16px; letter-spacing: .12em; color: var(--texto); }
+/* A zona de perigo: a borda no vermelho dos marcadores de perigo. */
+.cartao-perigo { border-color: rgba(194, 65, 63, .3); }
+.cartao-perigo > h2 .ico { color: #e0827d; }

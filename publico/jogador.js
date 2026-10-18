@@ -172,11 +172,11 @@ const Jogador = {
     /* A aba de Magias some se o personagem não conjura; se ela estava
        aberta, volta para a Ficha. */
     const abas = this.abasVisiveis();
-    if (!abas.some(function (a) { return a[0] === this.aba; }, this)) this.aba = 'ficha';
+    if (!abas.some(function (a) { return a[0] === this.aba; }, this) && this.aba !== 'configuracoes') this.aba = 'ficha';
 
     this.montarNav(abas);
     this.montarAbas(abas);
-    this.montarCabeca(abas);
+    this.montarCabeca(abas.concat(this.ABAS_SITE));
     const heroi = this.visao.meuHeroi;
     switch (this.aba) {
       case 'magias':     UsoFicha.montarAbaMagias(area, heroi); break;
@@ -186,6 +186,7 @@ const Jogador = {
       case 'diario':     MesaJogador.montarDiario(area, this.visao); break;
       case 'notas':      AnotacoesJogador.montar(area, heroi); break;
       case 'regras':     RegrasJogador.montar(area); break;
+      case 'configuracoes': this.montarConfiguracoes(area); break;
       default:           this.montarFicha(area, heroi);
     }
 
@@ -291,6 +292,15 @@ const Jogador = {
     ['regras', 'compendio', 'Regras', 'Consulta rápida das regras do jogo.']
   ],
 
+  /* O grupo do site, no pé do códice (montarNav) — o mesmo do Mestre
+     (layout.js, SITE): o que é do site, e não do jogo. Só Configurações
+     já existe; as outras avisam. Não entram na fileira de abas do topo. */
+  ABAS_SITE: [
+    ['perfil', 'pessoa', 'Perfil', '', false],
+    ['configuracoes', 'engrenagem', 'Configurações', 'As preferências deste navegador.', true],
+    ['ajuda', 'ajuda', 'Ajuda', '', false]
+  ],
+
   /* "#aba=inventario" → 'inventario'. Só vale um id que existe em ABAS:
      o endereço é texto que qualquer um edita. (Magias num personagem
      que não conjura: o render() já devolve para a Ficha.) O "aba="
@@ -300,7 +310,8 @@ const Jogador = {
     const achado = /^#aba=([a-z]+)$/.exec(location.hash);
     if (!achado) return null;
     const id = achado[1];
-    return this.ABAS.some(function (a) { return a[0] === id; }) ? id : null;
+    return this.ABAS.concat(this.ABAS_SITE.filter(function (a) { return a[4]; }))
+      .some(function (a) { return a[0] === id; }) ? id : null;
   },
 
   abasVisiveis: function () {
@@ -414,6 +425,81 @@ const Jogador = {
 
       nav.appendChild(botao);
     });
+
+    /* O grupo do site, no pé (o mesmo do Mestre: .codice-site). */
+    const site = criar('div.codice-site');
+    site.setAttribute('role', 'group');
+    site.setAttribute('aria-label', 'Site');
+    this.ABAS_SITE.forEach(function (trio) {
+      const botao = criar('button.codice-link');
+      botao.type = 'button';
+      if (trio[4]) {
+        botao.dataset.acao = 'aba';
+        botao.dataset.aba = trio[0];
+        if (self.aba === trio[0]) {
+          botao.classList.add('ativo');
+          botao.setAttribute('aria-current', 'page');
+        }
+      } else {
+        botao.dataset.acao = 'secao-futura';
+        botao.dataset.nome = trio[2];
+        botao.style.opacity = '.55';
+      }
+      botao.appendChild(Icone.svg(trio[1], 17));
+      botao.appendChild(criar('span', trio[2]));
+      site.appendChild(botao);
+    });
+    const sair = criar('button.codice-link');
+    sair.type = 'button';
+    sair.dataset.acao = 'sair';
+    sair.appendChild(Icone.svg('sair', 17));
+    sair.appendChild(criar('span', 'Sair'));
+    site.appendChild(sair);
+    nav.appendChild(site);
+  },
+
+
+  /* A aba Configurações: as preferências deste navegador, que antes
+     ficavam soltas (a animação no rolador, o aviso na Mesa). Os botões
+     são os mesmos de lá, com as mesmas ações. */
+  montarConfiguracoes: function (area) {
+    function linha(nome, explica, botao) {
+      return criar('div.linha-uso', [
+        criar('div', [criar('div.nome-uso', nome), criar('div.explica-uso', explica)]),
+        criar('div.botoes-uso', [botao])
+      ]);
+    }
+    const animada = Dados3D.ativa();
+    const animacao = criarBotao('mini-botao' + (animada ? '.ligado' : ''), 'alternar-animacao', 'dados',
+      animada ? 'Animação ligada' : 'Animação desligada');
+    animacao.setAttribute('aria-pressed', animada ? 'true' : 'false');
+    const avisando = AvisoVez.ligado();
+    const aviso = criarBotao('mini-botao' + (avisando ? '.ligado' : ''), 'alternar-aviso-vez', 'sino',
+      avisando ? 'Aviso da vez ligado' : 'Aviso da vez desligado');
+    aviso.setAttribute('aria-pressed', avisando ? 'true' : 'false');
+
+    /* Como se volta à mesa: a informação que some quando o jogador troca
+       de computador — e que é justamente a hora em que ele precisa dela. */
+    const sessao = Sessao.ler();
+    const nome = (sessao && sessao.nome) || '';
+    area.appendChild(criar('div.cartao', [
+      criarComIcone('h2', 'convite', 'Sua entrada na mesa', 16),
+      criar('dl.lista-sobre.lista-combate', [
+        criar('div', [criar('dt', 'Seu nome na mesa'), criar('dd', nome || '—')]),
+        criar('div', [criar('dt', 'Personagem'), criar('dd', this.visao.meuHeroi ? this.visao.meuHeroi.nome : '—')]),
+        criar('div', [criar('dt', 'Campanha'), criar('dd', this.visao.campanha.nome)]),
+        criar('div', [criar('dt', 'Mestre'), criar('dd', this.visao.mestre || '—')])
+      ]),
+      criar('p.explica-uso', 'Este navegador guarda a sua chave: é ela que te traz direto para cá.'),
+      criar('p.explica-uso', 'Em outro computador (ou se limpar o navegador), entre pela página inicial com o código de convite do Mestre e o MESMO nome — '
+        + (nome ? '"' + nome + '"' : 'o seu nome') + '. Se não der, peça ao Mestre para liberar o seu lugar em "Acessos da mesa".')
+    ]));
+
+    area.appendChild(criar('div.cartao', [
+      criarComIcone('h2', 'engrenagem', 'Preferências deste navegador', 16),
+      linha('Animação dos dados', 'Os dados rolando na tela quando você rola. Desligada, o resultado aparece direto.', animacao),
+      linha('Aviso da vez', 'Um sino (e um aviso do sistema, se você permitir) quando chegar a sua vez no combate.', aviso)
+    ]));
   },
 
 
@@ -1247,6 +1333,11 @@ const Jogador = {
             ? 'Aviso da vez ligado: um sino quando chegar a sua vez.'
             : 'Aviso da vez desligado.');
           self.render();
+          self.focarDeNovo(alvo);
+          break;
+
+        case 'secao-futura':
+          Layout.recado('"' + alvo.dataset.nome + '" ainda não foi construída — vamos uma tela por vez.');
           break;
 
         /* Rolagens (jogador-mesa.js). O bônus foi calculado pela ficha
@@ -1271,6 +1362,7 @@ const Jogador = {
         case 'alternar-animacao':
           Layout.recado(Dados3D.alternar() ? 'Animação dos dados ligada.' : 'Animação dos dados desligada.');
           self.render();
+          self.focarDeNovo(alvo);
           break;
 
         /* Ataques, magias, recursos, descansos (jogador-uso.js). */
@@ -1425,6 +1517,17 @@ const Jogador = {
       if (self.ocupado()) return;
       self.render();
     });
+  },
+
+
+  /* Um botão que liga e desliga redesenha a página — e o botão clicado
+     é outro elemento depois disso. O foco volta para o novo, na mesma
+     parte da tela (a aba ou a lateral): quem usa teclado não perde o
+     lugar. */
+  focarDeNovo: function (alvo) {
+    const onde = alvo.closest('#principal') ? '#principal' : '#lateral';
+    const novo = document.querySelector(onde + ' [data-acao="' + alvo.dataset.acao + '"]');
+    if (novo) novo.focus();
   },
 
 

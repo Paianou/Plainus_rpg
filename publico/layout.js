@@ -138,6 +138,15 @@ const Layout = {
 
   /* O códice. 'pronta' diz se o .html já existe — as que ainda não
      existem viram botão que avisa, em vez de link que dá 404. */
+  /* O que é do SITE, e não da campanha: fica no pé do códice, num grupo
+     à parte, logo acima da Regra ativa (montarCodice). As que ainda não
+     existem viram botão que avisa, como nas seções. */
+  SITE: [
+    { id: 'perfil',        arquivo: null,                ico: 'pessoa',     texto: 'Perfil',        pronta: false },
+    { id: 'configuracoes', arquivo: 'configuracoes.html', ico: 'engrenagem', texto: 'Configurações', pronta: true },
+    { id: 'ajuda',         arquivo: null,                ico: 'ajuda',      texto: 'Ajuda',         pronta: false }
+  ],
+
   SECOES: [
     { id: 'painel',    arquivo: 'mestre.html',   ico: 'painel',     texto: 'Visão Geral / Painel', pronta: true },
     { id: 'combate',   arquivo: 'combate.html',  ico: 'combate',    texto: 'Combate & Iniciativa', pronta: true },
@@ -732,7 +741,7 @@ const Layout = {
     codice.textContent = '';
     codice.appendChild(criar('div.codice-titulo', 'Códice de campanha'));
 
-    this.SECOES.forEach(function (secao) {
+    function link(secao) {
       /* Página pronta vira link de verdade; as outras viram botão que
          avisa. Assim ninguém cai num 404. */
       const item = secao.pronta
@@ -748,12 +757,31 @@ const Layout = {
         item.style.opacity = '.55';
       }
 
-      if (secao.id === atual) item.classList.add('ativo');
+      if (secao.id === atual) {
+        item.classList.add('ativo');
+        item.setAttribute('aria-current', 'page');
+      }
 
       item.appendChild(Icone.svg(secao.ico, 17));
       item.appendChild(criar('span', secao.texto));
-      codice.appendChild(item);
-    });
+      return item;
+    }
+
+    this.SECOES.forEach(function (secao) { codice.appendChild(link(secao)); });
+
+    /* O grupo do site, no pé: empurrado para baixo, longe das seções
+       da campanha, com uma linha em cima. Sair é o mesmo do topo. */
+    const site = criar('div.codice-site');
+    site.setAttribute('role', 'group');
+    site.setAttribute('aria-label', 'Site');
+    this.SITE.forEach(function (secao) { site.appendChild(link(secao)); });
+    const sair = criar('button.codice-link');
+    sair.type = 'button';
+    sair.dataset.acao = 'sair';
+    sair.appendChild(Icone.svg('sair', 17));
+    sair.appendChild(criar('span', 'Sair'));
+    site.appendChild(sair);
+    codice.appendChild(site);
 
     /* regra ativa */
     codice.appendChild(criar('div.regra-ativa', [
@@ -765,6 +793,11 @@ const Layout = {
     ]));
 
     codice.addEventListener('click', function (evento) {
+      if (evento.target.closest('[data-acao="sair"]')) {
+        Sessao.limpar();
+        location.href = 'index.html';
+        return;
+      }
       const alvo = evento.target.closest('[data-acao="secao-futura"]');
       if (!alvo) return;
       self.recado('"' + alvo.dataset.nome + '" ainda não foi construída — vamos uma tela por vez.');
@@ -782,6 +815,16 @@ const Layout = {
        a ação três, quatro vezes. */
     if (this.topoLigado) return;
     this.topoLigado = true;
+
+    /* A barra do Mestre não tem altura fixa: os rótulos quebram linha
+       conforme a largura (62px numa tela larga, uns 68px num notebook).
+       O códice fica preso logo abaixo dela (style.css, --altura-barra);
+       o ResizeObserver mantém a medida certa quando a janela muda. */
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(function () {
+        document.documentElement.style.setProperty('--altura-barra', barra.getBoundingClientRect().height + 'px');
+      }).observe(barra);
+    }
 
     /* Fecha o menu ao clicar fora dele. O clique DENTRO da caixa não
        conta, senão o menu se fecharia ao tocar nos próprios campos. */

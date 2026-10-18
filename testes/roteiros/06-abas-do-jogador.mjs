@@ -17,8 +17,11 @@ await ana.js(digita('[data-espaco="1"]', 2));
 await ana.js(`['Raio de Fogo','Mísseis Mágicos','Sono','Detectar Magia'].forEach(n=>document.querySelector('[data-magia="'+n+'"]').click()); document.getElementById('f-preparaMagias').click();`);
 await ana.js(`document.querySelector('[data-acao="salvar-ficha"]').click()`); await espera(400);
 
-const abas = await ana.js(`[...document.querySelectorAll('.nav-jogador .codice-link')].map(a=>a.dataset.aba).join(',')`);
+/* As abas do jogo; o grupo do site (Perfil, Configurações, Ajuda, Sair)
+   fica à parte, no pé do códice. */
+const abas = await ana.js(`[...document.querySelectorAll('.nav-jogador > .codice-link')].map(a=>a.dataset.aba).join(',')`);
 ok(abas === 'ficha,magias,inventario,mesa,chat,diario,notas,regras', 'oito abas, com Magias porque ela conjura: ' + abas);
+ok(await ana.js(`[...document.querySelectorAll('.nav-jogador .codice-site .codice-link')].map(a=>a.textContent).join(',')`) === 'Perfil,Configurações,Ajuda,Sair', 'no pé do códice, o grupo do site: Perfil, Configurações, Ajuda, Sair');
 ok(await ana.js(`!document.querySelector('[data-acao="conjurar"]') && !!document.querySelector('[data-acao="aba"][data-aba="magias"]')`), 'a ficha mostra só o resumo das magias, com atalho para a aba');
 
 /* ---- aba Magias: preparar ---- */
