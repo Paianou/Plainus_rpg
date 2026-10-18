@@ -38,7 +38,7 @@ const { visaoDoJogador, canalPrivado, mensagensDoJogador, LIMITE_TEXTO_MENSAGEM,
    antes deste arquivo; no Node, entra por require(). */
 const modelo = (typeof require === 'function' && typeof module !== 'undefined')
   ? require('./modelo.js')
-  : { retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem };
+  : { retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, marcarAreaNaCena: marcarAreaNaCena };
 
 /* O que se vê de um inimigo de longe: o estado, não o número. "Está
    sangrando" é o que o Mestre diria em voz alta; "faltam 7 PV" não. */
@@ -93,7 +93,7 @@ function visaoDoJogador(estado, jogadorId) {
       };
     }),
 
-    cena: cenaPublica(estado, meu),
+    cena: cenaPublica(estado, meu, jogadorId),
     combate: combatePublico(estado, meu),
 
     /* Do diário, só o que a party viveu: o resumo. As notas do Mestre
@@ -165,6 +165,11 @@ function mensagensDoJogador(estado, jogadorId) {
 }
 
 
+/* O dono de uma área marcada por um jogador (modelo.js, as áreas). */
+function donoDaArea(jogadorId) {
+  return 'j:' + jogadorId;
+}
+
 /* A cena em jogo — a mesma regra para a visão e para moverMeuToken. */
 function cenaEmJogo(estado) {
   const cenas = estado.cenas || [];
@@ -175,8 +180,10 @@ function cenaEmJogo(estado) {
    sobre a sala ("Glifo de Chamas, CD 15", "a coroa está aqui"). Um
    jogador que visse o marcador de armadilha nunca cairia nela.
    Cada token diz se é o "meu" de quem está olhando — é o que a tela
-   usa para deixar arrastar só esse. */
-function cenaPublica(estado, meu) {
+   usa para deixar arrastar só esse. As áreas vão todas (a bola de fogo
+   é para a mesa ver), cada uma com o nome de quem marcou e se é a
+   "minha" — o dono em si (o id do jogador) fica aqui. */
+function cenaPublica(estado, meu, jogadorId) {
   const cena = cenaEmJogo(estado);
   if (!cena) return null;
 
@@ -186,6 +193,9 @@ function cenaPublica(estado, meu) {
     paredes: cena.paredes.map(function (p) { return p.slice(); }),
     imagem: cena.imagem,
     marcadores: [],
+    areas: (cena.areas || []).map(function (a) {
+      return { id: a.id, x: a.x, y: a.y, raio: a.raio, nome: a.nome, minha: a.dono === donoDaArea(jogadorId) };
+    }),
     tokens: cena.tokens.map(function (t) {
       return { id: t.id, nome: t.nome, inicial: t.inicial, tipo: t.tipo, col: t.col, lin: t.lin, meu: !!(meu && t.heroiId === meu.id) };
     })
@@ -400,6 +410,30 @@ const ACOES_JOGADOR = {
     return {};
   },
 
+  /* Marcar a própria área na cena em jogo — uma por pessoa; marcar de
+     novo muda a sua. O que é uma área válida (centro, raio) é a regra
+     do modelo.js, a mesma do Mestre. O nome na etiqueta é o do herói. */
+  marcarMinhaArea: function (estado, sessao, dados) {
+    if (sessao.papel !== 'jogador') return { erro: 'Só jogador.' };
+    const cena = cenaEmJogo(estado);
+    if (!cena) return { erro: 'O Mestre ainda não abriu nenhuma cena.' };
+    const meu = (estado.herois || []).find(function (h) { return h.dono === sessao.jogadorId; });
+    const id = 'a' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+    return modelo.marcarAreaNaCena(cena, donoDaArea(sessao.jogadorId), meu ? meu.nome : sessao.nome, dados, id);
+  },
+
+  /* Apagar a própria área (a dos outros, só o Mestre apaga). */
+  tirarMinhaArea: function (estado, sessao) {
+    if (sessao.papel !== 'jogador') return { erro: 'Só jogador.' };
+    const cena = cenaEmJogo(estado);
+    if (!cena) return { erro: 'O Mestre ainda não abriu nenhuma cena.' };
+    const dono = donoDaArea(sessao.jogadorId);
+    const antes = (cena.areas || []).length;
+    cena.areas = (cena.areas || []).filter(function (a) { return a.dono !== dono; });
+    if (cena.areas.length === antes) return { erro: 'Você não tem área no mapa.' };
+    return {};
+  },
+
   /* Uma rolagem no registro da mesa, que todos veem. O autor sai da
      SESSÃO, e o texto é cortado. O resultado ainda vem do navegador do
      jogador (os dados dele); num passo seguinte, o servidor rola. */
@@ -505,6 +539,22 @@ function enviarMeuToken(col, lin) {
   const token = cena && cena.tokens.find(function (t) { return t.meu; });
   if (token) { token.col = col; token.lin = lin; }
   Conexao.acaoJogador('moverMeuToken', { col: col, lin: lin });
+  return null;
+}
+/* A área também aparece na hora; a visão do servidor confirma. */
+function enviarMinhaArea(x, y, raio) {
+  const cena = Conexao.visao && Conexao.visao.cena;
+  if (cena) {
+    const minha = { id: 'aqui', x: x, y: y, raio: raio, nome: Conexao.visao.meuHeroi ? Conexao.visao.meuHeroi.nome : '', minha: true };
+    cena.areas = (cena.areas || []).filter(function (a) { return !a.minha; }).concat([minha]);
+  }
+  Conexao.acaoJogador('marcarMinhaArea', { x: x, y: y, raio: raio });
+  return null;
+}
+function enviarTirarMinhaArea() {
+  const cena = Conexao.visao && Conexao.visao.cena;
+  if (cena) cena.areas = (cena.areas || []).filter(function (a) { return !a.minha; });
+  Conexao.acaoJogador('tirarMinhaArea', {});
   return null;
 }
 function enviarMensagem(sessao, canal, texto) {

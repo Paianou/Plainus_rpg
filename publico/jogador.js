@@ -1213,6 +1213,28 @@ const Jogador = {
           break;
         }
 
+        /* A medição em área (jogador-mesa.js). Depois do redesenho, o
+           foco volta ao botão "Marcar área": quem usa teclado não
+           perde o lugar. */
+        case 'marcar-area':
+        case 'area-no-token':
+        case 'apagar-minha-area': {
+          const cena = self.visao.cena;
+          if (alvo.dataset.acao === 'marcar-area') {
+            MesaJogador.modoArea = !MesaJogador.modoArea;
+          } else if (alvo.dataset.acao === 'area-no-token') {
+            const token = cena && cena.tokens.find(function (t) { return t.meu; });
+            MesaJogador.modoArea = false;
+            if (token) enviarMinhaArea(token.col + 0.5, token.lin + 0.5, MesaJogador.raioArea);
+          } else {
+            enviarTirarMinhaArea();
+          }
+          self.render();
+          const botao = document.querySelector('#principal [data-acao="marcar-area"]');
+          if (botao) botao.focus();
+          break;
+        }
+
         case 'alternar-aviso-vez':
           Layout.recado(AvisoVez.alternar()
             ? 'Aviso da vez ligado: um sino quando chegar a sua vez.'

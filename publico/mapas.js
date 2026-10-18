@@ -54,7 +54,7 @@
 const Mapa = {
 
   svg: null,
-  ferramenta: 'mover',      /* 'mover' | 'medir' | 'marcar' | 'parede' */
+  ferramenta: 'mover',      /* 'mover' | 'medir' | 'area' | 'marcar' | 'parede' */
   selecionado: null,        /* id do token selecionado */
   mostrarGrade: true,
 
@@ -68,6 +68,11 @@ const Mapa = {
      (undefined = não mexeu; null = tirou; texto = imagem nova). */
   janela: null,
   imagemEscolhida: undefined,
+
+  /* A área do Mestre: o raio do campo (em metros) e, enquanto se
+     arrasta, a área que ainda não foi gravada {x, y, raio, dono, nome}. */
+  raioArea: 6,
+  areaPrevia: null,
 
   /* Estado da régua: {de:{col,lin}, para:{col,lin}} */
   regua: null,
@@ -159,6 +164,7 @@ const Mapa = {
     [
       { id: 'mover',  ico: 'passo',  texto: 'Mover' },
       { id: 'medir',  ico: 'regua',  texto: 'Medir' },
+      { id: 'area',   ico: 'magia',  texto: 'Área' },
       { id: 'marcar', ico: 'alerta', texto: 'Marcar' },
       { id: 'parede', ico: 'parede', texto: 'Parede' }
     ].forEach(function (ferramenta) {
@@ -278,6 +284,11 @@ const Mapa = {
       svg.appendChild(grupo);
     });
 
+    /* áreas — por baixo dos tokens, com o desenho do planta.js (o mesmo
+       que o jogador vê). Enquanto o Mestre arrasta, a dele aparece na
+       prévia, no lugar da gravada. */
+    svg.appendChild(this.camadaDeAreas());
+
     /* tokens */
     const self = this;
     cena.tokens.forEach(function (token) {
@@ -290,7 +301,7 @@ const Mapa = {
     quadro.appendChild(svg);
     this.svg = svg;
 
-    quadro.classList.toggle('medindo', this.ferramenta === 'medir');
+    quadro.classList.toggle('medindo', this.ferramenta === 'medir' || this.ferramenta === 'area');
     quadro.classList.toggle('marcando', this.ferramenta === 'marcar');
     quadro.classList.toggle('pintando', this.ferramenta === 'parede');
 
@@ -456,6 +467,7 @@ const Mapa = {
 
 
   renderToken: function () {
+    if (this.ferramenta === 'area') { this.renderPainelArea(); return; }
     const bloco = document.getElementById('blocoToken');
     bloco.textContent = '';
 
@@ -597,6 +609,22 @@ const Mapa = {
         return;
       }
 
+      /* Ferramenta área: o clique põe o centro, na linha da grade ou no
+         meio da casa (de meia em meia casa — modelo.js). Arrastar
+         escolhe o raio; soltar grava. */
+      if (self.ferramenta === 'area') {
+        evento.preventDefault();
+        const p = self.pontoNoMapa(evento);
+        self.raioArea = self.lerRaioArea();
+        self.areaPrevia = {
+          x: Math.round(p.x / CELULA * 2) / 2, y: Math.round(p.y / CELULA * 2) / 2,
+          raio: self.raioArea, dono: 'mestre', nome: 'Mestre'
+        };
+        try { svg.setPointerCapture(evento.pointerId); } catch (erro) { /* segue sem captura */ }
+        self.redesenharAreas();
+        return;
+      }
+
       /* Ferramenta marcar: o clique cria um marcador. */
       if (self.ferramenta === 'marcar') {
         const celula = self.celulaDoPonto(self.pontoNoMapa(evento));
@@ -663,6 +691,24 @@ const Mapa = {
         return;
       }
 
+      /* Marcando área: a distância do centro até o ponteiro vira o raio,
+         de 1,5 em 1,5 m. Perto do centro (menos de uma casa), vale o
+         raio do campo — foi um clique, não um arrasto. */
+      if (self.areaPrevia) {
+        if (evento.buttons === 0) { soltar(evento); return; }
+        const p = self.pontoNoMapa(evento);
+        const metros = Math.hypot(p.x - self.areaPrevia.x * CELULA, p.y - self.areaPrevia.y * CELULA) / CELULA * METROS_POR_CELULA;
+        if (metros < METROS_POR_CELULA) return;
+        const raio = Math.min(RAIO_AREA[1], Math.max(RAIO_AREA[0], Math.round(metros / 1.5) * 1.5));
+        if (raio === self.areaPrevia.raio) return;
+        self.areaPrevia.raio = raio;
+        self.raioArea = raio;
+        const entrada = document.getElementById('raioArea');
+        if (entrada) entrada.value = String(raio);
+        self.redesenharAreas();
+        return;
+      }
+
       /* Pintando parede: cada célula nova sob o ponteiro. Se nenhum
          botão está apertado, o mouse foi solto FORA do mapa (e o
          pointerup não chegou aqui): a pincelada acabou. Sem isto,
@@ -686,6 +732,13 @@ const Mapa = {
     function soltar(evento) {
       if (self.medindo) {
         self.medindo = false;
+        return;
+      }
+
+      if (self.areaPrevia) {
+        const previa = self.areaPrevia;
+        self.areaPrevia = null;
+        self.marcarArea(previa);
         return;
       }
 
@@ -727,6 +780,100 @@ const Mapa = {
 
     svg.addEventListener('pointerup', soltar);
     svg.addEventListener('pointercancel', soltar);
+    /* O navegador soltou a captura sozinho (a janela perdeu o foco): a
+       área em curso termina como se o botão tivesse sido solto. */
+    svg.addEventListener('lostpointercapture', function (evento) { if (self.areaPrevia) soltar(evento); });
+  },
+
+
+  /* A camada das áreas, com a prévia do Mestre no lugar da gravada. */
+  camadaDeAreas: function () {
+    const cena = this.cena();
+    const previa = this.areaPrevia;
+    const comPrevia = previa
+      ? Object.assign({}, cena, { areas: (cena.areas || []).filter(function (a) { return a.dono !== 'mestre'; }).concat([previa]) })
+      : cena;
+    return Planta.desenharAreas(comPrevia, function (a) { return a.dono === 'mestre'; });
+  },
+
+  /* Durante o gesto da Área, só a camada das áreas se refaz — o <svg>
+     fica, e com ele a captura do ponteiro (soltar fora do mapa ainda
+     chega aqui). Mesma ideia do token arrastado, que só se move. */
+  redesenharAreas: function () {
+    const velha = this.svg && this.svg.querySelector('.areas-planta');
+    if (velha) velha.replaceWith(this.camadaDeAreas());
+  },
+
+  /* O painel da ferramenta Área, no lugar do painel do token: o raio,
+     e as áreas que estão no mapa (de quem, de quanto), cada uma com o
+     botão de apagar. */
+  renderPainelArea: function () {
+    const cena = this.cena();
+    const bloco = document.getElementById('blocoToken');
+    bloco.textContent = '';
+    bloco.appendChild(criarComIcone('h2', 'magia', 'Área', 16));
+
+    const campo = criar('div.campo-form');
+    const rotulo = criar('label', 'Raio (m)');
+    rotulo.htmlFor = 'raioArea';
+    const entrada = document.createElement('input');
+    entrada.type = 'number';
+    entrada.id = 'raioArea';
+    entrada.min = String(RAIO_AREA[0]);
+    entrada.max = String(RAIO_AREA[1]);
+    entrada.step = '1.5';
+    entrada.value = String(this.raioArea);
+    campo.appendChild(rotulo);
+    campo.appendChild(entrada);
+    bloco.appendChild(campo);
+    bloco.appendChild(criar('p.dica', 'Clique no mapa para pôr o centro — ou clique e arraste para escolher o raio. Bola de Fogo: 6 m.'));
+
+    const areas = cena.areas || [];
+    if (!areas.length) return;
+    /* A mesma lista dos marcadores (.lista-marcadores): ícone, texto e
+       o × de apagar. */
+    const lista = criar('div.lista-marcadores.lista-areas');
+    areas.forEach(function (area) {
+      const tirar = criar('button.tirar', '×');
+      tirar.type = 'button';
+      tirar.dataset.acao = 'tirar-area';
+      tirar.dataset.id = area.id;
+      tirar.setAttribute('aria-label', 'Apagar a área de ' + area.nome);
+      lista.appendChild(criar('div.item-marcador', [
+        Icone.svg('magia', 14),
+        criar('span.texto', area.nome + ' · ' + String(area.raio).replace('.', ',') + ' m · ' + casasDaArea(area, cena).length + ' casas'),
+        tirar
+      ]));
+    });
+    bloco.appendChild(lista);
+    if (areas.length > 1) bloco.appendChild(criarBotao('mini-botao', 'limpar-areas', 'remover', 'Apagar todas'));
+  },
+
+  /* O raio do campo, conferido: de 1,5 em 1,5, dentro dos limites. */
+  lerRaioArea: function () {
+    const entrada = document.getElementById('raioArea');
+    const n = entrada ? Number(entrada.value) : this.raioArea;
+    if (!Number.isFinite(n)) return this.raioArea;
+    return Math.min(RAIO_AREA[1], Math.max(RAIO_AREA[0], Math.round(n / 1.5) * 1.5));
+  },
+
+  marcarArea: function (previa) {
+    const r = Acoes.executar('marcarArea', { cenaId: this.cena().id, x: previa.x, y: previa.y, raio: previa.raio });
+    if (r.erro) Layout.recado(r.erro, true);
+    this.render();
+  },
+
+  tirarArea: function (id) {
+    const r = Acoes.executar('tirarArea', { cenaId: this.cena().id, id: id });
+    if (r.erro) { Layout.recado(r.erro, true); return; }
+    this.render();
+  },
+
+  limparAreas: function () {
+    const r = Acoes.executar('limparAreas', { cenaId: this.cena().id });
+    if (r.erro) { Layout.recado(r.erro); return; }
+    this.render();
+    Layout.recado(r.quantas + ' áreas apagadas.');
   },
 
 
@@ -1057,6 +1204,8 @@ function ligarPainel() {
       case 'tirar-token':    Mapa.tirarToken(); break;
       case 'centro':         Mapa.aoCentro(); break;
       case 'tirar-marcador': Mapa.tirarMarcador(alvo.dataset.id); break;
+      case 'tirar-area':     Mapa.tirarArea(alvo.dataset.id); break;
+      case 'limpar-areas':   Mapa.limparAreas(); break;
 
       case 'grade':
         Mapa.mostrarGrade = !Mapa.mostrarGrade;
@@ -1071,6 +1220,12 @@ function ligarPainel() {
   });
 
   /* Texto do marcador: salva quando o campo perde o foco. */
+  /* O raio da área, guardado enquanto se digita: um redesenho do painel
+     (outra pessoa marcou uma área) não perde o número. */
+  document.getElementById('blocoToken').addEventListener('input', function (evento) {
+    if (evento.target.id === 'raioArea') Mapa.raioArea = Mapa.lerRaioArea();
+  });
+
   document.getElementById('listaMarcadores').addEventListener('change', function (evento) {
     const campo = evento.target.closest('[data-marcador]');
     if (!campo) return;
@@ -1122,7 +1277,7 @@ Layout.iniciar(function () {
   Mapa.iniciar();
 
   /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
-  Layout.redesenhar = function () { if (!Mapa.arrasto && !Mapa.pintura && !Mapa.janela) Mapa.render(); };
+  Layout.redesenhar = function () { if (!Mapa.arrasto && !Mapa.pintura && !Mapa.areaPrevia && !Mapa.janela) Mapa.render(); };
   ligarPainel();
 
   /* Pedido da busca (ver Layout.aoPedir). O some() confere se a cena

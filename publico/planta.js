@@ -30,6 +30,12 @@
      Planta.desenhar(cena)                          -> <svg>
      Planta.desenhar(cena, { destacar: 'Lyra' })    -> com um token aceso
      Planta.desenhar(cena, { andar: true })         -> o token meu pode ser pego
+     Planta.desenharAreas(cena, ehMinha)            -> <g> com as áreas marcadas
+
+   AS ÁREAS
+   A "bola de fogo" (modelo.js, marcarAreaNaCena) se desenha aqui, e o
+   mapas.js do Mestre chama a mesma função: o círculo que o Mestre vê é
+   o mesmo que o jogador vê, casa por casa.
    =================================================================== */
 
 const Planta = {
@@ -137,6 +143,10 @@ const Planta = {
       }
     });
 
+    /* As áreas ficam por baixo dos tokens: quem está dentro continua à
+       vista. */
+    svg.appendChild(Planta.desenharAreas(cena));
+
     cena.tokens.forEach(function (token) {
       const p = centro(token.col, token.lin);
       const cores = {
@@ -205,5 +215,68 @@ const Planta = {
     });
 
     return svg;
+  },
+
+
+  /* As áreas da cena. As casas que cada uma pega (casasDaArea, no
+     modelo.js — a mesma conta para todos) se acendem; o círculo vai por
+     cima, com a etiqueta de quem marcou e o raio. A minha (a do
+     jogador olhando, ou a do Mestre na tela dele) tem traço cheio e
+     casas mais acesas; as dos outros, pontilhado. Nada aqui recebe
+     clique: o mapa embaixo continua respondendo. */
+  desenharAreas: function (cena, ehMinha) {
+    const NS = 'http://www.w3.org/2000/svg';
+    function no(tag, atributos) {
+      const elemento = document.createElementNS(NS, tag);
+      Object.keys(atributos).forEach(function (chave) { elemento.setAttribute(chave, atributos[chave]); });
+      return elemento;
+    }
+    const camada = no('g', { class: 'areas-planta', 'pointer-events': 'none' });
+
+    (cena.areas || []).forEach(function (area) {
+      const minha = ehMinha ? ehMinha(area) : !!area.minha;
+      const grupo = no('g', {});
+
+      casasDaArea(area, cena).forEach(function (casa) {
+        grupo.appendChild(no('rect', {
+          x: casa.col * CELULA + 1, y: casa.lin * CELULA + 1, width: CELULA - 2, height: CELULA - 2, rx: 3,
+          fill: minha ? 'rgba(77,141,255,.22)' : 'rgba(77,141,255,.12)'
+        }));
+      });
+
+      const cx = area.x * CELULA;
+      const cy = area.y * CELULA;
+      const r = area.raio / METROS_POR_CELULA * CELULA;
+      grupo.appendChild(no('circle', {
+        cx: cx, cy: cy, r: r, fill: 'rgba(77,141,255,.05)',
+        stroke: '#4d8dff', 'stroke-width': 2, 'stroke-dasharray': minha ? 'none' : '7 5'
+      }));
+      grupo.appendChild(no('circle', { cx: cx, cy: cy, r: 4, fill: '#4d8dff' }));
+
+      /* A etiqueta, na pílula da régua do Mestre: em cima do círculo;
+         sem lugar em cima, embaixo; sem lugar nos dois (uma área maior
+         que o mapa), logo acima do centro — sempre dentro da planta. */
+      const texto = String(area.nome || '').split(' ')[0] + ' · ' + String(area.raio).replace('.', ',') + ' m';
+      const largura = texto.length * 7 + 22;
+      const altura = cena.linhas * CELULA;
+      let y = cy - r - 16;
+      if (y < 14) y = cy + r + 18 <= altura - 14 ? cy + r + 18 : Math.max(14, cy - 24);
+      /* …e na largura: perto da borda esquerda ou direita, a pílula
+         encosta na borda em vez de sair pela metade. */
+      const x = Math.min(Math.max(cx, largura / 2 + 2), cena.colunas * CELULA - largura / 2 - 2);
+      grupo.appendChild(no('rect', {
+        x: x - largura / 2, y: y - 13, width: largura, height: 24, rx: 12,
+        fill: 'rgba(8,9,11,.9)', stroke: 'rgba(77,141,255,.5)', 'stroke-width': 1
+      }));
+      const etiqueta = no('text', {
+        x: x, y: y + 4, 'text-anchor': 'middle',
+        fill: '#a9c4ff', 'font-size': 12, 'font-family': 'Marcellus, serif'
+      });
+      etiqueta.textContent = texto;
+      grupo.appendChild(etiqueta);
+
+      camada.appendChild(grupo);
+    });
+    return camada;
   }
 };

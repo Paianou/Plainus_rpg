@@ -219,11 +219,19 @@ function acharHeroi(estado, id) {
 /* ---------- As cenas (mapas.js) ----------
    Uma cena: { id, nome, visibilidade, colunas, linhas, imagem?,
    paredes: [[col, lin, largura, altura]...], tokens: [...],
-   marcadores: [...] }.
+   marcadores: [...], areas: [...] } — as áreas (a "bola de fogo") são
+   descritas no modelo.js, marcarAreaNaCena.
    O token de um herói guarda o heroiId: é por ele que o servidor sabe
    qual token o jogador dono daquele herói pode mover (visao.js,
    moverMeuToken). Pelo nome não dá — o nome muda, e dois podem ter o
    mesmo. */
+
+/* A regra das áreas mora no modelo.js (o jogador marca a dele pela
+   mesma função, no visao.js). No navegador ele já carregou; no Node,
+   entra por require(). */
+const regraDeArea = (typeof require === 'function' && typeof module !== 'undefined')
+  ? require('./modelo.js')
+  : { marcarAreaNaCena: marcarAreaNaCena };
 
 const COLUNAS = [5, 60];
 const LINHAS = [5, 40];
@@ -277,6 +285,10 @@ function redimensionar(cena, colunas, linhas) {
   cena.tokens.concat(cena.marcadores).forEach(function (coisa) {
     coisa.col = Math.min(coisa.col, colunas - 1);
     coisa.lin = Math.min(coisa.lin, linhas - 1);
+  });
+  (cena.areas || []).forEach(function (area) {
+    area.x = Math.min(area.x, colunas);
+    area.y = Math.min(area.y, linhas);
   });
   cena.colunas = colunas;
   cena.linhas = linhas;
@@ -337,7 +349,8 @@ function cenaValida(c) {
   const colunas = naFaixa(c.colunas, COLUNAS[0], COLUNAS[1]);
   const linhas = naFaixa(c.linhas, LINHAS[0], LINHAS[1]);
   if (!nome || !colunas || !linhas) return null;
-  const cena = { id: c.id, nome: nome, visibilidade: texto(c.visibilidade, 60), colunas: colunas, linhas: linhas, paredes: [], tokens: [], marcadores: [] };
+  /* As áreas não voltam: são do momento (a magia de agora), não da sala. */
+  const cena = { id: c.id, nome: nome, visibilidade: texto(c.visibilidade, 60), colunas: colunas, linhas: linhas, paredes: [], tokens: [], marcadores: [], areas: [] };
   cena.paredes = paredesValidas(c.paredes || [], cena);
   if (!cena.paredes) return null;
   if (c.imagem !== undefined) {
@@ -864,7 +877,7 @@ const ACOES = {
     if (!dados.id) {
       if (estado.cenas.length >= 60) return { erro: 'Cenas demais nesta campanha.' };
       const cena = { id: novoId('cena'), nome: nome, visibilidade: visibilidade, colunas: colunas, linhas: linhas,
-        paredes: dados.contorno ? contorno(colunas, linhas) : [], tokens: [], marcadores: [] };
+        paredes: dados.contorno ? contorno(colunas, linhas) : [], tokens: [], marcadores: [], areas: [] };
       if (dados.imagem) cena.imagem = dados.imagem;
       estado.cenas.push(cena);
       estado.cenaAtual = cena.id;
@@ -999,6 +1012,34 @@ const ACOES = {
     cena.marcadores = cena.marcadores.filter(function (m) { return m.id !== dados.id; });
     if (cena.marcadores.length === antes) return { erro: 'Marcador não encontrado.' };
     return {};
+  },
+
+  /* A área do Mestre: uma por cena, como a de cada jogador — marcar de
+     novo muda a dele. A mesa inteira vê. */
+  marcarArea: function (estado, dados) {
+    const cena = acharCena(estado, dados.cenaId);
+    if (!cena) return { erro: 'Cena não encontrada.' };
+    return regraDeArea.marcarAreaNaCena(cena, 'mestre', 'Mestre', dados, novoId('a'));
+  },
+
+  /* O Mestre apaga qualquer área (a dele ou a de um jogador)… */
+  tirarArea: function (estado, dados) {
+    const cena = acharCena(estado, dados.cenaId);
+    if (!cena) return { erro: 'Cena não encontrada.' };
+    const antes = (cena.areas || []).length;
+    cena.areas = (cena.areas || []).filter(function (a) { return a.id !== dados.id; });
+    if (cena.areas.length === antes) return { erro: 'Área não encontrada.' };
+    return {};
+  },
+
+  /* …ou todas de uma vez, quando a magia acabou. */
+  limparAreas: function (estado, dados) {
+    const cena = acharCena(estado, dados.cenaId);
+    if (!cena) return { erro: 'Cena não encontrada.' };
+    if (!(cena.areas || []).length) return { erro: 'Não há área no mapa.' };
+    const quantas = cena.areas.length;
+    cena.areas = [];
+    return { quantas: quantas };
   },
 
 

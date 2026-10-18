@@ -73,9 +73,15 @@ const AvisoSaida = {
     }, true);
 
     /* A janela de cena (<dialog>) não sai da página ao fechar: ela só
-       se esconde. Fechou, limpou. */
+       se esconde. Fechou, limpou — ela E o que está dentro: a marca cai
+       no .formulario de dentro da janela (o mais perto de quem digitou),
+       e, esquecida ali, a tela de Mapas se achava "ocupada" para sempre
+       e parava de redesenhar o que os jogadores faziam. */
     document.addEventListener('close', function (evento) {
-      if (evento.target && evento.target.dataset) delete evento.target.dataset.sujo;
+      const janela = evento.target;
+      if (!janela || !janela.dataset) return;
+      delete janela.dataset.sujo;
+      janela.querySelectorAll('[data-sujo]').forEach(function (dentro) { delete dentro.dataset.sujo; });
     }, true);
 
     window.addEventListener('beforeunload', function (evento) {

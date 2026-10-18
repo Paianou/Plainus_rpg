@@ -18,7 +18,7 @@
    no bloco abaixo, e só saem os dois nomes.
    =================================================================== */
 
-const { estadoVazio, conferirCampanha, sortearCodigo, normalizarCodigo, imagemSegura, imagemDaCena, retratoSeguro, regrasPersonagem, LIMITE_RETRATO } = (function () {
+const { estadoVazio, conferirCampanha, sortearCodigo, normalizarCodigo, imagemSegura, imagemDaCena, retratoSeguro, regrasPersonagem, LIMITE_RETRATO, marcarAreaNaCena, casasDaArea, RAIO_AREA } = (function () {
 
 function estadoVazio() {
   return {
@@ -142,6 +142,11 @@ function conferirPorDentro(limpo) {
     });
     cena.tokens = soLista(cena.tokens).filter(ehObjeto);
     cena.marcadores = soLista(cena.marcadores).filter(ehObjeto);
+    /* Área sem centro ou sem raio em número não tem como ser desenhada. */
+    cena.areas = soLista(cena.areas).filter(function (a) {
+      return ehObjeto(a) && typeof a.dono === 'string'
+        && [a.x, a.y, a.raio].every(function (n) { return typeof n === 'number' && isFinite(n); });
+    });
   });
 
   /* Mensagem sem autor ou sem canal não tem como ser mostrada a ninguém. */
@@ -181,6 +186,66 @@ function imagemDaCena(cena) {
 /* O retrato de um personagem ou de um monstro. */
 function retratoSeguro(imagem) {
   return imagemSegura(imagem, LIMITE_RETRATO);
+}
+
+/* ---------- As áreas na planta ----------
+   A "bola de fogo": um círculo na cena que a mesa inteira vê.
+   Uma área: { id, x, y, raio, dono, nome }.
+     x, y   o centro, em casas, de meia em meia. 3 é a linha da grade
+            entre a casa 2 e a 3 — o canto, onde o livro põe o centro de
+            uma esfera; 3,5 é o meio da casa 3, para centrar numa
+            criatura.
+     raio   em metros, de 1,5 em 1,5 (uma casa = 1,5 m).
+     dono   'mestre' ou 'j:' + o id do jogador. Cada um tem UMA área por
+            cena: marcar de novo muda a sua, em vez de empilhar. O dono
+            nunca vai para o jogador (visao.js manda só "minha").
+     nome   quem marcou, para a etiqueta ("Lyra · 6 m").
+   O Mestre (acoes.js) e o jogador (visao.js) passam pela MESMA função:
+   a regra do que é uma área válida mora num lugar só. O id vem de quem
+   chama, porque cada lado tem o seu jeito de sortear. */
+const RAIO_AREA = [1.5, 36];
+const LIMITE_AREAS = 20;
+
+function marcarAreaNaCena(cena, dono, nome, dados, id) {
+  if (!cena) return { erro: 'Nenhuma cena aberta.' };
+  function meia(valor, maximo) {
+    const n = Number(valor);
+    return Number.isFinite(n) ? Math.min(Math.max(Math.round(n * 2) / 2, 0), maximo) : null;
+  }
+  const x = meia(dados.x, cena.colunas);
+  const y = meia(dados.y, cena.linhas);
+  if (x === null || y === null) return { erro: 'Escolha o centro da área no mapa.' };
+  const pedido = Number(dados.raio);
+  if (!Number.isFinite(pedido) || pedido < RAIO_AREA[0] || pedido > RAIO_AREA[1]) return { erro: 'O raio vai de 1,5 a 36 m.' };
+  const raio = Math.round(pedido / 1.5) * 1.5;
+
+  cena.areas = Array.isArray(cena.areas) ? cena.areas : [];
+  const antiga = cena.areas.find(function (a) { return a.dono === dono; });
+  if (!antiga && cena.areas.length >= LIMITE_AREAS) return { erro: 'Áreas demais nesta cena.' };
+  const area = { id: antiga ? antiga.id : id, x: x, y: y, raio: raio, dono: dono, nome: String(nome || '').slice(0, 30) || '?' };
+  if (antiga) Object.assign(antiga, area);
+  else cena.areas.push(area);
+  return { id: area.id };
+}
+
+/* As casas que a área pega: as que têm o CENTRO dentro do círculo. O
+   Guia do Mestre diz que a casa entra se a área cobre metade dela; o
+   centro é o jeito simples de contar isso, e o mesmo para todos.
+   (A régua usa outra regra — a diagonal conta uma casa —, porque ela
+   mede caminho, não área.) */
+function casasDaArea(area, cena) {
+  const r = area.raio / 1.5;
+  const casas = [];
+  const c0 = Math.max(0, Math.floor(area.x - r)), c1 = Math.min(cena.colunas - 1, Math.ceil(area.x + r));
+  const l0 = Math.max(0, Math.floor(area.y - r)), l1 = Math.min(cena.linhas - 1, Math.ceil(area.y + r));
+  for (let lin = l0; lin <= l1; lin++) {
+    for (let col = c0; col <= c1; col++) {
+      const dx = col + 0.5 - area.x;
+      const dy = lin + 0.5 - area.y;
+      if (dx * dx + dy * dy <= r * r + 1e-9) casas.push({ col: col, lin: lin });
+    }
+  }
+  return casas;
 }
 
 /* As regras de criação de personagem da campanha, sempre completas:
@@ -232,10 +297,10 @@ function normalizarCodigo(texto) {
   return limpo.slice(0, 4) + '-' + limpo.slice(4, 8) + '-' + limpo.slice(8, 12);
 }
 
-return { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO };
+return { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO, marcarAreaNaCena: marcarAreaNaCena, casasDaArea: casasDaArea, RAIO_AREA: RAIO_AREA };
 })();
 
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO };
+  module.exports = { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO, marcarAreaNaCena: marcarAreaNaCena, casasDaArea: casasDaArea, RAIO_AREA: RAIO_AREA };
 }

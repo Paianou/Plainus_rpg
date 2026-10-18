@@ -55,6 +55,12 @@ const MesaJogador = {
      sumiria da mão no meio do gesto. */
   arrastando: false,
 
+  /* A medição em área (a "bola de fogo"): o botão "Marcar área" liga o
+     modo — o próximo clique no mapa põe o centro — e o raio do campo
+     fica guardado aqui entre um redesenho e outro. */
+  modoArea: false,
+  raioArea: 6,
+
   montarCena: function (cena, meu, combate) {
     const cartao = criar('div.cartao', [criarComIcone('h2', 'mapa', cena ? cena.nome : 'A cena', 16)]);
 
@@ -86,8 +92,125 @@ const MesaJogador = {
     else if (meu) legenda = 'O Mestre ainda não pôs você no mapa.';
     cartao.appendChild(criar('p.dica.legenda-mapa-jogador', 'Cada quadrado tem 1,5 m. ' + legenda));
 
+    cartao.appendChild(this.montarArea(cena, meuToken));
+
     if (andar) this.ligarAndar(planta, cena, meuToken);
+    if (this.modoArea) this.ligarArea(planta, cena, mapa);
     return cartao;
+  },
+
+
+  /* O raio digitado, conferido: de 1,5 em 1,5 m, dentro dos limites
+     (os mesmos do servidor — RAIO_AREA, no modelo.js). */
+  lerRaio: function (valor) {
+    const n = Number(valor);
+    if (!Number.isFinite(n)) return this.raioArea;
+    return Math.min(RAIO_AREA[1], Math.max(RAIO_AREA[0], Math.round(n / 1.5) * 1.5));
+  },
+
+
+  /* Embaixo do mapa: o raio, os botões e, em texto, as áreas que estão
+     no mapa — o que o desenho mostra, para quem não vê o desenho. */
+  montarArea: function (cena, meuToken) {
+    const self = this;
+    const areas = cena.areas || [];
+    const minha = areas.find(function (a) { return a.minha; });
+
+    const campo = criar('div.campo-form.campo-raio');
+    const rotulo = criar('label', 'Raio (m)');
+    rotulo.htmlFor = 'raioMinhaArea';
+    const entrada = document.createElement('input');
+    entrada.type = 'number';
+    entrada.id = 'raioMinhaArea';
+    entrada.min = String(RAIO_AREA[0]);
+    entrada.max = String(RAIO_AREA[1]);
+    entrada.step = '1.5';
+    entrada.value = String(this.raioArea);
+    entrada.addEventListener('input', function () { self.raioArea = self.lerRaio(entrada.value); });
+    campo.appendChild(rotulo);
+    campo.appendChild(entrada);
+
+    const marcar = criarBotao('mini-botao' + (this.modoArea ? '.ligado' : ''), 'marcar-area', 'magia', 'Marcar área');
+    marcar.setAttribute('aria-pressed', this.modoArea ? 'true' : 'false');
+    const linha = criar('div.linha-area', [campo, marcar]);
+    if (meuToken) linha.appendChild(criarBotao('mini-botao', 'area-no-token', 'escudo', 'No meu personagem'));
+    if (minha) linha.appendChild(criarBotao('mini-botao', 'apagar-minha-area', 'remover', 'Apagar a minha'));
+
+    const bloco = criar('div.bloco-area', [linha]);
+    if (this.modoArea) {
+      bloco.appendChild(criar('p.dica', 'Clique no mapa para pôr o centro — ou clique e arraste para escolher o raio. Bola de Fogo: 6 m.'));
+    }
+    if (areas.length) {
+      bloco.appendChild(criar('p.dica', 'No mapa: ' + areas.map(function (a) {
+        return a.nome + ' · ' + String(a.raio).replace('.', ',') + ' m (' + casasDaArea(a, cena).length + ' casas)';
+      }).join('; ') + '.'));
+    }
+    return bloco;
+  },
+
+
+  /* Com o modo ligado, o mapa inteiro recebe o clique: apertar põe o
+     centro (de meia em meia casa — na linha da grade ou no meio dela),
+     arrastar escolhe o raio, soltar manda para o servidor. Durante o
+     gesto só a camada das áreas se redesenha (Planta.desenharAreas),
+     como o token, que só se move. */
+  ligarArea: function (svg, cena, mapa) {
+    const self = this;
+    let previa = null;
+    mapa.classList.add('marcando-area');
+
+    function ponto(evento) {
+      const p = svg.createSVGPoint();
+      p.x = evento.clientX;
+      p.y = evento.clientY;
+      const matriz = svg.getScreenCTM();
+      return matriz ? p.matrixTransform(matriz.inverse()) : { x: 0, y: 0 };
+    }
+
+    function redesenhar() {
+      const comPrevia = Object.assign({}, cena, {
+        areas: (cena.areas || []).filter(function (a) { return !a.minha; }).concat([previa])
+      });
+      const velha = svg.querySelector('.areas-planta');
+      const nova = Planta.desenharAreas(comPrevia);
+      if (velha) velha.replaceWith(nova);
+    }
+
+    svg.addEventListener('pointerdown', function (evento) {
+      if (evento.button !== 0) return;
+      evento.preventDefault();
+      const p = ponto(evento);
+      previa = { x: Math.round(p.x / CELULA * 2) / 2, y: Math.round(p.y / CELULA * 2) / 2, raio: self.raioArea, nome: (Conexao.visao.meuHeroi || {}).nome || '', minha: true };
+      self.arrastando = true;
+      try { svg.setPointerCapture(evento.pointerId); } catch (erro) { /* segue sem captura */ }
+      redesenhar();
+    });
+
+    svg.addEventListener('pointermove', function (evento) {
+      if (!previa) return;
+      if (evento.buttons === 0) { soltar(); return; }
+      const p = ponto(evento);
+      const metros = Math.hypot(p.x - previa.x * CELULA, p.y - previa.y * CELULA) / CELULA * METROS_POR_CELULA;
+      if (metros < METROS_POR_CELULA) return;
+      const raio = self.lerRaio(metros);
+      if (raio === previa.raio) return;
+      previa.raio = raio;
+      self.raioArea = raio;
+      redesenhar();
+    });
+
+    function soltar() {
+      if (!previa) return;
+      const fim = previa;
+      previa = null;
+      self.arrastando = false;
+      self.modoArea = false;
+      enviarMinhaArea(fim.x, fim.y, fim.raio);
+      Jogador.render();
+    }
+    svg.addEventListener('pointerup', soltar);
+    svg.addEventListener('pointercancel', soltar);
+    svg.addEventListener('lostpointercapture', soltar);
   },
 
 
@@ -119,7 +242,8 @@ const MesaJogador = {
     }
 
     grupo.addEventListener('pointerdown', function (evento) {
-      if (evento.button !== 0) return;
+      /* Marcando área, o clique no token é o centro da área (ligarArea). */
+      if (evento.button !== 0 || self.modoArea) return;
       evento.preventDefault();
       grupo.focus();
       arrasto = { inicio: ponto(evento), moveu: false };

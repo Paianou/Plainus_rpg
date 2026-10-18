@@ -4232,6 +4232,25 @@ button.pericia { font-size: 13px; }
 .token-meu.pegando { cursor: grabbing; }
 .token-meu:focus-visible .anel-meu { stroke: var(--azul); stroke-width: 3; stroke-dasharray: none; }
 
+/* A medição em área, embaixo do mapa do jogador (jogador-mesa.js,
+   montarArea): o raio e os botões numa linha que quebra no celular.
+   O campo é o .campo-form de sempre, só estreito — um número de até
+   quatro algarismos. Com o modo ligado, o mapa vira mira, e o dedo
+   marca a área em vez de rolar a página. */
+.bloco-area { margin-top: 12px; }
+.linha-area { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.campo-raio { width: 96px; }
+/* Na altura do .mini-botao ao lado (5px de respiro, letra pequena). */
+.campo-raio input { padding: 5px 9px; font-size: 12px; }
+.bloco-area .dica { margin: 8px 0 0; }
+.mapa-jogador.marcando-area > svg { cursor: crosshair; touch-action: none; }
+/* A lista de áreas no painel do Mestre (mapas.js): a dos marcadores,
+   um respiro abaixo da dica. */
+.lista-areas { margin-top: 12px; }
+/* A dica do painel lateral (a da ferramenta Área): o mesmo tom e
+   tamanho das outras dicas pequenas (.dica-backup, .coluna-mesa .dica). */
+.bloco-lateral .dica { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--texto-3); }
+
 .cabeca-combate-jogador { margin: -6px 0 12px; font-size: 12px; color: var(--texto-3); }
 .iniciativa-jogador { display: flex; flex-direction: column; gap: 6px; }
 .linha-jogador {
