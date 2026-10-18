@@ -34,6 +34,17 @@ const Painel = {
   iniciar: function () {
     this.render();
     this.ligarEventos();
+
+    /* O Panorama muda de três para duas colunas em 1500px e para uma em
+       1100px — e a distribuição das ferramentas (distribuirFerramentas)
+       depende disso. Cruzou a fronteira, redistribui. */
+    const self = this;
+    ['(min-width: 1501px)', '(max-width: 1100px)'].forEach(function (consulta) {
+      if (!window.matchMedia) return;
+      window.matchMedia(consulta).addEventListener('change', function () {
+        if (self.aba === 'panorama') self.renderConteudo();
+      });
+    });
   },
 
 
@@ -152,6 +163,67 @@ const Painel = {
 
     area.appendChild(caixa);
     if (this.aba === 'grupo') this.equilibrarGrupo(caixa.querySelector('.coluna-herois'));
+    if (this.aba === 'panorama') this.distribuirFerramentas(caixa);
+  },
+
+
+  /* O Panorama tem colunas de alturas que dependem da campanha: com dois
+     heróis, a coluna deles acaba cedo e sobra um buraco ao lado da cena.
+     Aqui os cartões de ferramentas (a pilha do Rolador e o Compêndio)
+     são repartidos entre duas colunas do jeito que deixa as duas
+     terminando mais perto uma da outra. São só dois blocos — quatro
+     jeitos de repartir —, então cada jeito é posto na página e medido,
+     e fica o melhor. O jeito escolhido fica guardado: a cada rolagem o
+     painel se redesenha, e um cartão pulando de coluna debaixo do mouse
+     seria pior que alguns pixels de diferença. Só se troca de jeito
+     quando outro é bem melhor (mais de 80px). (Mandar cada um para a coluna mais curta da hora
+     não basta: o primeiro pode passar a outra coluna, e o buraco só
+     troca de lado.) As colunas:
+       - três colunas (mais de 1500px): entre os heróis e a coluna das
+         ferramentas — a cena, no meio, é larga demais para eles;
+       - duas colunas (até 1500px): entre os heróis e a cena; a faixa de
+         ferramentas embaixo de tudo deixa de existir;
+       - uma coluna (até 1100px): nada muda, a ordem é a de sempre.
+     A conta usa a altura já desenhada (offsetHeight), por isso roda depois
+     de o miolo entrar na página. */
+  distribuirFerramentas: function (caixa) {
+    if (!window.matchMedia || window.matchMedia('(max-width: 1100px)').matches) return;
+    const herois = caixa.querySelector('.coluna-herois');
+    const cena = caixa.querySelector('.coluna-cena');
+    const ferramentas = caixa.querySelector('.coluna-ferramentas');
+    if (!herois || !cena || !ferramentas) return;
+
+    const largo = window.matchMedia('(min-width: 1501px)').matches;
+    /* A pilha do Rolador anda inteira: as rolagens da mesa ficam
+       embaixo dos dados, onde se olha depois de rolar. */
+    const cartoes = Array.prototype.slice.call(ferramentas.children);
+    let alvos;
+    if (largo) {
+      ferramentas.textContent = '';
+      alvos = [herois, ferramentas];
+    } else {
+      ferramentas.remove();
+      alvos = [herois, cena];
+    }
+    function repartir(jeito) {
+      cartoes.forEach(function (cartao, i) { alvos[(jeito >> i) & 1].appendChild(cartao); });
+      return Math.abs(alvos[0].offsetHeight - alvos[1].offsetHeight);
+    }
+    let melhor = 0;
+    let menorDiferenca = Infinity;
+    let doJeitoAnterior = Infinity;
+    /* A memória vale para o mesmo desenho: mesma faixa de largura e o
+       mesmo número de heróis. Mudou um dos dois, a conta começa do zero. */
+    const chave = (largo ? 'tres' : 'duas') + ':' + Estado.herois.length;
+    const anterior = this.jeitoFerramentas && this.jeitoFerramentas.chave === chave ? this.jeitoFerramentas.jeito : -1;
+    for (let jeito = 0; jeito < (1 << cartoes.length); jeito++) {
+      const diferenca = repartir(jeito);
+      if (jeito === anterior) doJeitoAnterior = diferenca;
+      if (diferenca < menorDiferenca) { menorDiferenca = diferenca; melhor = jeito; }
+    }
+    if (doJeitoAnterior <= menorDiferenca + 80) melhor = anterior;
+    this.jeitoFerramentas = { chave: chave, jeito: melhor };
+    repartir(melhor);
   },
 
 
@@ -518,8 +590,13 @@ const Painel = {
      coluna já é a mais comprida. */
   montarColunaFerramentas: function () {
     const coluna = criar('aside.coluna-mesa.coluna-ferramentas');
-    coluna.appendChild(criar('div.coluna-mesa.pilha-rolador', [this.montarRolador(), this.montarRolagensMesa()]));
-    coluna.appendChild(this.montarCompendio());
+    /* .cartao-ferramenta: o estilo de título estreito vai junto quando o
+       cartão muda de coluna (distribuirFerramentas). */
+    const pilha = criar('div.coluna-mesa.pilha-rolador.cartao-ferramenta', [this.montarRolador(), this.montarRolagensMesa()]);
+    const compendio = this.montarCompendio();
+    compendio.classList.add('cartao-ferramenta');
+    coluna.appendChild(pilha);
+    coluna.appendChild(compendio);
     return coluna;
   },
 

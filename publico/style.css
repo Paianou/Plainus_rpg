@@ -1055,7 +1055,8 @@ a.marca-mestre:hover .nome { color: #fff; }
 }
 /* Na coluna estreita das ferramentas, o título encolhe um pouco em vez
    de quebrar "Rolador do / mestre" em duas linhas. */
-.coluna-ferramentas .titulo-coluna h2 { font-size: .95rem; }
+.coluna-ferramentas .titulo-coluna h2,
+.coluna-herois .cartao-ferramenta .titulo-coluna h2 { font-size: .95rem; }
 .titulo-coluna h2::before { display: none; }
 .titulo-coluna h2 .ico { color: var(--azul); }
 .titulo-coluna .sub {

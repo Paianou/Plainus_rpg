@@ -42,6 +42,15 @@ await cmd('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, devi
 const fileiras2 = JSON.parse(await js(`JSON.stringify((()=>{const t={}; document.querySelectorAll('.coluna-herois > .heroi').forEach(h=>{const y=Math.round(h.getBoundingClientRect().top); t[y]=(t[y]||0)+1;}); return Object.values(t);})())`));
 ok(fileiras2.every(n => n >= 2) && fileiras2.reduce((a, b) => a + b, 0) === 5, 'mudando a largura da janela, a conta se refaz sozinha (' + fileiras2.join('+') + ')');
 
+/* ---- Panorama até 1500px com 2 heróis: as ferramentas vão para onde
+   sobra espaço, e as duas colunas terminam juntas ---- */
+await js(`(async()=>{const e=await T.gravado(); e.herois=e.herois.filter((h,i)=>i===0||h.dono); await T.trocar(e);})()`); await espera(600);
+await cmd('Emulation.setDeviceMetricsOverride', { width: 1320, height: 680, deviceScaleFactor: 1, mobile: false });
+await js(`document.querySelector('#abas [data-aba="panorama"]').click()`); await espera(400);
+const fundos = JSON.parse(await js(`JSON.stringify([...document.querySelectorAll('.colunas-mesa > *')].map(c=>Math.round(c.getBoundingClientRect().bottom)))`));
+ok(fundos.length === 2 && Math.abs(fundos[0] - fundos[1]) < 300, 'Panorama em 1320px com 2 heróis: as colunas terminam perto uma da outra — antes da mudança, uns 750px de buraco (' + fundos.join(' x ') + ')');
+await cmd('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
+
 /* ---- Listas com ficha: abrem o primeiro, em vez de "Escolha…" ---- */
 await ir('diario.html');
 ok(await js(`!/Escolha/.test(document.getElementById('detalhe').textContent) && document.querySelector('.entrada-diario.ativa') === document.querySelector('.entrada-diario')`), 'Diário: a sessão mais recente já vem aberta');
