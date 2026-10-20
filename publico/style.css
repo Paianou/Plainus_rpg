@@ -5617,6 +5617,12 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
 .selo-perfil .perfil { flex-direction: row-reverse; justify-content: flex-end; padding-left: 0; border-left: 0; }
 .selo-perfil .perfil .quem { text-align: left; }
 .grade-configuracoes .formulario { margin-top: 14px; }
+/* O Perfil do jogador: o selo do personagem do topo do códice
+   (.nav-personagem), sem a linha de baixo que ele tem lá; o form com o
+   mesmo respiro do Perfil do Mestre. */
+.selo-personagem { padding: 4px 0 2px; margin: 0; border-bottom: 0; }
+#principal .formulario { margin-top: 14px; }
+.selo-personagem ~ .linha-botoes { margin-top: 12px; }
 
 /* A zona de perigo: a borda no vermelho dos marcadores de perigo. */
 .cartao-perigo { border-color: rgba(194, 65, 63, .3); }

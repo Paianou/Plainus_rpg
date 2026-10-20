@@ -165,8 +165,16 @@ function acessosConferidos(a) {
 
 /* Nomes comparados sem maiúscula, acento nem espaço sobrando: "Ana",
    "ana " e "Ána" são a mesma pessoa na mesa. */
+/* Um nome como ele é guardado: sem caracteres invisíveis (largura zero,
+   controle) e com os espaços juntados — senão "Ana" e "Ana" com um
+   caractere invisível no meio seriam duas pessoas diferentes para o
+   servidor e a mesma para quem lê o chat. Até 30 letras. */
+function limparNome(x) {
+  return String(x || '').replace(/[\p{Cf}\p{Cc}]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30);
+}
+
 function mesmoNome(a, b) {
-  const n = function (x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase(); };
+  const n = function (x) { return limparNome(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
   return n(a) === n(b);
 }
 
@@ -435,7 +443,7 @@ function criarArmazem(pastaDados, avisar) {
   function entrarComoJogador(id, nomeDigitado) {
     const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
     if (!c) return { erro: 'Campanha não encontrada.' };
-    const nome = String(nomeDigitado || '').trim().slice(0, 30);
+    const nome = limparNome(nomeDigitado);
     if (!nome) return { erro: 'Diga como a mesa te chama.' };
 
     const jogadores = c.acessos.jogadores;
@@ -614,6 +622,47 @@ function criarArmazem(pastaDados, avisar) {
     return { nome: antes.nome };
   }
 
+  /* O jogador troca o próprio nome (o Perfil dele). O nome mora em DOIS
+     lugares, e os dois mudam juntos:
+       - acessos.jogadores[jogadorId].nome   o nome com que ele entrou
+       - heroi.jogador, em cada herói dele   é por este que, depois de o
+         Mestre liberar o lugar, quem entra com o MESMO nome recupera o
+         personagem (entrarComoJogador)
+     Por isso o nome novo não pode ser o de outra pessoa da mesa — nem o
+     de um personagem esperando o dono voltar: quem entrasse com ele
+     levaria o personagem errado. Se gravar falhar, nada muda. */
+  function renomearJogador(id, jogadorId, nomeDigitado) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c || !Object.prototype.hasOwnProperty.call(c.acessos.jogadores, jogadorId)) return { erro: 'Esse jogador não está nesta mesa.' };
+    const nome = limparNome(nomeDigitado);
+    if (!nome) return { erro: 'Diga como a mesa te chama.' };
+
+    const jogadores = c.acessos.jogadores;
+    /* O mesmo nome de agora, letra por letra: nada a gravar. */
+    if (jogadores[jogadorId].nome === nome) return { nome: nome, igual: true };
+    const deOutro = Object.keys(jogadores).some(function (jid) { return jid !== jogadorId && mesmoNome(jogadores[jid].nome, nome); });
+    const esperando = (c.estado.herois || []).some(function (h) {
+      return h.dono && h.dono !== jogadorId && !Object.prototype.hasOwnProperty.call(jogadores, h.dono) && mesmoNome(h.jogador, nome);
+    });
+    if (deOutro || esperando) return { erro: 'Já tem alguém com esse nome nesta mesa. Escolha outro.' };
+
+    const antes = jogadores[jogadorId].nome;
+    const heroisAntes = (c.estado.herois || []).map(function (h) { return h.jogador; });
+    jogadores[jogadorId].nome = nome;
+    (c.estado.herois || []).forEach(function (h) { if (h.dono === jogadorId) h.jogador = nome; });
+    const atualizadaAntes = c.atualizadaEm;
+    c.atualizadaEm = Date.now();
+    try {
+      gravarAgora(id);
+    } catch (erro) {
+      jogadores[jogadorId].nome = antes;
+      (c.estado.herois || []).forEach(function (h, i) { h.jogador = heroisAntes[i]; });
+      c.atualizadaEm = atualizadaAntes;
+      return { erro: 'Não consegui gravar no disco.' };
+    }
+    return { nome: nome };
+  }
+
   /* Só ESTA chave de Mestre continua valendo: os outros computadores do
      Mestre saem (um computador perdido, uma senha que vazou). */
   function manterSoEstaChave(id, chave) {
@@ -650,7 +699,7 @@ function criarArmazem(pastaDados, avisar) {
 
   return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
     conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre,
-    verificarSenha, listarAcessos, liberarJogador, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
+    verificarSenha, listarAcessos, liberarJogador, renomearJogador, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
 }
 
 module.exports = { criarArmazem, ID_CAMPANHA, senhaValida };

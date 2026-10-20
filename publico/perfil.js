@@ -40,6 +40,7 @@ const Perfil = {
       criar('div.linha-botoes', [criarBotao('botao.pequeno', null, 'check', 'Salvar nome')])
     ]);
     form.querySelector('button').type = 'submit';
+    form.querySelector('button').id = 'salvarNome';
     form.id = 'formNome';
 
     return criar('div.cartao', [
@@ -88,7 +89,7 @@ const Perfil = {
     /* O foco vai para o botão, e não de volta ao campo: com o cursor num
        campo, o painel acha que você está digitando e segura as novidades
        da mesa (Layout.ocupado). */
-    document.querySelector('#formNome button[type="submit"]').focus();
+    document.getElementById('salvarNome').focus();
     Layout.recado('Nome salvo: agora a mesa te chama de ' + r.nome + '.');
   },
 
@@ -109,5 +110,9 @@ Layout.iniciar(function () {
   Perfil.ligarEventos();
   /* Outra aba mudou a campanha: redesenha, menos com o nome sendo
      digitado (o Layout já espera — ver ocupado, no layout.js). */
-  Layout.redesenhar = function () { Perfil.render(); };
+  Layout.redesenhar = function () {
+    const foco = document.activeElement && document.activeElement.id;
+    Perfil.render();
+    if (foco && document.getElementById(foco)) document.getElementById(foco).focus();
+  };
 });

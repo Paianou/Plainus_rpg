@@ -95,6 +95,29 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
   ok(c.entrarComoJogador(mesa.id, 'Ana').erro, '…e depois disso ninguém mais entra como Ana');
   ok(c.nomeDoJogador(mesa.id, bruno.jogadorId) === 'Bruno' && c.nomeDoJogador(mesa.id, 'jinventado000000') === null, 'o nome de cada jogador vem do servidor');
   ok(c.entrarComoJogador(mesa.id, '').erro && c.entrarComoJogador('c' + '0'.repeat(16), 'X').erro, 'nome vazio ou campanha que não existe: recusado');
+
+  /* ---- o jogador troca o próprio nome (Perfil) ---- */
+  /* Um personagem de backup esperando a dona (Carla) voltar. */
+  c.ler(mesa.id).herois.push({ id: 'h2', nome: 'Bram', jogador: 'Carla', dono: 'jbbbbbbbbbbbbbbbb', pv: 9, pvMax: 9 });
+  ok(!c.renomearJogador(mesa.id, ana.jogadorId, '  Aninha ').erro && c.nomeDoJogador(mesa.id, ana.jogadorId) === 'Aninha', 'a Ana vira "Aninha" (o espaço em volta sai)');
+  ok(c.ler(mesa.id).herois.find((h) => h.id === 'h1').jogador === 'Aninha', '…e a Lyra, o herói dela, passa a dizer "jogador: Aninha" — o nome que recupera o personagem');
+  ok(c.renomearJogador(mesa.id, bruno.jogadorId, 'ANINHA').erro, 'o Bruno não pode virar "ANINHA": é o nome de outra pessoa da mesa');
+  ok(c.renomearJogador(mesa.id, bruno.jogadorId, 'carla').erro && c.nomeDoJogador(mesa.id, bruno.jogadorId) === 'Bruno', '…nem "carla": é o nome de quem vai voltar para buscar o Bram');
+  ok(c.renomearJogador(mesa.id, bruno.jogadorId, '   ').erro && c.renomearJogador(mesa.id, 'jinventado000000', 'X').erro, 'nome vazio, ou jogador que não está na mesa: recusado');
+  ok(!c.renomearJogador(mesa.id, ana.jogadorId, 'ANINHA').erro && c.nomeDoJogador(mesa.id, ana.jogadorId) === 'ANINHA', 'mudar só as maiúsculas do PRÓPRIO nome: pode');
+  ok(c.renomearJogador(mesa.id, ana.jogadorId, 'A'.repeat(50)).nome.length === 30, 'mais de 30 letras: corta em 30');
+  c.renomearJogador(mesa.id, ana.jogadorId, 'Aninha');
+  const relido = criarArmazem(pasta); relido.carregar();
+  ok(relido.nomeDoJogador(mesa.id, ana.jogadorId) === 'Aninha' && relido.ler(mesa.id).herois.find((h) => h.id === 'h1').jogador === 'Aninha', 'o nome novo vai para o disco (o servidor reiniciado conhece "Aninha", nos acessos e no herói)');
+  /* O caminho de volta, com o nome NOVO: o Mestre libera, ela entra. */
+  c.liberarJogador(mesa.id, ana.jogadorId);
+  const comNomeAntigo = c.entrarComoJogador(mesa.id, 'Ana');
+  ok(!comNomeAntigo.erro && !comNomeAntigo.reivindicou && comNomeAntigo.jogadorId !== ana.jogadorId, 'liberada, quem entra com o nome ANTIGO ("Ana") entra como pessoa nova — sem levar a Lyra');
+  const volta = c.entrarComoJogador(mesa.id, 'aninha');
+  ok(volta.reivindicou && volta.jogadorId === ana.jogadorId, 'quem entra com o nome NOVO ("aninha") recupera a Lyra — mesmo jogadorId');
+  ok(c.renomearJogador(mesa.id, bruno.jogadorId, 'Ani\u200Bnha').erro && c.renomearJogador(mesa.id, bruno.jogadorId, 'Ani    nha').nome === 'Ani nha', 'um caractere invisível no meio não cria uma "Aninha" falsa; espaços em sequência viram um');
+  const igual = c.renomearJogador(mesa.id, bruno.jogadorId, 'Ani nha');
+  ok(igual.igual === true, 'o mesmo nome de agora: nada a gravar');
   const backup = c.envelopeDeBackup(mesa.id);
   ok(backup.formato === 'plainus-campanha' && !('acessos' in backup) && !JSON.stringify(backup).includes('"resumo"'), 'o backup baixado leva a campanha e nenhuma chave (nem resumo)');
 

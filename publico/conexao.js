@@ -254,6 +254,12 @@ const Conexao = {
     return this.enviar({ evento: 'acaoJogador', pedido: { nome: nome, dados: dados } });
   },
 
+  /* O jogador troca o próprio nome (Perfil, jogador.js). Não é uma ação
+     da campanha: o nome mora também nos acessos do servidor. */
+  mudarMeuNome: function (nome) {
+    return this.enviar({ evento: 'mudarMeuNome', pedido: { nome: nome } });
+  },
+
   /* Devolve uma Promise com a resposta do servidor ({ resultado } ou
      { erro }). Erros já viram aviso na tela; quem chamou só precisa
      olhar a resposta se quiser fazer algo a mais. */

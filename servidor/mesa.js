@@ -77,6 +77,10 @@ function ligarMesa(servidorHttp, armazem, log) {
 
   const sala = function (campanhaId) { return 'campanha:' + campanhaId; };
 
+  /* Quando cada jogador trocou de nome pela última vez (mudarMeuNome). */
+  const ESPERA_TROCA_NOME = 10000;
+  const ultimaTrocaDeNome = new Map();
+
   /* Quem está na sala, com os nomes que o SERVIDOR conhece. O do
      Mestre vem da campanha de agora, e não do que ficou guardado na
      conexão quando ele entrou: ele pode ter trocado de nome (Perfil,
@@ -225,6 +229,35 @@ function ligarMesa(servidorHttp, armazem, log) {
       if (pedido.nome === 'mudarNomeMestre' || pedido.nome === 'editarCampanha') {
         io.to(sala(sessao.campanhaId)).emit('presenca', presentes(sessao.campanhaId));
       }
+    });
+
+    /* ---------- o jogador troca o próprio nome (Perfil) ----------
+       Fora do acaoJogador porque mexe nos ACESSOS (armazem), e não só na
+       campanha. O jogador vem da SESSÃO desta conexão: só o próprio nome. */
+    socket.on('mudarMeuNome', function (pedido, cb) {
+      if (passou()) return responder(cb, { erro: 'Pedidos demais.' });
+      const sessao = socket.data.sessao;
+      if (!sessao || sessao.papel !== 'jogador') return responder(cb, { erro: 'Só o jogador troca o próprio nome.' });
+      /* Trocar o nome grava a campanha inteira na hora (o nome mora nos
+         acessos): uma troca a cada 10 segundos por jogador, em qualquer
+         conexão dele, para ninguém travar o servidor com um script. */
+      const chaveTroca = sessao.campanhaId + ':' + sessao.jogadorId;
+      const ultima = ultimaTrocaDeNome.get(chaveTroca) || 0;
+      if (Date.now() - ultima < ESPERA_TROCA_NOME) return responder(cb, { erro: 'Espere uns segundos para trocar de nome de novo.' });
+      const r = armazem.renomearJogador(sessao.campanhaId, sessao.jogadorId, pedido && pedido.nome);
+      if (r.erro) return responder(cb, { erro: r.erro });
+      if (r.igual) return responder(cb, { resultado: r });
+      ultimaTrocaDeNome.set(chaveTroca, Date.now());
+      /* Todas as conexões DESTE jogador (outra aba, outro computador)
+         passam a usar o nome novo — é ele que vai no chat e na presença. */
+      const naSala = io.sockets.adapter.rooms.get(sala(sessao.campanhaId)) || new Set();
+      naSala.forEach(function (sid) {
+        const s = io.sockets.sockets.get(sid);
+        if (s && s.data.sessao && s.data.sessao.jogadorId === sessao.jogadorId) s.data.sessao.nome = r.nome;
+      });
+      responder(cb, { resultado: r });
+      io.to(sala(sessao.campanhaId)).emit('presenca', presentes(sessao.campanhaId));
+      espalhar(sessao.campanhaId);
     });
 
     /* ---------- ação de jogador (e o chat do Mestre) ---------- */

@@ -140,10 +140,26 @@ const Jogador = {
     this.renderBarra();
     this.renderLateral();
 
+    /* O nome dele mudou noutro aparelho (Perfil, em outra aba ou outro
+       computador)? O herói que chega do servidor diz o nome de agora
+       (heroi.jogador): a barra, a sessão e "Suas mesas" acompanham. */
+    const nomeAgora = this.visao.meuHeroi && this.visao.meuHeroi.jogador;
+    if (nomeAgora && nomeAgora !== this.sessao.nome) {
+      this.sessao = Object.assign({}, this.sessao, { nome: nomeAgora });
+      Sessao.gravar(this.sessao);
+      Acessos.lembrar(this.sessao);
+      this.renderBarra();
+    }
+
     const area = document.getElementById('principal');
     /* Quem anda com o token pelas setas continua com o foco nele depois
        do redesenho (jogador-mesa.js, ligarAndar). */
     const focoNoToken = !!(document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('token-meu'));
+    /* Um botão ou campo com id (o "Salvar nome" do Perfil, por exemplo)
+       que estava com o foco volta a tê-lo depois do redesenho: uma visão
+       nova chegando do servidor não pode jogar quem usa teclado de volta
+       ao topo da página. */
+    const focoComId = document.activeElement && document.activeElement.id && area.contains(document.activeElement) ? document.activeElement.id : null;
     area.textContent = '';
 
     const entrando = this.entrando;
@@ -188,12 +204,14 @@ const Jogador = {
       case 'notas':      AnotacoesJogador.montar(area, heroi); break;
       case 'regras':     RegrasJogador.montar(area); break;
       case 'configuracoes': this.montarConfiguracoes(area); break;
+      case 'perfil':     this.montarPerfil(area); break;
       case 'ajuda':      this.montarAjuda(area, abas); break;
       default:           this.montarFicha(area, heroi);
     }
 
     if (this.aba === 'ficha') this.agendarTour();
     if (focoNoToken && area.querySelector('.token-meu')) area.querySelector('.token-meu').focus();
+    if (focoComId && document.getElementById(focoComId)) document.getElementById(focoComId).focus();
 
     if (entrando) this.animarEntrada();
   },
@@ -298,7 +316,7 @@ const Jogador = {
      (layout.js, SITE): o que é do site, e não do jogo. Só Configurações
      já existe; as outras avisam. Não entram na fileira de abas do topo. */
   ABAS_SITE: [
-    ['perfil', 'pessoa', 'Perfil', '', false],
+    ['perfil', 'pessoa', 'Perfil', 'Como a mesa te vê: o seu nome e o seu personagem.', true],
     ['configuracoes', 'engrenagem', 'Configurações', 'As preferências deste navegador.', true],
     ['ajuda', 'ajuda', 'Ajuda', 'Como usar o painel: abas, dados, atalhos e o tour.', true]
   ],
@@ -458,6 +476,88 @@ const Jogador = {
     sair.appendChild(criar('span', 'Sair'));
     site.appendChild(sair);
     nav.appendChild(site);
+  },
+
+
+  /* A aba Perfil: o nome dele na mesa e o personagem. O nome não é só
+     um rótulo: é com ele que se volta à mesa de outro computador (o
+     servidor procura o personagem por ele). Por isso a troca passa pelo
+     servidor, que confere se nenhuma outra pessoa da mesa usa o mesmo
+     (armazem.renomearJogador). */
+  montarPerfil: function (area) {
+    const nome = this.sessao.nome || '';
+    const meu = this.visao.meuHeroi;
+
+    const campo = criar('div.campo-form');
+    const rotulo = criar('label', 'Seu nome na mesa');
+    rotulo.htmlFor = 'meuNome';
+    const entrada = document.createElement('input');
+    entrada.type = 'text';
+    entrada.id = 'meuNome';
+    entrada.maxLength = 30;
+    entrada.autocomplete = 'nickname';
+    entrada.placeholder = 'Como a mesa te chama';
+    entrada.value = nome;
+    campo.appendChild(rotulo);
+    campo.appendChild(entrada);
+    const salvar = criarBotao('botao.pequeno', null, 'check', 'Salvar nome');
+    salvar.type = 'submit';
+    salvar.id = 'salvarMeuNome';
+    const form = criar('form.formulario', [campo, criar('div.linha-botoes', [salvar])]);
+    form.id = 'formMeuNome';
+
+    area.appendChild(criar('div.cartao', [
+      criarComIcone('h2', 'pessoa', 'Como a mesa te vê', 16),
+      criar('p.explica-uso', 'É o nome do chat, da lista de quem está na mesa e do "Jogador: …" que o Mestre vê ao lado da sua ficha.'),
+      criar('p.explica-uso', 'É também com ele que você volta à mesa de outro computador. Por isso ele não pode ser igual ao de outra pessoa da mesa — e, se trocar, é o nome NOVO que vale para voltar.'),
+      form
+    ]));
+
+    const editar = criarBotao('mini-botao', 'editar', 'editar', 'Editar ficha');
+    area.appendChild(criar('div.cartao', [
+      criarComIcone('h2', 'escudo', 'Seu personagem', 16),
+      criar('div.nav-personagem.selo-personagem', [
+        criarRetrato('div.retrato-heroi', meu.ficha.foto, meu.nome),
+        criar('div', [
+          criar('div.nome', meu.nome),
+          criar('div.sub', [meu.ficha.raca, meu.ficha.classe].filter(Boolean).join(' · ') + ' · nível ' + (meu.nivel || 1))
+        ])
+      ]),
+      criar('p.explica-uso', 'O nome do personagem, a foto e o resto da ficha mudam em "Editar ficha".'),
+      criar('div.linha-botoes', [editar])
+    ]));
+  },
+
+
+  /* O nome novo vai para o servidor (Conexao.mudarMeuNome). Se ele
+     recusar (nome de outra pessoa da mesa), o aviso vem da conexão e o
+     campo fica marcado. Se aceitar, o nome muda também aqui: na barra,
+     na sessão guardada e na lista "Suas mesas" deste navegador. */
+  salvarMeuNome: function () {
+    const self = this;
+    const entrada = document.getElementById('meuNome');
+    const nome = entrada.value.trim();
+    if (!nome) {
+      entrada.setAttribute('aria-invalid', 'true');
+      entrada.focus();
+      Layout.recado('Diga como a mesa te chama.', true);
+      return;
+    }
+    Conexao.mudarMeuNome(nome).then(function (r) {
+      if (r.erro) {
+        const campo = document.getElementById('meuNome');
+        if (campo) { campo.setAttribute('aria-invalid', 'true'); campo.focus(); }
+        return;
+      }
+      const novo = r.resultado.nome;
+      self.sessao = Object.assign({}, self.sessao, { nome: novo });
+      Sessao.gravar(self.sessao);
+      Acessos.lembrar(self.sessao);
+      self.render();
+      const botao = document.getElementById('salvarMeuNome');
+      if (botao) botao.focus();
+      Layout.recado('Nome salvo: agora a mesa te chama de ' + novo + '. É com ele que você volta, de outro computador.');
+    });
   },
 
 
@@ -1553,6 +1653,7 @@ const Jogador = {
     /* Enter num campo de texto não deve "enviar" a página. */
     document.getElementById('principal').addEventListener('submit', function (evento) {
       evento.preventDefault();
+      if (evento.target.id === 'formMeuNome') self.salvarMeuNome();
     });
 
     /* Chegou uma visão nova do servidor (o Mestre mexeu na mesa, alguém
