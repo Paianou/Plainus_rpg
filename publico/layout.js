@@ -144,18 +144,28 @@ const Layout = {
   SITE: [
     { id: 'perfil',        arquivo: null,                ico: 'pessoa',     texto: 'Perfil',        pronta: false },
     { id: 'configuracoes', arquivo: 'configuracoes.html', ico: 'engrenagem', texto: 'Configurações', pronta: true },
-    { id: 'ajuda',         arquivo: null,                ico: 'ajuda',      texto: 'Ajuda',         pronta: false }
+    { id: 'ajuda',         arquivo: 'ajuda.html',        ico: 'ajuda',      texto: 'Ajuda',         pronta: true }
   ],
 
+  /* descricao: a linha que a página Ajuda mostra em "O que cada tela
+     faz" — mora aqui, junto da seção, para não ficar desatualizada. */
   SECOES: [
-    { id: 'painel',    arquivo: 'mestre.html',   ico: 'painel',     texto: 'Visão Geral / Painel', pronta: true },
-    { id: 'combate',   arquivo: 'combate.html',  ico: 'combate',    texto: 'Combate & Iniciativa', pronta: true },
-    { id: 'compendio', arquivo: 'compendio.html', ico: 'compendio', texto: 'Compêndio & Magias',   pronta: true },
-    { id: 'bestiario', arquivo: 'bestiario.html', ico: 'bestiario', texto: 'Bestiário & Ameaças',  pronta: true },
-    { id: 'npcs',      arquivo: 'npcs.html',     ico: 'npcs',       texto: 'NPCs & Facções',       pronta: true },
-    { id: 'mapas',     arquivo: 'mapas.html',    ico: 'mapa',       texto: 'Mapas & Cenas',        pronta: true },
-    { id: 'tabelas',   arquivo: 'tabelas.html',  ico: 'tabelas',    texto: 'Tabelas & Geradores',  pronta: true },
-    { id: 'diario',    arquivo: 'diario.html',   ico: 'diario',     texto: 'Diário & Segredos',    pronta: true }
+    { id: 'painel',    arquivo: 'mestre.html',   ico: 'painel',     texto: 'Visão Geral / Painel', pronta: true,
+      descricao: 'O resumo da mesa: o grupo, a cena em jogo, a ordem de iniciativa e as ferramentas.' },
+    { id: 'combate',   arquivo: 'combate.html',  ico: 'combate',    texto: 'Combate & Iniciativa', pronta: true,
+      descricao: 'Onde a luta acontece: dano, cura, condições, turnos e rodadas.' },
+    { id: 'compendio', arquivo: 'compendio.html', ico: 'compendio', texto: 'Compêndio & Magias',   pronta: true,
+      descricao: 'Magias, equipamento e condições do livro, para consultar e fixar.' },
+    { id: 'bestiario', arquivo: 'bestiario.html', ico: 'bestiario', texto: 'Bestiário & Ameaças',  pronta: true,
+      descricao: 'As fichas dos monstros (as do livro e as suas), para somar ao combate.' },
+    { id: 'npcs',      arquivo: 'npcs.html',     ico: 'npcs',       texto: 'NPCs & Facções',       pronta: true,
+      descricao: 'Quem é quem, o que cada um quer, as facções e o que só você sabe.' },
+    { id: 'mapas',     arquivo: 'mapas.html',    ico: 'mapa',       texto: 'Mapas & Cenas',        pronta: true,
+      descricao: 'As plantas: paredes, tokens, marcadores, a régua e as áreas.' },
+    { id: 'tabelas',   arquivo: 'tabelas.html',  ico: 'tabelas',    texto: 'Tabelas & Geradores',  pronta: true,
+      descricao: 'Tabelas para rolar (encontros, nomes, tesouro) e as que você cria.' },
+    { id: 'diario',    arquivo: 'diario.html',   ico: 'diario',     texto: 'Diário & Segredos',    pronta: true,
+      descricao: 'O que aconteceu em cada sessão, os segredos e as pendências.' }
   ],
 
   /* ---------- Partida ---------- */

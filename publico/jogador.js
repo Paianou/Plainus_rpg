@@ -172,7 +172,8 @@ const Jogador = {
     /* A aba de Magias some se o personagem não conjura; se ela estava
        aberta, volta para a Ficha. */
     const abas = this.abasVisiveis();
-    if (!abas.some(function (a) { return a[0] === this.aba; }, this) && this.aba !== 'configuracoes') this.aba = 'ficha';
+    const doSite = this.ABAS_SITE.some(function (a) { return a[4] && a[0] === this.aba; }, this);
+    if (!abas.some(function (a) { return a[0] === this.aba; }, this) && !doSite) this.aba = 'ficha';
 
     this.montarNav(abas);
     this.montarAbas(abas);
@@ -187,6 +188,7 @@ const Jogador = {
       case 'notas':      AnotacoesJogador.montar(area, heroi); break;
       case 'regras':     RegrasJogador.montar(area); break;
       case 'configuracoes': this.montarConfiguracoes(area); break;
+      case 'ajuda':      this.montarAjuda(area, abas); break;
       default:           this.montarFicha(area, heroi);
     }
 
@@ -298,7 +300,7 @@ const Jogador = {
   ABAS_SITE: [
     ['perfil', 'pessoa', 'Perfil', '', false],
     ['configuracoes', 'engrenagem', 'Configurações', 'As preferências deste navegador.', true],
-    ['ajuda', 'ajuda', 'Ajuda', '', false]
+    ['ajuda', 'ajuda', 'Ajuda', 'Como usar o painel: abas, dados, atalhos e o tour.', true]
   ],
 
   /* "#aba=inventario" → 'inventario'. Só vale um id que existe em ABAS:
@@ -456,6 +458,49 @@ const Jogador = {
     sair.appendChild(criar('span', 'Sair'));
     site.appendChild(sair);
     nav.appendChild(site);
+  },
+
+
+  /* A aba Ajuda: o que cada aba faz (a quarta coluna de ABAS, a mesma
+     linha do cabeçalho), como se rola, os atalhos (a lista da janela
+     "?", Atalhos.montarLista) e o "Rever o tour". */
+  montarAjuda: function (area, abas) {
+    const tour = criarBotao('mini-botao', 'rever-tour', 'passo', 'Rever o tour');
+    area.appendChild(criar('div.cartao.cartao-ajuda', [
+      criarComIcone('h2', 'seta', 'O que cada aba faz', 16)
+    ].concat(abas.map(function (trio) {
+      const ir = criarComIcone('button.nome-uso.link-aba', trio[1], trio[2], 15);
+      ir.type = 'button';
+      ir.dataset.acao = 'aba';
+      ir.dataset.aba = trio[0];
+      return criar('div.linha-uso', [criar('div', [ir, criar('div.explica-uso', trio[3])])]);
+    })).concat([criar('div.linha-botoes', [tour])])));
+
+    area.appendChild(criar('div.cartao', [
+      criarComIcone('h2', 'dados', 'Como rolar', 16),
+      criar('ul.passos-ajuda', [
+        criar('li', 'Na Ficha, clique numa perícia, num atributo ou numa salvaguarda: o teste rola com o seu bônus.'),
+        criar('li', 'Nos Ataques, "Atacar" rola o acerto; "Dano" rola o dano da arma. Depois de um acerto crítico, o próximo "Dano" daquele ataque dobra os dados.'),
+        criar('li', 'No rolador da lateral: +V é vantagem, −D é desvantagem, N é normal. Com a CD ou a CA no campo e a animação dos dados ligada, a rolagem já diz se passou.'),
+        criar('li', 'Toda rolagem vai para "Rolagens da mesa": o Mestre e o grupo veem.')
+      ])
+    ]));
+
+    area.appendChild(criar('div.cartao.cartao-ajuda', [
+      criarComIcone('h2', 'ajuda', 'Atalhos do teclado', 16),
+      criar('p.explica-uso', 'Funcionam quando você não está digitando num campo. A tecla ? abre esta lista em qualquer aba do painel.'),
+      Atalhos.montarLista()
+    ]));
+
+    const configuracoes = criarComIcone('button.mini-botao', 'engrenagem', 'Abrir Configurações', 13);
+    configuracoes.type = 'button';
+    configuracoes.dataset.acao = 'aba';
+    configuracoes.dataset.aba = 'configuracoes';
+    area.appendChild(criar('div.cartao.cartao-ajuda', [
+      criarComIcone('h2', 'convite', 'Trocou de computador?', 16),
+      criar('p.explica-uso', 'Entre pela página inicial com o código de convite do Mestre e o MESMO nome que você usou. Os detalhes (o seu nome na mesa) estão em Configurações.'),
+      criar('div.linha-botoes', [configuracoes])
+    ]));
   },
 
 
@@ -1334,6 +1379,10 @@ const Jogador = {
             : 'Aviso da vez desligado.');
           self.render();
           self.focarDeNovo(alvo);
+          break;
+
+        case 'rever-tour':
+          if (typeof Atalhos.aoReverTour === 'function') Atalhos.aoReverTour();
           break;
 
         case 'secao-futura':

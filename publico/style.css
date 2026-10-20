@@ -5585,6 +5585,32 @@ p.explica-uso { margin: 12px 0 0; }
 .grade-configuracoes .lista-sobre + .lista-sobre { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
 /* O código, como na entrada: letras espaçadas, fácil de ditar. */
 .codigo-convite { font-family: 'Marcellus', Georgia, serif; font-size: 16px; letter-spacing: .12em; color: var(--texto); }
+/* Ajuda (ajuda.js e a aba Ajuda do jogador): o nome de uma tela é um
+   link que parece título de linha; os passos numerados, com o comando
+   num <code> que dá para copiar. */
+a.nome-uso, button.link-aba {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 0; font: inherit; font-size: 14px;
+  color: var(--texto); text-decoration: none;
+  background: none; border: 0; cursor: pointer;
+}
+a.nome-uso .ico, button.link-aba .ico { color: var(--texto-3); }
+a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
+.passos-ajuda { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; font-size: 13px; line-height: 1.55; color: var(--texto-2); }
+.passos-ajuda code {
+  padding: 1px 6px;
+  font-size: 12px;
+  color: var(--texto);
+  background: rgba(0, 0, 0, .32);
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+}
+.grade-configuracoes .lista-atalhos,
+.cartao-ajuda .lista-atalhos { margin: 12px 0 0; }
+.cartao-ajuda .linha-botoes,
+.linha-uso .linha-botoes { margin-top: 12px; }
+
 /* A zona de perigo: a borda no vermelho dos marcadores de perigo. */
 .cartao-perigo { border-color: rgba(194, 65, 63, .3); }
 .cartao-perigo > h2 .ico { color: #e0827d; }

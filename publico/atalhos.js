@@ -34,10 +34,13 @@ const Atalhos = {
     return !!document.querySelector('.palco-dados, dialog[open], .tour-fundo, .atalhos-fundo');
   },
 
-  /* As seções do códice, só as visíveis, na ordem da tela. */
+  /* As seções do códice, só as visíveis, na ordem da tela. O grupo do
+     site (Perfil, Configurações, Ajuda, Sair) fica de fora: o 1–8 é das
+     telas do jogo, e um jogador com sete abas não pode cair no Perfil
+     ao apertar o 8. */
   secoes: function () {
     return Array.prototype.filter.call(document.querySelectorAll('.codice .codice-link'), function (link) {
-      return link.offsetParent !== null;
+      return link.offsetParent !== null && !link.closest('.codice-site');
     });
   },
 
@@ -93,11 +96,9 @@ const Atalhos = {
     return lista;
   },
 
-  abrir: function () {
-    if (document.querySelector('.atalhos-fundo')) return;
-    const self = this;
-    const antes = document.activeElement;
-
+  /* A lista em si: as teclas e o que fazem. A janela "?" (abrir) e a
+     página Ajuda usam esta mesma — uma lista, um lugar. */
+  montarLista: function () {
     const lista = criar('dl.lista-atalhos');
     this.linhas().forEach(function (linha) {
       const teclas = criar('dt');
@@ -107,6 +108,15 @@ const Atalhos = {
       lista.appendChild(teclas);
       lista.appendChild(criar('dd', linha[1]));
     });
+    return lista;
+  },
+
+  abrir: function () {
+    if (document.querySelector('.atalhos-fundo')) return;
+    const self = this;
+    const antes = document.activeElement;
+
+    const lista = this.montarLista();
 
     const fechar = criarBotao('botao.pequeno', null, null, 'Fechar');
     const botoes = [fechar];
