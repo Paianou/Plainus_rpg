@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+  PERFIL — quem é o Mestre para a mesa: o nome que aparece no chat, no
+  topo do painel e para os jogadores, e como este acesso funciona.
+
+  Fica no grupo do pé do códice (Perfil, Configurações, Ajuda, Sair).
+  O nome também muda em "Editar campanha"; aqui é o atalho, sem as seis
+  etapas. A ação é a mudarNomeMestre (acoes.js).
+
+  Os arquivos desta tela:
+    perfil.html  o esqueleto (o que você está lendo)
+    perfil.js    o comportamento
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+
+  <title>Perfil — Plainus RPG</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-secao="perfil">
+
+  <div class="app-mesa" id="app" hidden>
+
+    <header id="barraTopo"></header>
+
+    <div class="corpo-mesa">
+      <nav id="codice"></nav>
+
+      <main class="area-trabalho">
+
+        <div class="cabecalho-combate">
+          <div>
+            <h1>
+              <span data-ico="pessoa" data-tamanho="22"></span>
+              Perfil
+            </h1>
+            <div class="sub">Como a mesa te vê, e como o seu acesso de Mestre funciona.</div>
+          </div>
+        </div>
+
+        <!-- O perfil.js preenche. -->
+        <div class="grade-configuracoes" id="perfil"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <div class="recados" id="recados" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página monta o perfil a partir dos dados da mesa, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="icones.js"></script>
+  <script src="aviso-saida.js"></script>
+  <script src="campanhas.js"></script>
+  <script src="modelo.js"></script>
+  <script src="dados.js"></script>
+  <script src="acoes.js"></script>
+  <script src="audio.js"></script>
+  <script src="busca.js"></script>
+  <script src="avisos.js"></script>
+  <script src="regras.js"></script>
+  <script src="visao.js"></script>
+  <script src="chat.js"></script>
+  <script src="layout.js"></script>
+  <script src="atalhos.js"></script>
+  <script src="conexao.js"></script>
+  <script src="perfil.js"></script>
+</body>
+
+</html>

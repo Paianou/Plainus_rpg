@@ -77,13 +77,20 @@ function ligarMesa(servidorHttp, armazem, log) {
 
   const sala = function (campanhaId) { return 'campanha:' + campanhaId; };
 
-  /* Quem está na sala, com os nomes que o SERVIDOR conhece. */
+  /* Quem está na sala, com os nomes que o SERVIDOR conhece. O do
+     Mestre vem da campanha de agora, e não do que ficou guardado na
+     conexão quando ele entrou: ele pode ter trocado de nome (Perfil,
+     Editar campanha) sem reconectar. */
   function presentes(campanhaId) {
     const lista = [];
+    const estado = armazem.ler(campanhaId);
+    const doMestre = (estado && estado.mestre && estado.mestre.nome) || 'Mestre';
     const conexoes = io.sockets.adapter.rooms.get(sala(campanhaId)) || new Set();
     conexoes.forEach(function (sid) {
       const s = io.sockets.sockets.get(sid);
-      if (s && s.data.sessao) lista.push({ nome: s.data.sessao.nome, papel: s.data.sessao.papel });
+      if (!s || !s.data.sessao) return;
+      const mestre = s.data.sessao.papel === 'mestre';
+      lista.push({ nome: mestre ? doMestre : s.data.sessao.nome, papel: s.data.sessao.papel });
     });
     return lista.sort(function (a, b) {
       if (a.papel !== b.papel) return a.papel === 'mestre' ? -1 : 1;
@@ -214,6 +221,10 @@ function ligarMesa(servidorHttp, armazem, log) {
       }
       responder(cb, { resultado: resultado });
       espalhar(sessao.campanhaId);
+      /* O Mestre trocou de nome: a lista de quem está na mesa muda junto. */
+      if (pedido.nome === 'mudarNomeMestre' || pedido.nome === 'editarCampanha') {
+        io.to(sala(sessao.campanhaId)).emit('presenca', presentes(sessao.campanhaId));
+      }
     });
 
     /* ---------- ação de jogador (e o chat do Mestre) ---------- */

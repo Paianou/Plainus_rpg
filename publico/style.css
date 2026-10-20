@@ -5611,6 +5611,13 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
 .cartao-ajuda .linha-botoes,
 .linha-uso .linha-botoes { margin-top: 12px; }
 
+/* Perfil (perfil.js): o selo do topo (Layout.cartaoMestre) dentro do
+   cartão, com o círculo à esquerda e o texto alinhado com o resto. */
+.selo-perfil { padding: 4px 0 2px; }
+.selo-perfil .perfil { flex-direction: row-reverse; justify-content: flex-end; padding-left: 0; border-left: 0; }
+.selo-perfil .perfil .quem { text-align: left; }
+.grade-configuracoes .formulario { margin-top: 14px; }
+
 /* A zona de perigo: a borda no vermelho dos marcadores de perigo. */
 .cartao-perigo { border-color: rgba(194, 65, 63, .3); }
 .cartao-perigo > h2 .ico { color: #e0827d; }

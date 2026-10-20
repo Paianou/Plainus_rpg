@@ -821,6 +821,17 @@ const ACOES = {
   },
 
 
+  /* Só o nome do Mestre (a página Perfil): o atalho para não passar
+     pelas seis etapas do "Editar campanha" para trocar uma palavra. O
+     limite e a frase são os da criação da campanha (criar-campanha.js). */
+  mudarNomeMestre: function (estado, dados) {
+    const nome = texto(dados.nome, 30);
+    if (!nome) return { erro: 'Diga como a mesa te chama.' };
+    estado.mestre = Object.assign({}, estado.mestre, { nome: nome });
+    return { nome: nome };
+  },
+
+
   /* ----- Avisos e compêndio ----- */
 
   /* Os avisos do sino que o Mestre já viu (as chaves, calculadas pelo

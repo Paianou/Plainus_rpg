@@ -18,8 +18,10 @@ await js(`scrollTo(0, 1200)`); await espera(200);
 ok(await js(`(()=>{const r=document.querySelector('#codice .codice-site').getBoundingClientRect(); return r.top > 0 && r.bottom <= innerHeight;})()`), 'rolando o Panorama, o códice fica preso e o grupo do site continua à vista');
 const preso = JSON.parse(await js(`JSON.stringify({codice: document.getElementById('codice').getBoundingClientRect().top, barra: document.getElementById('barraTopo').getBoundingClientRect().bottom})`));
 ok(Math.abs(preso.codice - preso.barra) < 1, '…preso logo abaixo da barra, sem entrar por baixo dela (códice em ' + Math.round(preso.codice) + ', barra até ' + Math.round(preso.barra) + ')');
-await js(`scrollTo(0, 0); document.querySelector('#codice [data-acao="secao-futura"][data-nome="Perfil"]').click()`); await espera(200);
-ok(await js(`/"Perfil" ainda não foi construída/.test(document.getElementById('recados').textContent)`), 'Perfil (ainda não feito) avisa, em vez de levar a uma página vazia');
+await js(`scrollTo(0, 0)`);
+/* Os três do site já existem no Mestre: são links de verdade (nenhum
+   "ainda não foi construída"). */
+ok(await js(`[...document.querySelectorAll('#codice .codice-site a.codice-link')].map(a=>a.getAttribute('href')).join(',')`) === 'perfil.html,configuracoes.html,ajuda.html', 'Perfil, Configurações e Ajuda levam às suas páginas');
 
 /* ---- a página Configurações ---- */
 await clicarENavegar(`document.querySelector('#codice a[href="configuracoes.html"]').click()`);

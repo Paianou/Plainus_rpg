@@ -142,7 +142,7 @@ const Layout = {
      à parte, logo acima da Regra ativa (montarCodice). As que ainda não
      existem viram botão que avisa, como nas seções. */
   SITE: [
-    { id: 'perfil',        arquivo: null,                ico: 'pessoa',     texto: 'Perfil',        pronta: false },
+    { id: 'perfil',        arquivo: 'perfil.html',       ico: 'pessoa',     texto: 'Perfil',        pronta: true },
     { id: 'configuracoes', arquivo: 'configuracoes.html', ico: 'engrenagem', texto: 'Configurações', pronta: true },
     { id: 'ajuda',         arquivo: 'ajuda.html',        ico: 'ajuda',      texto: 'Ajuda',         pronta: true }
   ],
@@ -391,6 +391,19 @@ const Layout = {
 
   /* ---------- A moldura ---------- */
 
+  /* Quem é o Mestre: o nome, "Mestre da mesa" e a inicial no círculo.
+     O topo de cada tela e a página Perfil (perfil.js) mostram o mesmo. */
+  cartaoMestre: function () {
+    const inicial = Estado.mestre.nome.replace(/^Mestre\s+/i, '').charAt(0).toUpperCase();
+    return criar('div.perfil', [
+      criar('div.quem', [
+        criar('div.nome', Estado.mestre.nome),
+        criar('div.cargo', 'Mestre da mesa')
+      ]),
+      criar('div.retrato', inicial)
+    ]);
+  },
+
   montarTopo: function () {
     const barra = document.getElementById('barraTopo');
     if (!barra) return;
@@ -497,14 +510,7 @@ const Layout = {
     barra.appendChild(sair);
 
     /* perfil */
-    const inicial = Estado.mestre.nome.replace(/^Mestre\s+/i, '').charAt(0).toUpperCase();
-    barra.appendChild(criar('div.perfil', [
-      criar('div.quem', [
-        criar('div.nome', Estado.mestre.nome),
-        criar('div.cargo', 'Mestre da mesa')
-      ]),
-      criar('div.retrato', inicial)
-    ]));
+    barra.appendChild(this.cartaoMestre());
 
     Avisos.atualizarPonto();      /* o sino acabou de nascer: acende o ponto se for o caso */
     this.ligarTopo(barra);
