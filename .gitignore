@@ -9,3 +9,6 @@ testes/saida/
 # computador, não do site.
 .claude/
 skills-lock.json
+
+# Configuração do meu editor (VS Code): é do meu computador, não do site.
+.vscode/
