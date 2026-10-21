@@ -702,4 +702,7 @@ function criarArmazem(pastaDados, avisar) {
     verificarSenha, listarAcessos, liberarJogador, renomearJogador, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
 }
 
-module.exports = { criarArmazem, ID_CAMPANHA, senhaValida };
+/* As peças de chave e de senha também servem às contas (contas.js):
+   uma regra, um lugar. */
+module.exports = { criarArmazem, ID_CAMPANHA, senhaValida,
+  novaChave, resumoDaChave, chaveConfere, resumoDaSenha, limparNome, mesmoNome, SENHA_MAX };
