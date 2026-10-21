@@ -600,20 +600,38 @@ const Entrada = {
        guardada nesta aba e vai junto quando a campanha for criada. */
     const self = this;
     const campoSenha = document.getElementById('senhaServidor');
-    const tentativa = campoSenha.value;
+    /* Os espaços nas pontas não contam: um copiar-e-colar do .env traz
+       um espaço a mais, e o servidor também os tira do .env (server.js). */
+    const tentativa = campoSenha.value.trim();
     if (!tentativa) { this.mostrarErro('Digite a senha do servidor.', campoSenha); return; }
     const botao = document.getElementById('btnCriar');
     botao.disabled = true;
     Servidor.podeCriar(tentativa).then(function (r) {
       botao.disabled = false;
       if (!r.podeCriar) {
-        campoSenha.value = '';
+        /* A senha errada FICA no campo, selecionada: com "Mostrar a
+           senha" dá para ver o que foi digitado, e digitar por cima
+           apaga tudo de uma vez. (Apagar fazia o próximo clique trocar
+           "não confere" por "Digite a senha" — e parecia que o site nem
+           tinha recebido nada.) */
         self.mostrarErro(r.erro || 'A senha do servidor não confere.', campoSenha);
+        campoSenha.select();
         return;
       }
       SenhaServidor.guardar(tentativa);
       self.podeCriar = true;
       self.irParaCriacao(nome, campanha);
+    });
+  },
+
+  /* "Mostrar a senha": a caixinha troca o campo entre password e text.
+     Liga uma vez, para as duas caixinhas da entrada. */
+  ligarMostrarSenha: function () {
+    document.addEventListener('change', function (evento) {
+      const caixa = evento.target.closest && evento.target.closest('[data-mostra]');
+      if (!caixa) return;
+      const campo = document.getElementById(caixa.dataset.mostra);
+      if (campo) campo.type = caixa.checked ? 'text' : 'password';
     });
   },
 
@@ -681,7 +699,7 @@ const Entrada = {
     botao.disabled = true;
     Servidor.entrarComoMestre(codigo, campoSenha.value).then(function (r) {
       botao.disabled = false;
-      if (r.erro) { campoSenha.value = ''; self.mostrarErro(r.erro, campoSenha); return; }
+      if (r.erro) { self.mostrarErro(r.erro, campoSenha); campoSenha.select(); return; }
       const acesso = { campanhaId: r.campanhaId, papel: 'mestre', chave: r.chave, nome: r.nome };
       Acessos.lembrar(acesso);
       if (!Sessao.gravar(acesso)) { self.mostrarErroArmazenamento(); return; }
@@ -694,6 +712,7 @@ const Entrada = {
 
   ligar: function () {
     const self = this;
+    this.ligarMostrarSenha();
 
     /* Os ícones das portas e do Voltar vêm do icones.js — o mesmo
        traço do resto do site, em vez de SVG copiado no HTML. */

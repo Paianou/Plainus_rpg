@@ -43,7 +43,11 @@ ok(s.campo && s.criar && !s.aviso && s.foco === 'senhaServidor', 'senha ligada: 
 await foto('tunel-senha');
 await js(`document.getElementById('nome').value='Thiago'; document.getElementById('campanha').value='Pelo link'; document.getElementById('senhaServidor').value='errada-errada-errada'; document.getElementById('btnCriar').click()`);
 ok(await aguardar(`/não confere/.test(document.getElementById('erro').textContent) && !location.pathname.endsWith('criar-campanha.html')`), 'senha do servidor errada: recusada ali mesmo, antes das etapas');
-await js(`document.getElementById('senhaServidor').value='senha-do-servidor-de-teste'`);
+ok(await js(`document.getElementById('senhaServidor').value==='errada-errada-errada' && document.activeElement===document.getElementById('senhaServidor')`), '…e a senha errada FICA no campo (selecionada), em vez de sumir — o próximo clique não troca o aviso por "Digite a senha"');
+await js(`document.querySelector('[data-mostra="senhaServidor"]').click()`);
+ok(await js(`document.getElementById('senhaServidor').type==='text'`), '"Mostrar a senha": dá para ver o que foi digitado');
+/* Copiar-e-colar do .env costuma trazer um espaço: não conta. */
+await js(`document.getElementById('senhaServidor').value='  senha-do-servidor-de-teste '`);
 await clicarENavegar(`document.getElementById('btnCriar').click()`);
 ok(await js(`location.pathname.endsWith('criar-campanha.html') && !document.getElementById('passos').hidden && /obrigatória/.test(document.getElementById('tituloSenha').textContent)`), 'senha certa: a criação abre, e a senha do Mestre vira obrigatória');
 await js(`document.getElementById('btnAvancar').click()`);

@@ -185,6 +185,7 @@
             <div class="campo" id="campoSenhaServidor" hidden>
               <label for="senhaServidor">Senha do servidor</label>
               <input type="password" id="senhaServidor" maxlength="200" autocomplete="off">
+              <label class="mostrar-senha"><input type="checkbox" data-mostra="senhaServidor"> Mostrar a senha</label>
               <p class="ajuda-campo">Pelo link, criar campanha (ou restaurar backup) pede a senha que está no arquivo <strong>.env</strong> do servidor. Os jogadores não precisam dela.</p>
             </div>
             <div class="campo">
@@ -210,6 +211,7 @@
           <div class="campo">
             <label for="senhaMestre">Senha do Mestre</label>
             <input type="password" id="senhaMestre" maxlength="100" autocomplete="current-password">
+            <label class="mostrar-senha"><input type="checkbox" data-mostra="senhaMestre"> Mostrar a senha</label>
           </div>
           <div class="campo">
             <button class="botao" type="button" id="btnEntrarMestre">Entrar como Mestre</button>

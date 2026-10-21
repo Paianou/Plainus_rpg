@@ -133,9 +133,13 @@ function criarApi(armazem, opcoes) {
      resposta não conta a quem tenta quantas letras acertou. */
   const senhaServidor = opcoes && opcoes.senhaServidor ? String(opcoes.senhaServidor) : null;
   const resumir = function (texto) { return crypto.createHash('sha256').update(String(texto)).digest(); };
+  /* Os espaços nas pontas não contam — o .env também os tira
+     (server.js, lerEnv), e um copiar-e-colar costuma trazer um. */
   const senhaDoServidorConfere = function (tentativa) {
-    if (!senhaServidor || typeof tentativa !== 'string' || !tentativa || tentativa.length > 200) return false;
-    return crypto.timingSafeEqual(resumir(tentativa), resumir(senhaServidor));
+    if (!senhaServidor || typeof tentativa !== 'string' || tentativa.length > 200) return false;
+    const limpa = tentativa.trim();
+    if (!limpa) return false;
+    return crypto.timingSafeEqual(resumir(limpa), resumir(senhaServidor.trim()));
   };
   /* Daqui pode criar? No computador do servidor, sempre; de fora, só
      com a senha do servidor certa no corpo do pedido. */

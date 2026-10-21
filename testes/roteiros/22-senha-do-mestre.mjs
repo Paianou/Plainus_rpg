@@ -37,7 +37,10 @@ await js(`document.querySelector('[data-porta="mestrar"]').click(); document.get
 ok(await js(`!document.getElementById('blocoVoltaMestre').hidden && document.getElementById('campoNome').hidden && document.getElementById('tituloPorta').textContent==='Entrar como Mestre' && document.activeElement.id==='codigoMestre'`), '"Já tenho uma mesa" abre código + senha (sem o nome), com o foco no código');
 await foto('s1-entrar-como-mestre');
 await js(`document.getElementById('codigoMestre').value=${JSON.stringify(codigo)}; document.getElementById('senhaMestre').value='senha errada'; document.getElementById('btnEntrarMestre').click()`);
-ok(await aguardar(`document.getElementById('erro').textContent==='Código ou senha não conferem.' && document.getElementById('senhaMestre').value===''`), 'senha errada: recusada, e o campo da senha é limpo');
+/* A tentativa errada fica no campo (escondida, e selecionada para
+   digitar por cima): apagar fazia o próximo clique trocar o aviso por
+   "Digite a senha do Mestre", e parecia que o site nem tinha recebido. */
+ok(await aguardar(`document.getElementById('erro').textContent==='Código ou senha não conferem.' && document.getElementById('senhaMestre').value!=='' && document.activeElement===document.getElementById('senhaMestre') && document.getElementById('senhaMestre').type==='password'`), 'senha errada: recusada; a tentativa fica no campo, escondida e selecionada');
 await js(`document.getElementById('codigoMestre').value='ZZZZ-ZZZZ-ZZZZ'; document.getElementById('senhaMestre').value=${JSON.stringify(SENHA)}; document.getElementById('btnEntrarMestre').click()`);
 ok(await aguardar(`document.getElementById('erro').textContent==='Código ou senha não conferem.'`), 'código errado: a MESMA mensagem (não conta qual dos dois errou)');
 await js(`document.getElementById('codigoMestre').value=${JSON.stringify(codigo.toLowerCase())}; document.getElementById('senhaMestre').value=${JSON.stringify(SENHA)};`);

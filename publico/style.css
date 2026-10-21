@@ -5627,3 +5627,8 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
 /* A zona de perigo: a borda no vermelho dos marcadores de perigo. */
 .cartao-perigo { border-color: rgba(194, 65, 63, .3); }
 .cartao-perigo > h2 .ico { color: #e0827d; }
+
+/* "Mostrar a senha", embaixo dos campos de senha da entrada (app.js,
+   ligarMostrarSenha): pequena, no tom das ajudas de campo. */
+.mostrar-senha { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 12px; color: var(--texto-3); cursor: pointer; }
+.mostrar-senha input { width: auto; margin: 0; accent-color: var(--azul); }
