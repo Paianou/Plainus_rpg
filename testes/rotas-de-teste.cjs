@@ -9,6 +9,11 @@
      POST /teste/ler        { campanhaId }           → a campanha oficial
      POST /teste/trocar     { campanhaId, estado }   → troca a campanha
                                                        inteira e espalha
+     POST /teste/dados      { modo }                 → 'maximo': todo dado
+                                                       do servidor cai na
+                                                       face mais alta (para
+                                                       testar o crítico);
+                                                       null: volta ao normal
 
    O server.js só carrega este arquivo com PLAINUS_ROTAS_DE_TESTE=1 —
    que só o testes/rodar.mjs define — e só escutando em 127.0.0.1. No
@@ -18,6 +23,7 @@
 
 const express = require('express');
 const { conferirCampanha } = require('../publico/modelo.js');
+const { Sorte } = require('../publico/visao.js');
 const { doProprioComputador } = require('../servidor/api.js');
 
 function ligar(app, armazem, mesa) {
@@ -28,6 +34,11 @@ function ligar(app, armazem, mesa) {
   app.use('/teste', function (pedido, resposta, seguir) {
     if (doProprioComputador(pedido)) return seguir();
     resposta.status(404).type('text').send('Não encontrado.');
+  });
+
+  app.post('/teste/dados', express.json(), function (pedido, resposta) {
+    Sorte.viciado = pedido.body && pedido.body.modo === 'maximo' ? 'maximo' : null;
+    resposta.json({ ok: true });
   });
 
   app.post('/teste/ler', express.json(), function (pedido, resposta) {

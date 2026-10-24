@@ -70,7 +70,8 @@ ok(await ana.js(`!!document.querySelector('.palco-dados.pousou')`), 'clicar no m
 await ana.js(`document.querySelector('.palco-dados').click()`); await espera(350);
 
 /* ---- 20 natural: o crítico ---- */
-await ana.js(`window._d=Layout.dado; Layout.dado=f=>f; document.querySelector('[data-acao="atacar"]').click(); Layout.dado=window._d;`);
+/* Quem rola é o servidor: o dado viciado (só nos testes) fica lá. */
+await ana.js(`(async()=>{ await T.dados('maximo'); document.querySelector('[data-acao="atacar"]').click(); await T.calma(); await T.dados(); return true; })()`);
 await espera(1900);
 ok(await ana.js(`document.querySelector('.palco-dados').classList.contains('critico')`) && (await ana.js(faceDeFrente(0))).valor === 20, '20 natural: o dado mostra o 20 e o palco acende o crítico');
 ok(await ana.js(`document.querySelector('.palco-dados .veredito').textContent`) === 'Crítico · acerta', 'ataque com 20 natural: "Crítico · acerta", mesmo com CA preenchida');

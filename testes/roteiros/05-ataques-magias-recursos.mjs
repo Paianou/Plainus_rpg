@@ -49,12 +49,21 @@ await espera(500);
 /* ---- atacar, e o crítico ---- */
 await ana.js(`document.querySelector('[data-acao="atacar"]').click()`); await espera(200);
 ok(await ana.js(`(await T.gravado()).rolagensMesa[0].texto==='Ataque — Adaga'`), 'Atacar rola e registra "Ataque — Adaga"');
-await ana.js(`window._d=Layout.dado; Layout.dado=f=>f; document.querySelector('[data-acao="atacar"]').click();`); await espera(200);
+/* Quem rola é o servidor: o dado viciado (só nos testes) fica lá. */
+await ana.js(`(async()=>{ await T.dados('maximo'); document.querySelector('[data-acao="atacar"]').click(); await T.calma(); return true; })()`); await espera(200);
 ok(await ana.js(`document.querySelector('[data-acao="dano"]').classList.contains('critico-pendente')`), '20 natural deixa o botão de dano marcado como crítico');
-await ana.js(`document.querySelector('[data-acao="dano"]').click(); Layout.dado=window._d;`); await espera(200);
+await ana.js(`(async()=>{ document.querySelector('[data-acao="dano"]').click(); await T.calma(); await T.dados(); return true; })()`); await espera(200);
 ok(await ana.js(`(async()=>{const r=(await T.gravado()).rolagensMesa[0]; return r.formula.startsWith('2d4 (4, 4) + 1') && r.total===9 && r.marca==='critico';})()`), 'dano crítico: 2d4 (4, 4) + 1 = 9');
 await ana.js(`document.querySelector('[data-acao="dano"]').click()`); await espera(200);
 ok(await ana.js(`(await T.gravado()).rolagensMesa[0].formula.startsWith('1d4 (')`), 'o dano seguinte volta ao normal');
+
+/* ---- pelo console, um 99 forjado não passa: quem rola é o servidor ---- */
+await ana.js(`Conexao.acaoJogador('rolagem', { rolagem: { tipo: 'teste', texto: 'Trapaça', bonus: 2, total: 99, marca: 'critico', formula: 'd20 (20) + 2' } })`);
+ok(await ana.js(`(async()=>{ const r=(await T.gravado()).rolagensMesa[0]; const d=Number(/d20 \\((\\d+)\\)/.exec(r.formula)[1]); return r.texto==='Trapaça' && r.total===d+2 && (r.marca==='critico')===(d===20); })()`), 'um total de 99 mandado pelo console é ignorado: o servidor rola o d20 e soma o bônus');
+const velho = await ana.js(`Conexao.acaoJogador('rolagem', { rolagem: { texto: 'Do jeito antigo', total: 20, formula: 'd20' } })`);
+ok(velho && /desconhecida/.test(velho.erro), 'o pedido do jeito antigo (só o resultado) é recusado');
+const critFalso = await ana.js(`Conexao.acaoJogador('rolagem', { rolagem: { tipo: 'dano', faces: 4, quantos: 1, critico: true } })`);
+ok(critFalso && /crítico só vale/.test(critFalso.erro), 'dano "crítico" sem um 20 no ataque antes: recusado');
 
 /* ---- conjurar e concentração ---- */
 await ana.js(`document.querySelector('.nav-jogador [data-aba="magias"]').click()`);

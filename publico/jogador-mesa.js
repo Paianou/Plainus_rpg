@@ -430,8 +430,10 @@ const MesaJogador = {
    maior (ou o menor). O 20 e o 1 NATURAIS — o número no dado, não o
    total — ganham destaque.
 
-   Toda rolagem vai para o registro da mesa por enviarRolagem()
-   (visao.js), e todos os jogadores a veem.
+   QUEM ROLA É O SERVIDOR (visao.js, a ação 'rolagem'). Daqui vai só o
+   pedido — que dado, qual bônus — por enviarRolagem(); o que volta são
+   os dados que caíram, já gravados no registro da mesa. A animação
+   encena esse resultado: ela nunca decide nada.
    =================================================================== */
 
 const RoladorJogador = {
@@ -508,21 +510,6 @@ const RoladorJogador = {
   },
 
 
-  /* Um d20, levando em conta o modo. Devolve o dado que valeu e a
-     fórmula para mostrar: "d20 (17, 4) vantagem". */
-  /* valores e escolhido vão para a animação: com vantagem, os DOIS
-     dados aparecem, e o que não valeu se apaga. */
-  d20: function () {
-    if (this.modo === 'normal') {
-      const d = Layout.dado(20);
-      return { dado: d, valores: [d], escolhido: 0, formula: 'd20 (' + d + ')' };
-    }
-    const a = Layout.dado(20);
-    const b = Layout.dado(20);
-    const dado = this.modo === 'vantagem' ? Math.max(a, b) : Math.min(a, b);
-    return { dado: dado, valores: [a, b], escolhido: dado === a ? 0 : 1, formula: 'd20 (' + a + ', ' + b + ') ' + this.modo };
-  },
-
   /* A cena da animação de um teste de d20 (dados3d.js). */
   cenaTeste: function (texto, rolagem, bonus, formula, marca) {
     return {
@@ -534,52 +521,47 @@ const RoladorJogador = {
   },
 
 
-  rolarTeste: function (texto, bonus) {
-    const rolagem = this.d20();
-    const formula = rolagem.formula + ' ' + (bonus < 0 ? '− ' + Math.abs(bonus) : '+ ' + bonus);
-    const marca = rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null);
-    this.registrar(
-      { texto: texto, formula: formula, total: rolagem.dado + bonus, marca: marca },
-      this.cenaTeste(texto, rolagem, bonus, formula, marca)
-    );
+  /* Os três pedidos. Devolvem a Promise de pedir(). */
+  rolarTeste: function (texto, bonus, opcoes) {
+    return this.pedir({ tipo: 'teste', texto: texto, bonus: bonus, ataque: !!(opcoes && opcoes.ataque) }, opcoes);
   },
-
 
   rolarDado: function (faces) {
-    if (faces === 20) {
-      const rolagem = this.d20();
-      const marca = rolagem.dado === 20 ? 'critico' : (rolagem.dado === 1 ? 'falha' : null);
-      this.registrar(
-        { texto: 'd20', formula: rolagem.formula, total: rolagem.dado, marca: marca },
-        this.cenaTeste('d20', rolagem, 0, rolagem.formula, marca)
-      );
-      return;
-    }
-    const valor = Layout.dado(faces);
-    const rotulo = faces === 100 ? 'd%' : 'd' + faces;
-    this.registrar(
-      { texto: rotulo, formula: rotulo, total: valor, marca: null },
-      { modo: 'dano', faces: faces, valores: [valor], texto: rotulo, total: valor, formula: rotulo, marca: null }
-    );
+    return this.pedir({ tipo: 'dado', faces: faces, texto: faces === 100 ? 'd%' : 'd' + faces });
+  },
+
+  rolarDano: function (texto, expressao, critico) {
+    return this.pedir({ tipo: 'dano', texto: texto, faces: expressao.faces, quantos: expressao.quantos, bonus: expressao.extra, critico: !!critico });
   },
 
 
-  /* Manda para o registro da mesa e mostra o resultado: com a
-     animação (dados3d.js), ou com o recado, se ela estiver desligada.
-     A ordem importa: o resultado é GRAVADO antes de ser mostrado — a
-     animação só encena o que já está decidido. */
-  registrar: function (rolagem, cena) {
-    const problema = enviarRolagem(Jogador.sessao, rolagem);
-    if (problema) {
-      Layout.recado(problema, true);
-      return;
-    }
+  /* Pede ao servidor e mostra o que ele rolou. opcoes.antes(r) roda
+     antes de redesenhar (o ataque marca o crítico ali, para o botão de
+     dano já nascer marcado); opcoes.ataque vai para a animação.
+     Devolve uma Promise com a rolagem, ou null se o servidor recusou. */
+  pedir: function (pedido, opcoes) {
+    const self = this;
+    return enviarRolagem(Jogador.sessao, Object.assign({ modo: this.modo }, pedido)).then(function (r) {
+      if (!r) return null;
+      if (opcoes && opcoes.antes) opcoes.antes(r);
+      self.mostrar(r, opcoes && opcoes.ataque);
+      return r;
+    });
+  },
 
+
+  /* Mostra o resultado: com a animação (dados3d.js), ou com o recado,
+     se ela estiver desligada. O d20 cai em 3D; os outros, na bandeja. */
+  mostrar: function (r, ataque) {
     Jogador.render();
-    if (cena && Dados3D.mostrar(cena)) return;
+    const cena = r.faces === 20 && r.tipo !== 'dano'
+      ? Object.assign(this.cenaTeste(r.texto, { valores: r.valores, escolhido: r.escolhido, dado: r.natural }, r.bonus, r.formula, r.marca), ataque ? { ataque: true } : {})
+      : { modo: 'dano', faces: r.faces, valores: r.valores, texto: r.texto, total: r.total, formula: r.formula, marca: r.marca };
+    if (Dados3D.mostrar(cena)) return;
 
-    const destaque = rolagem.marca === 'critico' ? ' — 20 natural!' : (rolagem.marca === 'falha' ? ' — 1 natural.' : '');
-    Layout.recado(rolagem.texto + ': ' + rolagem.total + '  (' + rolagem.formula + ')' + destaque, rolagem.marca === 'falha');
+    const natural = r.faces === 20 && r.tipo !== 'dano';
+    const destaque = natural && r.marca === 'critico' ? ' — 20 natural!' : (natural && r.marca === 'falha' ? ' — 1 natural.' : '');
+    Layout.recado(r.texto + ': ' + r.total + '  (' + r.formula + ')' + destaque, r.marca === 'falha');
   }
 };
 

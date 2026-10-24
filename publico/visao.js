@@ -10,7 +10,8 @@
                           do Mestre no acoes.js:
                             salvarHeroi    a PRÓPRIA ficha
                             concentracao   "Concentrando" no próprio combatente
-                            rolagem        uma rolagem no registro da mesa
+                            rolagem        o SERVIDOR rola, e grava no
+                                           registro da mesa
                             mensagem       o chat (serve ao Mestre também,
                                            com as regras dele)
 
@@ -32,7 +33,7 @@
    novo nasce escondido até alguém decidir mostrá-lo.
    =================================================================== */
 
-const { visaoDoJogador, canalPrivado, mensagensDoJogador, LIMITE_TEXTO_MENSAGEM, ACOES_JOGADOR, aplicarAcaoJogador } = (function () {
+const { visaoDoJogador, canalPrivado, mensagensDoJogador, LIMITE_TEXTO_MENSAGEM, ACOES_JOGADOR, aplicarAcaoJogador, Sorte } = (function () {
 
 /* As regras que vêm do modelo.js: no navegador, ele já foi carregado
    antes deste arquivo; no Node, entra por require(). */
@@ -434,25 +435,93 @@ const ACOES_JOGADOR = {
     return {};
   },
 
-  /* Uma rolagem no registro da mesa, que todos veem. O autor sai da
-     SESSÃO, e o texto é cortado. O resultado ainda vem do navegador do
-     jogador (os dados dele); num passo seguinte, o servidor rola. */
+  /* Uma rolagem no registro da mesa, que todos veem. Quem ROLA é o
+     servidor: o navegador só pede O QUE rolar — antes ele mandava o
+     resultado pronto, e dava para "rolar" um 20 pelo console.
+
+     O pedido (dados.rolagem):
+       tipo     'teste'  d20 + bônus (perícia, atributo, ataque)
+                'dado'   um dado solto (d4 a d100; o d20 com o modo)
+                'dano'   quantos × faces + bônus (o dano de um ataque)
+       texto    o que aparece no registro ("Ataque — Adaga")
+       modo     'normal' | 'vantagem' | 'desvantagem' (só o d20)
+       bonus    o que a ficha calculou — vem do jogador, mas fica
+                ESCRITO na fórmula ("d20 (12) + 5"): a ficha é dele e o
+                Mestre a vê; forjar um bônus fica à vista de todos
+       ataque   o teste é um ataque (o crítico do dano depende dele)
+       critico  o dano é de crítico: só vale se o último ataque DESTE
+                jogador (sem dano depois) foi um 20 natural
+
+     Devolve { rolagem } com os dados que caíram: a animação do
+     navegador encena exatamente o que o servidor rolou. */
   rolagem: function (estado, sessao, dados) {
     if (sessao.papel !== 'jogador') return { erro: 'Só jogador.' };
-    const rolagem = dados.rolagem || {};
+    const pedido = ehObjeto(dados.rolagem) ? dados.rolagem : {};
+    const tipo = pedido.tipo;
+    if (tipo !== 'teste' && tipo !== 'dado' && tipo !== 'dano') return { erro: 'Rolagem desconhecida.' };
     const meu = (estado.herois || []).find(function (h) { return h.dono === sessao.jogadorId; });
+    const modo = pedido.modo === 'vantagem' || pedido.modo === 'desvantagem' ? pedido.modo : 'normal';
+    const comSinal = function (n) { return n < 0 ? ' − ' + Math.abs(n) : ' + ' + n; };
+
+    let r;
+    if (tipo === 'dano') {
+      const faces = inteiro(pedido.faces, 2, 100, 0);
+      const base = inteiro(pedido.quantos, 1, 20, 0);
+      if (!faces || !base) return { erro: 'O dano precisa de dados (ex.: 1d8).' };
+      const critico = pedido.critico === true;
+      if (critico && !criticoPendente(estado, sessao.jogadorId)) {
+        return { erro: 'O dano crítico só vale logo depois de um 20 natural no ataque.' };
+      }
+      const quantos = base * (critico ? 2 : 1);
+      const extra = inteiro(pedido.bonus, -10, 30, 0);
+      const valores = [];
+      for (let i = 0; i < quantos; i++) valores.push(Sorte.face(faces));
+      const soma = valores.reduce(function (a, b) { return a + b; }, 0);
+      r = {
+        tipo: 'dano', faces: faces, valores: valores, bonus: extra,
+        total: Math.max(0, soma + extra),
+        formula: quantos + 'd' + faces + ' (' + valores.join(', ') + ')' + (extra ? comSinal(extra) : '') + (critico ? ' — crítico' : ''),
+        marca: critico ? 'critico' : null
+      };
+    } else {
+      /* O d% e os dados soltos: um dado, sem bônus. O d20 (teste ou
+         solto) leva o modo: dois dados, fica o maior (ou o menor). */
+      const faces = tipo === 'teste' ? 20 : [4, 6, 8, 10, 12, 20, 100].indexOf(Number(pedido.faces)) !== -1 ? Number(pedido.faces) : 0;
+      if (!faces) return { erro: 'Esse dado não existe.' };
+      const rotulo = faces === 100 ? 'd%' : 'd' + faces;
+      if (faces !== 20) {
+        const valor = Sorte.face(faces);
+        r = { tipo: 'dado', faces: faces, valores: [valor], escolhido: 0, natural: valor, bonus: 0, total: valor, formula: rotulo, marca: null };
+      } else {
+        const valores = modo === 'normal' ? [Sorte.face(20)] : [Sorte.face(20), Sorte.face(20)];
+        const natural = modo === 'vantagem' ? Math.max.apply(null, valores) : Math.min.apply(null, valores);
+        const bonus = tipo === 'teste' ? inteiro(pedido.bonus, -20, 30, 0) : 0;
+        r = {
+          tipo: tipo, faces: 20, valores: valores, escolhido: valores.indexOf(natural), natural: natural, bonus: bonus,
+          total: natural + bonus,
+          formula: 'd20 (' + valores.join(', ') + ')' + (modo === 'normal' ? '' : ' ' + modo) + (tipo === 'teste' ? comSinal(bonus) : ''),
+          marca: natural === 20 ? 'critico' : (natural === 1 ? 'falha' : null)
+        };
+      }
+    }
+
     const registro = {
       id: 'r' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36),
       autor: String(sessao.nome || 'Jogador').slice(0, 30),
       personagem: meu ? meu.nome : '',
-      texto: String(rolagem.texto || '').slice(0, 60),
-      formula: String(rolagem.formula || '').slice(0, 60),
-      total: inteiro(rolagem.total, -999, 9999, 0),
-      marca: rolagem.marca === 'critico' || rolagem.marca === 'falha' ? rolagem.marca : null,
-      quando: Date.now()
+      texto: String(pedido.texto || '').slice(0, 60) || (r.faces === 100 ? 'd%' : 'd' + r.faces),
+      formula: r.formula.slice(0, 120),
+      total: r.total,
+      marca: r.marca,
+      quando: Date.now(),
+      /* Só para o servidor (a visão do jogador não copia): de quem é, e
+         se foi ataque ou dano — o crítico do dano confere por eles. */
+      dono: sessao.jogadorId,
+      tipo: r.tipo,
+      ataque: tipo === 'teste' && pedido.ataque === true
     };
     estado.rolagensMesa = [registro].concat(estado.rolagensMesa || []).slice(0, 30);
-    return {};
+    return { rolagem: Object.assign({ texto: registro.texto }, r) };
   },
 
   /* Mandar uma mensagem. Serve aos dois papéis, com regras diferentes:
@@ -492,6 +561,35 @@ const ACOES_JOGADOR = {
   }
 };
 
+/* OS DADOS DO SERVIDOR
+   crypto.getRandomValues (no Node e no navegador): um sorteio que não
+   se adivinha. O "% faces" sozinho puxaria um pouco para os números
+   baixos; jogar fora o resto da divisão deixa cada face com a mesma
+   chance. viciado: só os testes (testes/rotas-de-teste.cjs) mexem —
+   'maximo' faz todo dado cair na face mais alta. */
+const Sorte = {
+  viciado: null,
+  face: function (faces) {
+    if (this.viciado === 'maximo') return faces;
+    const limite = Math.floor(0x100000000 / faces) * faces;
+    const caixa = new Uint32Array(1);
+    do { globalThis.crypto.getRandomValues(caixa); } while (caixa[0] >= limite);
+    return (caixa[0] % faces) + 1;
+  }
+};
+
+/* O jogador tem um crítico para o dano? O último ataque DELE foi um 20
+   natural, e ainda não houve dano depois. Outra rolagem no meio (uma
+   perícia) não apaga — o crítico é daquele ataque. */
+function criticoPendente(estado, jogadorId) {
+  const minhas = (estado.rolagensMesa || []).filter(function (r) { return r && r.dono === jogadorId; });
+  for (let i = 0; i < minhas.length; i++) {
+    if (minhas[i].tipo === 'dano') return false;
+    if (minhas[i].ataque) return minhas[i].marca === 'critico';
+  }
+  return false;
+}
+
 /* Roda uma ação de jogador (ou a mensagem do Mestre). É o que o
    servidor chama, com a sessão que ELE conferiu. */
 function aplicarAcaoJogador(nome, estado, sessao, dados) {
@@ -501,7 +599,7 @@ function aplicarAcaoJogador(nome, estado, sessao, dados) {
 }
 
 return { visaoDoJogador: visaoDoJogador, canalPrivado: canalPrivado, mensagensDoJogador: mensagensDoJogador,
-  LIMITE_TEXTO_MENSAGEM: LIMITE_TEXTO_MENSAGEM, ACOES_JOGADOR: ACOES_JOGADOR, aplicarAcaoJogador: aplicarAcaoJogador };
+  LIMITE_TEXTO_MENSAGEM: LIMITE_TEXTO_MENSAGEM, ACOES_JOGADOR: ACOES_JOGADOR, aplicarAcaoJogador: aplicarAcaoJogador, Sorte: Sorte };
 })();
 
 
@@ -531,7 +629,14 @@ function enviarMeuHeroi(sessao, heroi) {
   return null;
 }
 function enviarConcentracao(sessao, concentrando) { Conexao.acaoJogador('concentracao', { concentrando: !!concentrando }); return null; }
-function enviarRolagem(sessao, rolagem) { Conexao.acaoJogador('rolagem', { rolagem: rolagem }); return null; }
+/* A rolagem é a exceção ao "devolve null": ela ESPERA o servidor, que é
+   quem rola. Devolve uma Promise com o que ele rolou, ou null se recusou
+   (o motivo já virou aviso na tela). */
+function enviarRolagem(sessao, pedido) {
+  return Conexao.acaoJogador('rolagem', { rolagem: pedido }).then(function (resposta) {
+    return resposta && resposta.resultado && resposta.resultado.rolagem ? resposta.resultado.rolagem : null;
+  });
+}
 /* O token anda na tela já (como a ficha): a visão que volta do servidor
    confirma — ou, se ele recusou, devolve o token para onde estava. */
 function enviarMeuToken(col, lin) {
@@ -567,5 +672,5 @@ function enviarMensagem(sessao, canal, texto) {
 
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { visaoDoJogador: visaoDoJogador, canalPrivado: canalPrivado, mensagensDoJogador: mensagensDoJogador, ACOES_JOGADOR: ACOES_JOGADOR, aplicarAcaoJogador: aplicarAcaoJogador };
+  module.exports = { visaoDoJogador: visaoDoJogador, canalPrivado: canalPrivado, mensagensDoJogador: mensagensDoJogador, ACOES_JOGADOR: ACOES_JOGADOR, aplicarAcaoJogador: aplicarAcaoJogador, Sorte: Sorte };
 }

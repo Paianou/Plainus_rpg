@@ -22,6 +22,8 @@
      await T.salvar()       o Mestre: o Estado desta tela vira o oficial
                             (para montar situações sem dezenas de cliques)
      await T.trocar(e, id)  troca a campanha inteira por e
+     await T.dados('maximo') todo dado do SERVIDOR cai na face mais alta
+                            (T.dados() volta ao normal)
 
    O executor passa por variáveis de ambiente:
      PLAINUS_RAIZ       a pasta do site (a raiz do repositório)
@@ -90,7 +92,8 @@ const AJUDANTE = `window.T = {
   },
   gravado: async function (id) { await T.calma(); return T.pedir('ler', { campanhaId: T.id(id) }); },
   trocar: async function (estado, id) { await T.calma(); return T.pedir('trocar', { campanhaId: T.id(id), estado: estado }); },
-  salvar: function () { return T.trocar(JSON.parse(JSON.stringify(Estado))); }
+  salvar: function () { return T.trocar(JSON.parse(JSON.stringify(Estado))); },
+  dados: function (modo) { return T.pedir('dados', { modo: modo || null }); }
 };`;
 
 /* A página está pronta quando a mesa chegou do servidor (sem o "Abrindo

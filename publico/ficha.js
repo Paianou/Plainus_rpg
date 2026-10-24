@@ -271,28 +271,14 @@ const Ficha = {
     return 'for';
   },
 
-  /* Rola uma expressão de dano: '2d6', '1d8'. No crítico, a regra do
-     livro: dobra a QUANTIDADE de dados, não o total — e o bônus fixo
-     entra uma vez só. Devolve { total, formula } ou null se o texto
-     não for uma expressão de dados. */
-  rolarDano: function (f, ataque, critico) {
+  /* O pedido de dano de um ataque: '2d6' vira { quantos: 2, faces: 6 },
+     mais o bônus fixo da ficha. Quem rola é o servidor (visao.js); no
+     crítico, ele dobra a QUANTIDADE de dados (a regra do livro), e o
+     bônus fixo entra uma vez só. null se o texto não for de dados. */
+  expressaoDano: function (f, ataque) {
     const partes = /^(\d{1,2})d(\d{1,3})$/.exec(String(ataque.dano).replace(/\s+/g, ''));
     if (!partes) return null;
-
-    const quantos = Number(partes[1]) * (critico ? 2 : 1);
-    const faces = Number(partes[2]);
-    const dados = [];
-    for (let i = 0; i < quantos; i++) dados.push(Layout.dado(faces));
-
-    const extra = this.bonusDano(f, ataque);
-    const soma = dados.reduce(function (a, b) { return a + b; }, 0);
-    return {
-      dados: dados, faces: faces, extra: extra,     /* para a animação (dados3d.js) */
-      total: Math.max(0, soma + extra),
-      formula: quantos + 'd' + faces + ' (' + dados.join(', ') + ')'
-        + (extra ? (extra > 0 ? ' + ' : ' − ') + Math.abs(extra) : '')
-        + (critico ? ' — crítico' : '')
-    };
+    return { quantos: Number(partes[1]), faces: Number(partes[2]), extra: this.bonusDano(f, ataque) };
   },
 
 
