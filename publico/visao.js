@@ -76,6 +76,13 @@ function visaoDoJogador(estado, jogadorId) {
       nivelInicial: c.nivelInicial, regra: c.regra
     },
     mestre: estado.mestre.nome,
+    /* O som ambiente: o Mestre escolhe, todos ouvem. Só o que tocar —
+       o painel de áudio do Mestre não vem. */
+    audio: {
+      pista: String((estado.audio && estado.audio.pista) || '').slice(0, 60),
+      tocando: !!(estado.audio && estado.audio.tocando),
+      volume: inteiro(estado.audio && estado.audio.volume, 0, 100, 0)
+    },
     grupo: estado.grupo ? estado.grupo.nome : '',
     regras: modelo.regrasPersonagem(estado),
 

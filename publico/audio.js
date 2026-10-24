@@ -38,6 +38,11 @@
 
    Depois de aplicar(), dispara o evento 'plainus:audio' no document,
    para quem desenha algo de áudio (a barra, o painel) se redesenhar.
+
+   NO PAINEL DO JOGADOR não existe Estado (ele recebe só a visão). Lá,
+   Som.origem aponta para uma função que diz o que tocar — a pista que
+   o Mestre escolheu, vinda do servidor (visao.js), e o "silenciar" do
+   próprio jogador. Sem origem, vale o Estado do Mestre.
    =================================================================== */
 
 const Som = {
@@ -52,6 +57,7 @@ const Som = {
     'Chuva sobre Valkoria':         'chuva'
   },
 
+  origem: null,       /* no jogador: function → { pista, tocando, volume } */
   ctx: null,          /* o AudioContext — a mesa de som */
   mestre: null,       /* o volume geral, último aparelho antes da caixa */
   ruido: null,        /* 4 s de chiado, reaproveitado por todas as pistas */
@@ -94,10 +100,15 @@ const Som = {
     this.aplicar();
   },
 
-  /* Faz o som bater com Estado.audio. */
+  /* O que tocar: o Estado do Mestre, ou a origem do jogador. */
+  pedido: function () {
+    return this.origem ? this.origem() : Estado.audio;
+  },
+
+  /* Faz o som bater com o pedido (Estado.audio, no Mestre). */
   aplicar: function () {
     if (this.liberado) {
-      const audio = Estado.audio;
+      const audio = this.pedido();
       this.ajustarVolume();
 
       if (!audio.tocando) {
@@ -117,7 +128,7 @@ const Som = {
     if (!this.liberado) return;
     /* O ouvido não é linear: 50% na barra com ganho 0,5 soa quase tão
        alto quanto 100%. Elevar ao quadrado deixa a barra "justa". */
-    const alvo = Math.pow(Estado.audio.volume / 100, 2);
+    const alvo = Math.pow(this.pedido().volume / 100, 2);
     /* setTargetAtTime desliza até o valor em vez de pular — pular
        o volume de uma vez faz um estalo. */
     this.mestre.gain.setTargetAtTime(alvo, this.ctx.currentTime, 0.08);

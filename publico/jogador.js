@@ -81,6 +81,7 @@ const Jogador = {
   montarPainel: function () {
     const sessao = this.sessao;
     document.getElementById('app').hidden = false;
+    this.ligarSom();
 
     /* Abriu com #aba=inventario no endereço (F5, link, voltar do
        navegador): começa nessa aba, e não na Ficha. */
@@ -91,6 +92,7 @@ const Jogador = {
     Chat.ligar();
     const self = this;
     Chat.aoMudarLidas = function () {
+      self.atualizarChat();
       /* As duas navegações mostram a pílula do chat: as duas se refazem. */
       if (self.visao && self.visao.meuHeroi && self.modo !== 'editar') {
         self.montarNav(self.abasVisiveis());
@@ -136,6 +138,9 @@ const Jogador = {
        traz — PV dos monstros, segredos, notas — nem chegou a este navegador. */
     this.visao = Conexao.visao;
     this.vigiarMesa(this.visao);
+    /* O Mestre trocou a pista ou pausou: a visão nova traz, e o som
+       acompanha (aplicar() só mexe no que mudou). */
+    Som.aplicar();
 
     this.renderBarra();
     this.renderLateral();
@@ -648,8 +653,65 @@ const Jogador = {
   },
 
 
+  /* ---------- O som ambiente ----------
+     Quem escolhe a pista é o Mestre (o painel de áudio dele); o jogador
+     só ouve — ou silencia, só neste navegador (fica guardado). O
+     navegador não deixa página nenhuma tocar som sozinha: o som começa
+     no primeiro clique ou tecla de quem está aqui (audio.js). */
+  CHAVE_SOM: 'plainus:som-mudo',
+
+  somMudo: function () {
+    try { return localStorage.getItem(this.CHAVE_SOM) === 'sim'; } catch (erro) { return false; }
+  },
+
+  alternarSom: function () {
+    if (!Som.disponivel()) { Layout.recado('Este navegador não consegue gerar o som ambiente.', true); return; }
+    const mudo = !this.somMudo();
+    try { localStorage.setItem(this.CHAVE_SOM, mudo ? 'sim' : 'nao'); } catch (erro) { /* vale só nesta visita */ }
+    Som.liberar();          /* este clique já é o gesto que o navegador exige */
+    Som.aplicar();
+  },
+
+  ligarSom: function () {
+    const self = this;
+    Som.origem = function () {
+      const a = self.visao && self.visao.audio;
+      return { pista: a ? a.pista : '', tocando: !!(a && a.tocando) && !self.somMudo(), volume: a ? a.volume : 0 };
+    };
+    /* 'click' (e não pointerdown), como no Mestre: o botão da faixa já
+       fez a parte dele quando este ouvinte roda. */
+    function liberar() {
+      Som.liberar();
+      document.removeEventListener('click', liberar);
+      document.removeEventListener('keydown', liberar);
+    }
+    document.addEventListener('click', liberar);
+    document.addEventListener('keydown', liberar);
+    /* O som começou ou parou: a faixa da barra mostra o botão certo. */
+    document.addEventListener('plainus:audio', function () {
+      if (self.visao) self.renderBarra();
+    });
+  },
+
+
+  /* Só o contador do botão de chat — sem redesenhar a barra. A mesma
+     regra da pílula da aba: com o Chat aberto, nada a contar. */
+  atualizarChat: function () {
+    const botao = document.getElementById('botaoChat');
+    if (!botao) return;
+    const velho = botao.querySelector('.contador-chat');
+    if (velho) velho.remove();
+    const novas = this.aba === 'chat' ? 0 : Chat.naoLidas();
+    if (novas) botao.appendChild(criar('span.contador-chat', novas > 9 ? '9+' : String(novas)));
+    botao.setAttribute('aria-label', novas ? 'Chat da mesa (' + novas + ' novas)' : 'Chat da mesa');
+  },
+
+
   renderBarra: function () {
     const barra = document.getElementById('barraJogador');
+    /* A barra é refeita inteira: quem estava com o foco num botão dela
+       (o chat, o som) continua nele. */
+    const focado = document.activeElement && barra.contains(document.activeElement) ? document.activeElement.id : '';
     barra.textContent = '';
 
     const emblema = criar('span.emblema');
@@ -663,6 +725,35 @@ const Jogador = {
     ]));
 
     barra.appendChild(criar('div.espaco'));
+
+    /* O som que o Mestre pôs — só aparece quando há algo tocando. O
+       ícone do botão mostra o que ele FAZ, como na barra do Mestre:
+       pausa quando está soando aqui, play (volume) quando não. */
+    const audio = this.visao.audio;
+    if (audio && audio.tocando) {
+      const soando = Som.tocando();
+      const botaoSom = criarBotao('mini-botao', 'som-jogador', soando ? 'pausa' : 'volume', '');
+      botaoSom.id = 'botaoSom';
+      const rotulo = soando ? 'Silenciar o ambiente (só para você)' : 'Ouvir o ambiente';
+      botaoSom.setAttribute('aria-label', rotulo);
+      botaoSom.title = rotulo;
+      barra.appendChild(criar('div.faixa-audio', [
+        Icone.svg('volume', 15),
+        criar('span.pista', audio.pista),
+        botaoSom
+      ]));
+    }
+
+    /* O chat: leva à aba Chat, com o número de mensagens novas. */
+    const chat = criar('button.icone-botao.botao-chat');
+    chat.type = 'button';
+    chat.id = 'botaoChat';
+    chat.dataset.acao = 'aba';
+    chat.dataset.aba = 'chat';
+    chat.title = 'Chat da mesa';
+    chat.setAttribute('aria-label', 'Chat da mesa');
+    chat.appendChild(Icone.svg('chat', 16));
+    barra.appendChild(chat);
 
     /* Atalhos e ajuda (atalhos.js) — e, de lá, o "Rever o tour". */
     barra.appendChild(Conexao.indicador());
@@ -683,6 +774,9 @@ const Jogador = {
       ]),
       criar('div.retrato', (this.sessao.nome || 'J').charAt(0).toUpperCase())
     ]));
+
+    this.atualizarChat();
+    if (focado && document.getElementById(focado)) document.getElementById(focado).focus();
   },
 
 
@@ -1429,6 +1523,10 @@ const Jogador = {
           }, 'Foto removida.');
           break;
 
+        case 'som-jogador':
+          self.alternarSom();
+          break;
+
         /* A aba é estado de vista: troca e redesenha, sem gravar nada.
            O foco volta para a aba, como na Visão Geral do Mestre. */
         case 'aba': {
@@ -1445,7 +1543,9 @@ const Jogador = {
           /* O foco volta para a aba ativa DA MESMA navegação que foi
              clicada (a fileira do topo ou a lateral). */
           const doTopo = !!alvo.closest('#abasJogador');
+          const daBarra = alvo.id === 'botaoChat';
           self.render();
+          if (daBarra) { document.getElementById('botaoChat').focus(); break; }
           const ativa = document.querySelector(doTopo ? '#abasJogador .aba.ativa' : '.nav-jogador .codice-link.ativo');
           if (ativa) ativa.focus();
           break;
