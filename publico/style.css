@@ -5632,6 +5632,9 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
    ligarMostrarSenha): pequena, no tom das ajudas de campo. */
 .mostrar-senha { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 12px; color: var(--texto-3); cursor: pointer; }
 .mostrar-senha input { width: auto; margin: 0; accent-color: var(--azul); }
+/* Dentro de um .campo, o label herdaria o estilo dos rótulos de campo
+   (maiúsculas pequenas): aqui ele é texto comum. */
+.campo label.mostrar-senha { display: inline-flex; margin: 8px 0 0; font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--texto-3); }
 
 /* ---------- 37. ADMINISTRAÇÃO (admin.html) ----------
    A mesma caixa e as mesmas seções da página de Acessos (.acessos-caixa,
@@ -5649,3 +5652,17 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
 .codigo-gerado .ajuda-campo { margin: 0 0 10px; }
 /* Dois botões numa linha de conta, lado a lado (quebram no celular). */
 .botoes-acesso { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+
+/* ---------- 38. A CONTA DE MESTRE NA ENTRADA (index.html, app.js) ----------
+   Dentro de "Vou mestrar". A lista "Minhas campanhas" é a da página de
+   Acessos (.lista-acessos, .item-acesso); aqui só o que é novo: a linha
+   de quem está logado, os subtítulos e os links dos convites. */
+.conta-logada { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 0 44px; margin: 4px 0 12px; font-size: 13px; color: var(--texto-2); }
+.conta-logada strong { color: var(--texto); }
+.conta-logada .link-porta { margin: 0; }
+.titulo-conta { padding: 0 44px; margin: 14px 0 8px; font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
+.links-conta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+/* No celular, o mesmo respiro do .campo (seção 11). */
+@media (max-width: 720px) {
+  .conta-logada, .titulo-conta { padding: 0 26px; }
+}

@@ -138,8 +138,11 @@ function resumoDaSenha(senha, salHex) {
   });
 }
 
+/* dono: a conta de Mestre que criou a campanha (servidor/contas.js), ou
+   null nas campanhas de antes das contas. É por ele que a conta lista
+   "Minhas campanhas" e abre a mesa de qualquer computador. */
 function acessosVazios() {
-  return { mestres: [], senha: null, jogadores: {} };
+  return { mestres: [], senha: null, jogadores: {}, dono: null };
 }
 
 /* O que vem do disco também é conferido: só resumos em hexadecimal,
@@ -154,6 +157,7 @@ function acessosConferidos(a) {
   if (a.senha && hex64(a.senha.resumo) && typeof a.senha.sal === 'string' && /^[0-9a-f]{32}$/.test(a.senha.sal)) {
     limpo.senha = { sal: a.senha.sal, resumo: a.senha.resumo };
   }
+  if (/^u[0-9a-f]{16}$/.test(String(a.dono))) limpo.dono = a.dono;
   Object.keys(a.jogadores || {}).forEach(function (id) {
     const j = a.jogadores[id];
     if (/^j[0-9a-f]{16}$/.test(id) && j && typeof j.resumo === 'string' && /^[0-9a-f]{64}$/.test(j.resumo)) {
@@ -300,6 +304,7 @@ function criarArmazem(pastaDados, avisar) {
       mestre: c.estado.mestre.nome,
       codigo: c.estado.campanha.codigo,
       sessao: c.estado.campanha.sessao,
+      jogadores: Object.keys(c.acessos.jogadores).length,
       criadaEm: c.criadaEm,
       atualizadaEm: c.atualizadaEm
     };
@@ -344,7 +349,7 @@ function criarArmazem(pastaDados, avisar) {
      ou um backup). Devolve { id, codigo } ou { erro }. O código de
      convite é mantido se for válido e estiver livre; senão, sorteia
      outro — dois convites iguais apontariam para duas campanhas. */
-  function criar(estadoDeFora) {
+  function criar(estadoDeFora, dono) {
     if (campanhas.size >= LIMITE_CAMPANHAS) return { erro: 'Este servidor já tem campanhas demais.' };
     const estado = conferirCampanha(estadoDeFora);
     if (typeof estado === 'string') return { erro: estado };
@@ -360,6 +365,7 @@ function criarArmazem(pastaDados, avisar) {
     const chave = novaChave();
     const acessos = acessosVazios();
     acessos.mestres = [resumoDaChave(chave)];
+    if (/^u[0-9a-f]{16}$/.test(String(dono))) acessos.dono = dono;
     campanhas.set(id, { estado: estado, acessos: acessos, criadaEm: agora, atualizadaEm: agora });
     try {
       gravarAgora(id);          /* criar é raro e importante: grava na hora */
@@ -585,6 +591,46 @@ function criarArmazem(pastaDados, avisar) {
     });
   }
 
+  /* ---------- A conta dona (servidor/contas.js) ---------- */
+
+  /* As campanhas desta conta, das mais mexidas para as menos. */
+  function doDono(contaId) {
+    return Array.from(campanhas.keys())
+      .filter(function (id) { return campanhas.get(id).acessos.dono === contaId; })
+      .map(resumo)
+      .sort(function (a, b) { return b.atualizadaEm - a.atualizadaEm; });
+  }
+
+  /* A conta dona abre a mesa como Mestre, de qualquer computador: uma
+     chave de Mestre nova, só deste computador (como entrarComoMestre,
+     mas a prova é a conta, e não a senha da campanha). Quem chama já
+     conferiu a sessão da conta. */
+  function abrirComoDono(id, contaId) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c || !c.acessos.dono || c.acessos.dono !== contaId) return { erro: 'Essa campanha não é da sua conta.' };
+    const chave = novaChave();
+    c.acessos.mestres = c.acessos.mestres.concat(resumoDaChave(chave)).slice(-LIMITE_CHAVES_MESTRE);
+    try {
+      gravarAgora(id);
+    } catch (erro) {
+      return { erro: 'Não consegui gravar a entrada no disco.' };
+    }
+    return { campanhaId: id, chave: chave, nome: c.estado.mestre.nome };
+  }
+
+  /* A conta dona foi desativada: nenhuma chave de Mestre das campanhas
+     dela vale mais (as que "Abrir" deu, em cada computador). A campanha
+     fica — o administrador decide o que fazer com ela. */
+  function tirarMestresDoDono(contaId) {
+    const ids = doDono(contaId).map(function (r) { return r.id; });
+    ids.forEach(function (id) {
+      const c = campanhas.get(id);
+      c.acessos.mestres = [];
+      try { gravarAgora(id); } catch (erro) { agendar(id, 0); }
+    });
+    return ids;
+  }
+
   /* ---------- O Mestre cuida dos acessos ---------- */
 
   /* Quem tem acesso: quantos computadores de Mestre, e cada jogador com
@@ -699,7 +745,7 @@ function criarArmazem(pastaDados, avisar) {
 
   return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
     conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre,
-    verificarSenha, listarAcessos, liberarJogador, renomearJogador, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
+    verificarSenha, listarAcessos, liberarJogador, renomearJogador, doDono, abrirComoDono, tirarMestresDoDono, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
 }
 
 /* As peças de chave e de senha também servem às contas (contas.js):

@@ -173,11 +173,95 @@
         </div>
 
         <div id="blocoMestrar" hidden>
+          <!-- ============ A CONTA DE MESTRE (servidor/contas.js) ============
+               Logado: quem é, "Minhas campanhas" e os campos de criar uma
+               nova (que nasce desta conta). Sem conta: entrar, ou usar um
+               convite (de Mestre, ou de nova senha) que o administrador
+               do site gerou. O app.js mostra um bloco de cada vez. -->
+          <div id="blocoMinhaConta" hidden>
+            <div class="conta-logada">
+              <span>Mestre: <strong id="usuarioLogado"></strong></span>
+              <button class="link-porta" type="button" id="btnSairConta">Sair da conta</button>
+            </div>
+            <h3 class="titulo-conta">Minhas campanhas</h3>
+            <ul class="campo lista-acessos" id="listaMinhas"></ul>
+            <h3 class="titulo-conta">Nova campanha</h3>
+          </div>
+
+          <div id="blocoContaEntrar" hidden>
+            <h3 class="titulo-conta">Sua conta de Mestre</h3>
+            <div class="campo">
+              <label for="contaUsuario">Usuário</label>
+              <input type="text" id="contaUsuario" maxlength="30" autocomplete="username">
+            </div>
+            <div class="campo">
+              <label for="contaSenha">Senha</label>
+              <input type="password" id="contaSenha" maxlength="100" autocomplete="current-password">
+              <label class="mostrar-senha"><input type="checkbox" data-mostra="contaSenha"> Mostrar a senha</label>
+            </div>
+            <div class="campo">
+              <button class="botao fantasma" type="button" id="btnEntrarConta">Entrar</button>
+            </div>
+            <div class="campo links-conta">
+              <button class="link-porta" type="button" data-conta-modo="criar">Tenho um convite de Mestre</button>
+              <button class="link-porta" type="button" data-conta-modo="senha">Esqueci a senha: tenho um convite de nova senha</button>
+            </div>
+          </div>
+
+          <div id="blocoContaCriar" hidden>
+            <h3 class="titulo-conta">Criar a sua conta de Mestre</h3>
+            <div class="campo">
+              <label for="conviteMestre">Convite de Mestre</label>
+              <input class="codigo-entrada" type="text" id="conviteMestre" placeholder="K7QM-2XRP-9HVD" maxlength="300" autocomplete="off" spellcheck="false">
+              <p class="ajuda-campo">O código que o administrador do site te passou. Vale uma vez, por 7 dias.</p>
+            </div>
+            <div class="campo">
+              <label for="novoUsuario">Usuário</label>
+              <input type="text" id="novoUsuario" maxlength="30" autocomplete="username">
+            </div>
+            <div class="campo">
+              <label for="novaSenhaConta">Senha</label>
+              <input type="password" id="novaSenhaConta" maxlength="100" autocomplete="new-password">
+              <label class="mostrar-senha"><input type="checkbox" data-mostra="novaSenhaConta"> Mostrar a senha</label>
+              <p class="ajuda-campo">Pelo menos 8 caracteres. É com o usuário e esta senha que você entra de qualquer computador.</p>
+            </div>
+            <div class="campo">
+              <label for="novaSenhaConta2">Repita a senha</label>
+              <input type="password" id="novaSenhaConta2" maxlength="100" autocomplete="new-password">
+            </div>
+            <div class="campo">
+              <button class="botao" type="button" id="btnCriarConta">Criar a conta</button>
+            </div>
+            <div class="campo"><button class="link-porta" type="button" data-conta-modo="entrar">Já tenho conta: entrar</button></div>
+          </div>
+
+          <div id="blocoContaSenha" hidden>
+            <h3 class="titulo-conta">Trocar a senha com um convite</h3>
+            <div class="campo">
+              <label for="conviteSenha">Convite de nova senha</label>
+              <input class="codigo-entrada" type="text" id="conviteSenha" placeholder="K7QM-2XRP-9HVD" maxlength="300" autocomplete="off" spellcheck="false">
+              <p class="ajuda-campo">Esqueceu a senha? Peça ao administrador do site um convite de nova senha para a sua conta.</p>
+            </div>
+            <div class="campo">
+              <label for="trocaSenha">Senha nova</label>
+              <input type="password" id="trocaSenha" maxlength="100" autocomplete="new-password">
+              <label class="mostrar-senha"><input type="checkbox" data-mostra="trocaSenha"> Mostrar a senha</label>
+            </div>
+            <div class="campo">
+              <label for="trocaSenha2">Repita a senha nova</label>
+              <input type="password" id="trocaSenha2" maxlength="100" autocomplete="new-password">
+            </div>
+            <div class="campo">
+              <button class="botao" type="button" id="btnTrocarSenha">Trocar a senha e entrar</button>
+            </div>
+            <div class="campo"><button class="link-porta" type="button" data-conta-modo="entrar">Voltar: entrar com a senha</button></div>
+          </div>
+
           <!-- Aberta por fora (o link do túnel): criar não vale daqui.
                O app.js pergunta ao servidor (/api/pode-criar) e troca os
                campos de criar por este aviso, ANTES de alguém preencher
                tudo. Entrar como Mestre numa mesa que já existe, sim. -->
-          <p class="aviso-entrada aviso-servidor" id="avisoSoLocal" hidden>Campanhas novas são criadas no computador onde o servidor está rodando: lá, abra <strong>http://localhost:3000</strong>. Daqui, dá para entrar como Mestre numa mesa que já existe (logo abaixo).</p>
+          <p class="aviso-entrada aviso-servidor" id="avisoSoLocal" hidden>Pelo link, campanhas novas são criadas com uma <strong>conta de Mestre</strong>: entre com a sua (acima). Não tem conta? Peça um convite ao administrador do site.</p>
           <div id="criarAqui">
             <!-- Pelo link do túnel, com a senha do servidor ligada (o .env
                  do servidor): quem a sabe cria daqui. No computador do

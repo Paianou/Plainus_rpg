@@ -7,7 +7,7 @@ await ir('index.html');
 await js(`document.querySelector('[data-porta="mestrar"]').click()`); await espera(300);
 const e = JSON.parse(await js(`JSON.stringify({aviso:!document.getElementById('avisoSoLocal').hidden, criarEscondido:document.getElementById('criarAqui').hidden, foco:document.activeElement.id, voltaMestre:!!document.getElementById('btnVoltaMestre').offsetParent})`));
 ok(e.aviso && e.criarEscondido, 'pelo túnel, "Vou mestrar" mostra o aviso no lugar dos campos de criar');
-ok(e.voltaMestre && e.foco === 'btnVoltaMestre', '…e "entrar como Mestre" continua à vista, com o foco nele (' + e.foco + ')');
+ok(e.voltaMestre && e.foco === 'contaUsuario', '…o foco vai para entrar com a conta de Mestre, e "entrar como Mestre" (código + senha) continua à vista (' + e.foco + ')');
 await foto('tunel-mestrar');
 await js(`document.getElementById('btnRestaurar').click()`); await espera(200);
 ok(/restaurados no computador onde o servidor/.test(await js(`document.getElementById('erro').textContent`)), 'pelo túnel, "Restaurar backup" explica antes de abrir a escolha de arquivo');

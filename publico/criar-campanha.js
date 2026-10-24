@@ -110,7 +110,10 @@ const Criacao = {
     Servidor.podeCriar().then(function (r) {
       window.plainusCarregando = false;
       if (r.podeCriar === false) { self.semCriacaoDaqui(r.pedeSenha); return; }
-      if (r.local === false) self.exigirSenhaDoMestre();
+      /* Pelo link SEM conta, a senha da campanha é o único caminho de
+         volta: obrigatória. Com a conta de Mestre, a conta é o caminho
+         ("Minhas campanhas"), e a senha fica opcional. */
+      if (r.local === false && !r.comConta) self.exigirSenhaDoMestre();
       self.preencherRascunho();
       self.ligar();
       self.mostrar(0);

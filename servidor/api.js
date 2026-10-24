@@ -132,6 +132,7 @@ function criarApi(armazem, opcoes) {
   };
   const limite = opcoes && opcoes.semLimite ? function () { return function (p, r, seguir) { seguir(); }; } : limitador;
   const contas = opcoes && opcoes.contas;
+  const LIMITE_CAMPANHAS_POR_CONTA = 10;
 
   /* A conta deste pedido, conferida pelo servidor: { contaId, chave } no
      corpo, como as chaves de campanha. Sem conta válida, null. */
@@ -184,8 +185,22 @@ function criarApi(armazem, opcoes) {
      pelo código; quem cria e restaura backup é o Mestre, em casa. */
   /* A ordem importa: limite e leitura do JSON ANTES da trava, porque a
      senha do servidor vem no corpo do pedido. */
+  /* Com a CONTA de Mestre: cria pelo link, sem a senha do servidor — a
+     campanha nasce dela (dono). Até LIMITE_CAMPANHAS_POR_CONTA por conta
+     (o administrador não tem teto). */
   api.post('/campanhas', limite(10), express.json({ limit: '8mb' }), function (pedido, resposta, seguir) {
+    const corpo = pedido.body || {};
+    const conta = contas && typeof corpo.contaId === 'string' && typeof corpo.contaChave === 'string'
+      ? contas.conferirSessao(corpo.contaId, corpo.contaChave) : null;
+    if (conta) {
+      if (!conta.admin && armazem.doDono(conta.id).length >= LIMITE_CAMPANHAS_POR_CONTA) {
+        return resposta.status(403).json({ erro: 'Sua conta já tem ' + LIMITE_CAMPANHAS_POR_CONTA + ' campanhas, o máximo. Apague uma que não usa mais (em "Acessos da mesa").' });
+      }
+      pedido.contaDona = conta;
+      return seguir();
+    }
     if (podeCriarDaqui(pedido)) return seguir();
+    if (typeof corpo.contaId === 'string') return resposta.status(401).json({ erro: 'Sua sessão de Mestre não vale mais. Volte à entrada e entre de novo na sua conta.' });
     /* Diz POR QUE recusou: cada caso pede uma coisa diferente de quem
        está tentando. Com a mesma frase para todos, a pessoa não tinha
        como saber o que mudar. */
@@ -202,7 +217,7 @@ function criarApi(armazem, opcoes) {
     const comSenha = corpo.senha !== undefined && corpo.senha !== null && corpo.senha !== '';
     const problema = comSenha ? senhaValida(corpo.senha) : null;
     if (problema) return resposta.status(400).json({ erro: problema });
-    const r = armazem.criar(corpo.estado);
+    const r = armazem.criar(corpo.estado, pedido.contaDona ? pedido.contaDona.id : null);
     if (r.erro) return resposta.status(400).json({ erro: r.erro });
     const pronto = function () { resposta.json({ id: r.id, codigo: r.codigo, chave: r.chave, temSenha: armazem.temSenha(r.id) }); };
     if (!comSenha) return pronto();
@@ -228,9 +243,14 @@ function criarApi(armazem, opcoes) {
                      a senha (e confere aqui, mandando { senhaServidor })
      O limite é o mesmo do /campanhas: é por aqui que alguém tentaria
      adivinhar a senha do servidor. */
+  /* comConta: entrou com a conta de Mestre — cria daqui, e a senha do
+     Mestre por campanha deixa de ser obrigatória pelo link (a conta é o
+     caminho de volta). */
   api.post('/pode-criar', limite(10), express.json({ limit: '2kb' }), function (pedido, resposta) {
     const local = doProprioComputador(pedido);
-    resposta.json({ podeCriar: podeCriarDaqui(pedido), local: local, pedeSenha: !local && !!senhaServidor });
+    const corpo = pedido.body || {};
+    const comConta = !!(contas && typeof corpo.contaId === 'string' && typeof corpo.contaChave === 'string' && contas.conferirSessao(corpo.contaId, corpo.contaChave));
+    resposta.json({ podeCriar: comConta || podeCriarDaqui(pedido), local: local, pedeSenha: !local && !comConta && !!senhaServidor, comConta: comConta });
   });
 
   /* O código de convite e a entrada dividem o MESMO limite: é por eles
@@ -407,6 +427,20 @@ function criarApi(armazem, opcoes) {
     return { conta: conta };
   });
 
+  /* "Minhas campanhas": as campanhas que esta conta criou. */
+  comConta('/conta/campanhas', 60, function (corpo, pedido, resposta) {
+    const conta = contaDoPedido(corpo);
+    if (!conta) { resposta.status(401).json({ erro: 'Esta sessão não vale mais. Entre de novo.' }); return undefined; }
+    return { campanhas: armazem.doDono(conta.id) };
+  });
+
+  /* Abrir uma delas como Mestre, deste computador. */
+  comConta('/conta/abrir', 30, function (corpo, pedido, resposta) {
+    const conta = contaDoPedido(corpo);
+    if (!conta) { resposta.status(401).json({ erro: 'Esta sessão não vale mais. Entre de novo.' }); return undefined; }
+    return armazem.abrirComoDono(corpo.campanhaId, conta.id);
+  });
+
   comConta('/conta/sair', 30, function (corpo) {
     /* Só grava se a chave era mesmo desta conta (contas.sair confere). */
     return contas.sair(corpo.contaId, corpo.chave);
@@ -434,10 +468,19 @@ function criarApi(armazem, opcoes) {
     return { contas: contas.listarContas() };
   });
 
+  /* Desativar a conta derruba também o Mestre dela nas próprias mesas:
+     as chaves que "Abrir" deu saem, e quem estiver conectado como Mestre
+     é desconectado na hora (reconferir). */
   comConta('/admin/desativar', 20, function (corpo, pedido, resposta) {
     const admin = soAdmin(corpo, resposta);
     if (!admin) return undefined;
-    return contas.desativarConta(admin.id, String(corpo.paraConta || ''));
+    const paraConta = String(corpo.paraConta || '');
+    const r = contas.desativarConta(admin.id, paraConta);
+    if (r && r.erro) return r;
+    armazem.tirarMestresDoDono(paraConta).forEach(function (id) {
+      reconferir(id, 'A conta de Mestre desta mesa foi desativada pelo administrador do site.');
+    });
+    return r;
   });
 
 

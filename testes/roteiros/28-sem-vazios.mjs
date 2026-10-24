@@ -75,7 +75,9 @@ await js(`Acoes.executar('trazerParty')`); await espera(400);
 await ana.frente();
 await ana.js(`document.querySelector('.nav-jogador [data-aba="mesa"]').click()`); await espera(400);
 ok(await aguardar(`!!document.querySelector('#lateral > .cartao-em-combate') && document.querySelector('#lateral').firstElementChild.classList.contains('cartao-em-combate')`, ana.js), 'Mesa em combate: o cartão "Em combate" no topo da coluna lateral');
-ok(await ana.js(`/Vez de Kaelen/.test(document.querySelector('.cartao-em-combate').textContent) && /Adaga/.test(document.querySelector('.cartao-em-combate').textContent)`), '…com de quem é a vez e os ataques da ficha');
+/* aguardar, e não ler na hora: a vez chega do servidor um instante depois
+   do cartão (a falha aparecia de vez em quando, numa máquina ocupada). */
+ok(await aguardar(`/Vez de Kaelen/.test(document.querySelector('.cartao-em-combate').textContent) && /Adaga/.test(document.querySelector('.cartao-em-combate').textContent)`, ana.js), '…com de quem é a vez e os ataques da ficha');
 const antes = await ana.js(`Conexao.visao.rolagensMesa.length`);
 await ana.js(`document.querySelector('.cartao-em-combate [data-acao="atacar"]').click()`);
 ok(await aguardar(`Conexao.visao.rolagensMesa.length > ${antes} && /Adaga/.test(Conexao.visao.rolagensMesa[0].texto)`, ana.js), 'o "Atacar" do cartão rola o ataque, igual ao da ficha');

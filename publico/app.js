@@ -486,10 +486,13 @@ const Entrada = {
     document.getElementById('campoNome').hidden = volta;
     if (!convite) document.getElementById('conviteAchado').hidden = true;
     if (volta) { document.getElementById('codigoMestre').focus(); return; }
+    if (this.porta === 'mestrar') this.mostrarConta();
     /* Daqui não se cria: o campo da campanha está escondido; o foco vai
        para o que dá para fazer — entrar como Mestre numa mesa que existe. */
     if (this.porta === 'mestrar' && !this.podeCriar) {
-      document.getElementById(this.pedeSenha ? 'senhaServidor' : 'btnVoltaMestre').focus();
+      if (this.pedeSenha) document.getElementById('senhaServidor').focus();
+      /* Sem senha do servidor: o foco espera a conta ser conferida
+         (focarNaConta). */
       return;
     }
 
@@ -635,6 +638,217 @@ const Entrada = {
     });
   },
 
+  /* ---------- A conta de Mestre (servidor/contas.js) ----------
+
+     Dentro de "Vou mestrar": logado, mostra quem é e "Minhas
+     campanhas"; sem conta, os campos de entrar (ou de usar um convite).
+     A sessão (ContaLocal) é conferida no servidor a cada abertura. */
+  contaModo: 'entrar',     /* sem conta: 'entrar' | 'criar' | 'senha' */
+  conta: null,             /* a conta conferida: { usuario, admin, ... } */
+
+  mostrarConta: function () {
+    const self = this;
+    const sessao = ContaLocal.ler();
+    if (!sessao) { this.conta = null; this.desenharConta(); this.focarNaConta(); return Promise.resolve(); }
+    return Servidor.conta('eu', { contaId: sessao.contaId, chave: sessao.chave }).then(function (r) {
+      /* Só "não vale mais" (401) desloga — e aí "posso criar?" muda, então
+         a pergunta é refeita. Sem conexão, a sessão fica guardada e a tela
+         diz o que houve. */
+      if (r.status === 401) {
+        ContaLocal.limpar();
+        self.conta = null;
+        return Servidor.podeCriar().then(function (p) {
+          self.podeCriar = p.podeCriar !== false;
+          self.pedeSenha = !self.podeCriar && !!p.pedeSenha;
+          self.mostrarCriacao();
+          self.desenharConta();
+          self.mostrarErro('Sua sessão de Mestre não vale mais. Entre de novo.');
+          self.focarNaConta();
+        });
+      }
+      if (r.erro) { self.mostrarErro(r.erro); return; }
+      self.conta = r.conta || null;
+      self.desenharConta();
+      self.focarNaConta();
+      if (self.conta) self.carregarMinhas();
+    });
+  },
+
+  /* Onde o foco cai em "Vou mestrar", depois de a conta ser conferida:
+     logado, no nome na mesa (se vazio) ou no nome da campanha; sem
+     conta e sem poder criar, no primeiro campo do formulário à vista. */
+  focarNaConta: function () {
+    if (this.porta !== 'mestrar') return;
+    if (this.conta) {
+      const nome = document.getElementById('nome');
+      (nome.value.trim() ? document.getElementById('campanha') : nome).focus();
+      return;
+    }
+    if (this.podeCriar) return;
+    const primeiro = { entrar: 'contaUsuario', criar: 'conviteMestre', senha: 'conviteSenha' }[this.contaModo];
+    if (primeiro) document.getElementById(primeiro).focus();
+  },
+
+  desenharConta: function () {
+    const logado = !!this.conta;
+    document.getElementById('blocoMinhaConta').hidden = !logado;
+    document.getElementById('blocoContaEntrar').hidden = logado || this.contaModo !== 'entrar';
+    document.getElementById('blocoContaCriar').hidden = logado || this.contaModo !== 'criar';
+    document.getElementById('blocoContaSenha').hidden = logado || this.contaModo !== 'senha';
+    /* "Seu nome" é o nome NA MESA (os jogadores veem), e não o usuário
+       da conta: o usuário é metade do que se digita para entrar, e não
+       deve ir para quem só tem o convite. Aparece onde dá para criar —
+       com a conta, no computador do servidor, ou com a senha dele. */
+    if (logado) document.getElementById('usuarioLogado').textContent = this.conta.usuario;
+    if (this.porta === 'mestrar') document.getElementById('campoNome').hidden = !logado && !this.podeCriar;
+  },
+
+  /* Os links "Tenho um convite…" e "Já tenho conta: entrar". */
+  trocarModoConta: function (modo) {
+    this.contaModo = modo;
+    this.limparErro();
+    this.desenharConta();
+    const primeiro = { entrar: 'contaUsuario', criar: 'conviteMestre', senha: 'conviteSenha' }[modo];
+    if (primeiro) document.getElementById(primeiro).focus();
+  },
+
+  /* Entrou (ou criou a conta, ou trocou a senha): guarda a sessão, e a
+     página pergunta de novo se pode criar — com conta, pode, também
+     pelo link. */
+  contaPronta: function (r) {
+    const self = this;
+    ContaLocal.gravar({ contaId: r.contaId, chave: r.chave, usuario: r.usuario, admin: r.admin });
+    this.contaModo = 'entrar';
+    return Servidor.podeCriar().then(function (p) {
+      self.podeCriar = p.podeCriar !== false;
+      self.pedeSenha = !self.podeCriar && !!p.pedeSenha;
+      self.mostrarCriacao();
+      return self.mostrarConta();
+    }).then(function () {
+      const campanha = document.getElementById('campanha');
+      if (!campanha.hidden) campanha.focus();
+    });
+  },
+
+  entrarConta: function () {
+    const self = this;
+    this.limparErro();
+    const usuario = document.getElementById('contaUsuario');
+    const senha = document.getElementById('contaSenha');
+    if (!usuario.value.trim()) { this.mostrarErro('Digite o seu usuário.', usuario); return; }
+    if (!senha.value) { this.mostrarErro('Digite a senha.', senha); return; }
+    const botao = document.getElementById('btnEntrarConta');
+    botao.disabled = true;
+    Servidor.conta('entrar', { usuario: usuario.value, senha: senha.value }).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { self.mostrarErro(r.erro, senha); senha.select(); return; }
+      senha.value = '';
+      self.contaPronta(r);
+    });
+  },
+
+  criarConta: function () {
+    const self = this;
+    this.limparErro();
+    const convite = document.getElementById('conviteMestre');
+    const usuario = document.getElementById('novoUsuario');
+    const senha = document.getElementById('novaSenhaConta');
+    const senha2 = document.getElementById('novaSenhaConta2');
+    if (!normalizarCodigo(convite.value)) { this.mostrarErro('Digite o convite de Mestre (XXXX-XXXX-XXXX).', convite); return; }
+    if (!usuario.value.trim()) { this.mostrarErro('Escolha um usuário.', usuario); return; }
+    if (senha.value !== senha2.value) { this.mostrarErro('As duas senhas não são iguais.', senha2); senha2.select(); return; }
+    const botao = document.getElementById('btnCriarConta');
+    botao.disabled = true;
+    Servidor.conta('criar', { convite: convite.value, usuario: usuario.value, senha: senha.value }).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { self.mostrarErro(r.erro); return; }
+      [convite, senha, senha2].forEach(function (c) { c.value = ''; });
+      self.mostrarAviso('Conta criada. Bem-vindo à mesa, ' + r.usuario + '!');
+      self.contaPronta(r);
+    });
+  },
+
+  novaSenhaConta: function () {
+    const self = this;
+    this.limparErro();
+    const convite = document.getElementById('conviteSenha');
+    const senha = document.getElementById('trocaSenha');
+    const senha2 = document.getElementById('trocaSenha2');
+    if (!normalizarCodigo(convite.value)) { this.mostrarErro('Digite o convite de nova senha (XXXX-XXXX-XXXX).', convite); return; }
+    if (senha.value !== senha2.value) { this.mostrarErro('As duas senhas não são iguais.', senha2); senha2.select(); return; }
+    const botao = document.getElementById('btnTrocarSenha');
+    botao.disabled = true;
+    Servidor.conta('nova-senha', { convite: convite.value, senha: senha.value }).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { self.mostrarErro(r.erro); return; }
+      [convite, senha, senha2].forEach(function (c) { c.value = ''; });
+      self.mostrarAviso('Senha trocada. Os outros computadores da sua conta foram desconectados.');
+      self.contaPronta(r);
+    });
+  },
+
+  sairConta: function () {
+    const self = this;
+    const sessao = ContaLocal.ler();
+    document.getElementById('nome').value = '';
+    Servidor.conta('sair', sessao ? { contaId: sessao.contaId, chave: sessao.chave } : {}).then(function () {
+      ContaLocal.limpar();
+      self.conta = null;
+      self.contaModo = 'entrar';
+      return Servidor.podeCriar();
+    }).then(function (p) {
+      self.podeCriar = p.podeCriar !== false;
+      self.pedeSenha = !self.podeCriar && !!p.pedeSenha;
+      self.mostrarCriacao();
+      self.desenharConta();
+      self.mostrarAviso('Você saiu da sua conta neste computador.');
+    });
+  },
+
+  /* "Minhas campanhas": as da conta, cada uma com "Abrir". */
+  carregarMinhas: function () {
+    const self = this;
+    const sessao = ContaLocal.ler();
+    if (!sessao) return;
+    Servidor.conta('campanhas', { contaId: sessao.contaId, chave: sessao.chave }).then(function (r) {
+      const lista = document.getElementById('listaMinhas');
+      lista.textContent = '';
+      /* As mesmas peças da lista da página de Acessos (.item-acesso). */
+      if (r.erro) { lista.appendChild(el('li', 'vazio-acessos', r.erro)); return; }
+      if (!r.campanhas.length) lista.appendChild(el('li', 'vazio-acessos', 'Nenhuma campanha ainda. Crie a primeira logo abaixo.'));
+      r.campanhas.forEach(function (c) {
+        const item = el('li', 'item-acesso');
+        const texto = el('span', 'quem-acesso');
+        texto.appendChild(el('strong', '', c.nome));
+        texto.appendChild(el('span', 'sub-acesso', 'Sessão ' + c.sessao + ' · ' + (c.jogadores === 1 ? '1 jogador' : (c.jogadores || 0) + ' jogadores')));
+        item.appendChild(texto);
+        const abrir = el('button', 'botao pequeno', 'Abrir');
+        abrir.type = 'button';
+        abrir.dataset.campanha = c.id;
+        abrir.setAttribute('aria-label', 'Abrir ' + c.nome + ' como Mestre');
+        item.appendChild(abrir);
+        lista.appendChild(item);
+      });
+    });
+  },
+
+  /* Abrir: o servidor dá uma chave de Mestre nova, só deste computador
+     (armazem.abrirComoDono). Daí é como continuar uma mesa. */
+  abrirMinha: function (botao) {
+    const self = this;
+    const sessao = ContaLocal.ler();
+    if (!sessao) return;
+    botao.disabled = true;
+    Servidor.conta('abrir', { contaId: sessao.contaId, chave: sessao.chave, campanhaId: botao.dataset.campanha }).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { self.mostrarErro(r.erro); return; }
+      const acesso = { campanhaId: r.campanhaId, papel: 'mestre', chave: r.chave, nome: r.nome };
+      Acessos.lembrar(acesso);
+      if (!Sessao.gravar(acesso)) { self.mostrarErroArmazenamento(); return; }
+      location.href = 'mestre.html';
+    });
+  },
+
   /* Leva o que já foi digitado para a tela de criação, que pede o resto. */
   irParaCriacao: function (nome, campanha) {
     try {
@@ -730,12 +944,26 @@ const Entrada = {
     document.getElementById('btnEntrar').addEventListener('click', function () { self.entrar(); });
     document.getElementById('btnVoltaMestre').addEventListener('click', function () { self.abrirPorta('volta-mestre'); });
     document.getElementById('btnEntrarMestre').addEventListener('click', function () { self.entrarComoMestre(); });
+    document.getElementById('btnEntrarConta').addEventListener('click', function () { self.entrarConta(); });
+    document.getElementById('btnCriarConta').addEventListener('click', function () { self.criarConta(); });
+    document.getElementById('btnTrocarSenha').addEventListener('click', function () { self.novaSenhaConta(); });
+    document.getElementById('btnSairConta').addEventListener('click', function () { self.sairConta(); });
+    document.getElementById('blocoMestrar').addEventListener('click', function (evento) {
+      const modo = evento.target.closest('[data-conta-modo]');
+      if (modo) self.trocarModoConta(modo.dataset.contaModo);
+      const abrir = evento.target.closest('[data-campanha]');
+      if (abrir) self.abrirMinha(abrir);
+    });
 
     /* Enter confirma o formulário aberto. Sem <form>, o navegador não
        faz isso sozinho. Esc volta às portas. */
     document.getElementById('formPorta').addEventListener('keydown', function (evento) {
       if (evento.key === 'Escape') { self.fecharPorta(); return; }
       if (evento.key !== 'Enter' || evento.target.tagName !== 'INPUT') return;
+      /* Nos campos da conta, o Enter é da conta, não de criar campanha. */
+      if (evento.target.closest('#blocoContaEntrar')) { self.entrarConta(); return; }
+      if (evento.target.closest('#blocoContaCriar')) { self.criarConta(); return; }
+      if (evento.target.closest('#blocoContaSenha')) { self.novaSenhaConta(); return; }
       if (self.porta === 'mestrar') self.criar();
       else if (self.porta === 'volta-mestre') self.entrarComoMestre();
       else self.entrar();

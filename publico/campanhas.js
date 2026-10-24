@@ -252,12 +252,18 @@ const Servidor = {
     return this.pedir('admin/' + rota, Object.assign({ contaId: c.contaId, chave: c.chave }, corpo || {}));
   },
 
-  criarCampanha: function (estado, senha) { return this.pedir('campanhas', { estado: estado, senha: senha || undefined, senhaServidor: SenhaServidor.ler() || undefined }); },
+  /* Com a conta de Mestre deste navegador (ContaLocal), a campanha nasce
+     dela, e o servidor deixa criar pelo link sem a senha do servidor. */
+  daConta: function () {
+    const c = ContaLocal.ler();
+    return c ? { contaId: c.contaId, contaChave: c.chave } : {};
+  },
+  criarCampanha: function (estado, senha) { return this.pedir('campanhas', Object.assign({ estado: estado, senha: senha || undefined, senhaServidor: SenhaServidor.ler() || undefined }, this.daConta())); },
   /* Criar e restaurar backup só valem no computador do servidor, ou
      pelo link com a senha do servidor. A tela pergunta antes, para
      avisar (ou pedir a senha) cedo. `tentativa`: conferir uma senha
      digitada agora; sem ela, vale a já guardada nesta aba. */
-  podeCriar: function (tentativa) { return this.pedir('pode-criar', { senhaServidor: tentativa || SenhaServidor.ler() || undefined }); },
+  podeCriar: function (tentativa) { return this.pedir('pode-criar', Object.assign({ senhaServidor: tentativa || SenhaServidor.ler() || undefined }, this.daConta())); },
   convite: function (codigo) { return this.pedir('convite', { codigo: codigo }); },
   entrar: function (codigo, nome) { return this.pedir('entrar', { codigo: codigo, nome: nome }); },
   cartoes: function (acessos) { return this.pedir('cartoes', { mesas: acessos }); },
