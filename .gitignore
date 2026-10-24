@@ -1,6 +1,9 @@
 node_modules/
 data/
 .env
+# As cópias de segurança automáticas (servidor/copias.js): levam a pasta
+# data/ inteira, com os segredos — nunca sobem para o Git.
+copias/
 
 # O que os testes geram (fotos de tela, downloads, perfil do navegador)
 testes/saida/

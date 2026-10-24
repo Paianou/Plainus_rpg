@@ -29,7 +29,7 @@ ok(!doProprioComputador(local('localhost:3000', '203.0.113.7')), 'pelo túnel (c
   const PORTA = 3995;
   const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'plainus-tunel-'));
   const servidor = spawn(process.execPath, [path.join(__dirname, '..', '..', 'server.js')], {
-    env: Object.assign({}, process.env, { PORT: String(PORTA), DATA_DIR: pasta, PLAINUS_ROTAS_DE_TESTE: '' }),
+    env: Object.assign({}, process.env, { PORT: String(PORTA), DATA_DIR: pasta, PLAINUS_ROTAS_DE_TESTE: '', PLAINUS_PASTA_COPIAS: 'desligado' }),
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let fala = '';

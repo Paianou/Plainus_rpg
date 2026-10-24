@@ -60,6 +60,7 @@ const { criarArmazem } = require('./servidor/armazem.js');
 const { criarContas } = require('./servidor/contas.js');
 const { criarApi } = require('./servidor/api.js');
 const { ligarMesa } = require('./servidor/mesa.js');
+const { criarCopias } = require('./servidor/copias.js');
 
 const RAIZ = __dirname;
 /* O que o navegador baixa: as páginas, os scripts, o estilo. */
@@ -88,6 +89,20 @@ try {
   console.error('\nO servidor NÃO subiu: ' + erro.message + '\n');
   process.exit(1);
 }
+
+/* ---------- As cópias de segurança (servidor/copias.js) ----------
+   Uma por dia, da pasta de dados inteira. Por padrão em copias/, ao
+   lado de data/; PLAINUS_PASTA_COPIAS (no .env) troca o lugar — uma
+   pasta do OneDrive, por exemplo, leva a cópia para fora deste PC.
+   Com DATA_DIR trocado (os testes), a pasta vem junto: "<dados>-copias".
+   PLAINUS_PASTA_COPIAS=desligado não faz cópia nenhuma. */
+const PASTA_COPIAS = process.env.PLAINUS_PASTA_COPIAS
+  || (process.env.DATA_DIR ? PASTA_DADOS + '-copias' : path.join(RAIZ, 'copias'));
+const copias = PASTA_COPIAS === 'desligado' ? null : criarCopias(PASTA_DADOS, PASTA_COPIAS, {
+  log: function (texto) { console.log(texto); },
+  /* A cópia lê o disco: o que esperava a gravação agrupada vai antes. */
+  antes: function () { armazem.gravarPendentes(); }
+});
 
 
 /* ---------- A lista branca ---------- */
@@ -243,6 +258,8 @@ servidor.listen(PORTA, HOST, function () {
     ? 'Contas de Mestre: ' + quantasContas + '. Administração em /admin.html.'
     : 'Contas de Mestre: ainda sem administrador — crie a sua conta em http://localhost:' + PORTA + '/admin.html (só neste computador).');
   console.log(quantas + (quantas === 1 ? ' campanha guardada' : ' campanhas guardadas') + ' em ' + PASTA_DADOS + '. Ctrl+C para desligar.');
+  if (copias) copias.ligar();
+  else console.log('Cópias de segurança: desligadas (PLAINUS_PASTA_COPIAS=desligado).');
   if (senhaServidorAntiga) console.log('Aviso: PLAINUS_SENHA_SERVIDOR (no .env) não é mais usada — pelo link, o Mestre cria campanha com a conta dele. Pode apagar a linha.');
 });
 

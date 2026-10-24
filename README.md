@@ -43,6 +43,24 @@ senha, que você esteja no computador do servidor).
 Sem conta, criar campanha só funciona em `http://localhost:3000`. A
 antiga `PLAINUS_SENHA_SERVIDOR` do `.env` não é mais usada.
 
+## Cópias de segurança
+
+O servidor faz sozinho **uma cópia por dia** de tudo o que a mesa guarda
+(campanhas, fichas, contas e imagens), em
+`copias/plainus-AAAA-MM-DD.json.gz`: ao ligar, se ainda não houver a de
+hoje, e depois uma olhada por hora. Ficam as 7 mais novas e, das mais
+velhas, uma por semana por 4 semanas.
+
+A pasta `copias/` fica fora do Git, como `data/`: as cópias levam os
+segredos do Mestre. Para a cópia sair deste computador, aponte para uma
+pasta sincronizada (OneDrive, Google Drive) no `.env`:
+
+```
+PLAINUS_PASTA_COPIAS=C:\Users\voce\OneDrive\plainus-copias
+```
+
+`PLAINUS_PASTA_COPIAS=desligado` não faz cópia nenhuma.
+
 ## Onde fica cada coisa
 
 ```

@@ -17,7 +17,7 @@ const PORTA = 3990;
 const SITE = 'http://127.0.0.1:' + PORTA;
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'plainus-mesa-'));
 const servidor = spawn(process.execPath, [path.join(__dirname, '..', '..', 'server.js')], {
-  env: Object.assign({}, process.env, { PORT: String(PORTA), DATA_DIR: pasta, PLAINUS_ESPERA_GRAVAR: '0' }), stdio: ['ignore', 'pipe', 'pipe']
+  env: Object.assign({}, process.env, { PORT: String(PORTA), DATA_DIR: pasta, PLAINUS_ESPERA_GRAVAR: '0', PLAINUS_PASTA_COPIAS: 'desligado' }), stdio: ['ignore', 'pipe', 'pipe']
 });
 let fala = '';
 servidor.stdout.on('data', (d) => { fala += d; });
