@@ -618,6 +618,55 @@ function criarArmazem(pastaDados, avisar) {
     return { campanhaId: id, chave: chave, nome: c.estado.mestre.nome };
   }
 
+  /* CAMPANHAS DE ANTES DAS CONTAS (dono null)
+     Vinculam-se a uma conta só com DUAS provas: a chave de Mestre que
+     este navegador já usa, e a mesma prova de entrar como Mestre num
+     computador novo — a senha do Mestre da campanha; sem senha (a mesa
+     só abre onde foi criada), só do computador do servidor. Só a chave
+     não basta: um amigo que um dia abriu a mesa como Mestre teria a dele,
+     e virar dono é para sempre — "desconectar os outros computadores"
+     não tiraria mais ninguém. Uma campanha com dono não muda de dono
+     por aqui. */
+
+  /* Destas mesas (campanhaId + chave de Mestre), quais são sem dono e
+     abrem com a chave mostrada: o que a entrada oferece para vincular. */
+  function semDonoComChave(mesas) {
+    return (Array.isArray(mesas) ? mesas : []).slice(0, 30).filter(function (m) {
+      const c = m && ID_CAMPANHA.test(String(m.campanhaId)) && campanhas.get(m.campanhaId);
+      return c && !c.acessos.dono && conferirAcesso(m.campanhaId, 'mestre', null, m.chave);
+    }).map(function (m) { return Object.assign(resumo(m.campanhaId), { temSenha: !!campanhas.get(m.campanhaId).acessos.senha }); });
+  }
+
+  /* Devolve uma Promise com { campanha } ou { erro }. local: o pedido
+     vem do computador do servidor (quem chama confere). */
+  function vincularDono(id, contaId, chaveMestre, senha, local, quem) {
+    const c = ID_CAMPANHA.test(String(id)) && campanhas.get(id);
+    if (!c || !conferirAcesso(id, 'mestre', null, chaveMestre)) return Promise.resolve({ erro: 'Só o Mestre desta campanha a traz para uma conta.' });
+    if (c.acessos.dono) return Promise.resolve({ erro: c.acessos.dono === contaId ? 'Essa campanha já é da sua conta.' : 'Essa campanha já é de outra conta.' });
+    const prova = c.acessos.senha
+      ? verificarSenha(id, senha, { erro: 'A senha do Mestre desta campanha não confere.' }, quem)
+      : Promise.resolve(local ? { ok: true } : { erro: 'Esta campanha não tem senha de Mestre: traga-a para a sua conta no computador onde o servidor está rodando (http://localhost:3000).' });
+    return prova.then(function (v) {
+      if (v.erro) return v;
+      /* De novo, depois da espera: outro pedido pode ter chegado antes. */
+      if (c.acessos.dono) return { erro: 'Essa campanha já é de outra conta.' };
+      c.acessos.dono = contaId;
+      try {
+        gravarAgora(id);
+      } catch (erro) {
+        c.acessos.dono = null;
+        return { erro: 'Não consegui gravar no disco.' };
+      }
+      return { campanha: resumo(id) };
+    });
+  }
+
+  /* O usuário da conta dona (para a página de Acessos), ou null. */
+  function donoDe(id) {
+    const c = campanhas.get(id);
+    return c ? c.acessos.dono : null;
+  }
+
   /* A conta dona foi desativada: nenhuma chave de Mestre das campanhas
      dela vale mais (as que "Abrir" deu, em cada computador). A campanha
      fica — o administrador decide o que fazer com ela. */
@@ -745,7 +794,7 @@ function criarArmazem(pastaDados, avisar) {
 
   return { carregar, listar, ler, resumo, acharPorCodigo, criar, apagar, mudou, gravarPendentes, gravarAgora,
     conferirAcesso, nomeDoJogador, entrarComoJogador, envelopeDeBackup, temSenha, definirSenha, entrarComoMestre,
-    verificarSenha, listarAcessos, liberarJogador, renomearJogador, doDono, abrirComoDono, tirarMestresDoDono, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
+    verificarSenha, listarAcessos, liberarJogador, renomearJogador, doDono, abrirComoDono, tirarMestresDoDono, semDonoComChave, vincularDono, donoDe, manterSoEstaChave, aplicar, limparImagens, arquivoDeImagem: imagens.arquivo };
 }
 
 /* As peças de chave e de senha também servem às contas (contas.js):

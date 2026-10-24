@@ -5662,6 +5662,10 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
 .conta-logada .link-porta { margin: 0; }
 .titulo-conta { padding: 0 44px; margin: 14px 0 8px; font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
 .links-conta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+/* A senha do Mestre ao lado de "Trazer para a minha conta": o mesmo campo
+   do .campo input (cores, borda, foco), na altura do .mini-botao. */
+.botoes-acesso:has(.senha-vincular) { align-items: center; }
+.campo .senha-vincular { width: 190px; padding: 5px 9px; font-size: 12px; }
 /* No celular, o mesmo respiro do .campo (seção 11). */
 @media (max-width: 720px) {
   .conta-logada, .titulo-conta { padding: 0 26px; }

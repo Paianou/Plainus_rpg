@@ -441,6 +441,34 @@ function criarApi(armazem, opcoes) {
     return armazem.abrirComoDono(corpo.campanhaId, conta.id);
   });
 
+  /* As mesas que este navegador abre como Mestre e que ainda não são de
+     conta nenhuma. O corpo traz a lista de { campanhaId, chave } que o
+     navegador guarda (Acessos) — em texto JSON, porque o comConta só
+     deixa passar texto. */
+  const mesasDoCorpo = function (texto) {
+    try {
+      const lista = JSON.parse(String(texto || '[]'));
+      return Array.isArray(lista) ? lista.filter(function (m) { return m && typeof m.campanhaId === 'string' && typeof m.chave === 'string'; }) : [];
+    } catch (erro) { return []; }
+  };
+
+  comConta('/conta/sem-dono', 30, function (corpo, pedido, resposta) {
+    const conta = contaDoPedido(corpo);
+    if (!conta) { resposta.status(401).json({ erro: 'Esta sessão não vale mais. Entre de novo.' }); return undefined; }
+    return { campanhas: armazem.semDonoComChave(mesasDoCorpo(corpo.mesas)) };
+  });
+
+  /* Trazer uma delas para a conta: a prova é a chave de Mestre. O mesmo
+     teto de campanhas por conta de criar. */
+  comConta('/conta/vincular', 20, function (corpo, pedido, resposta) {
+    const conta = contaDoPedido(corpo);
+    if (!conta) { resposta.status(401).json({ erro: 'Esta sessão não vale mais. Entre de novo.' }); return undefined; }
+    if (!conta.admin && armazem.doDono(conta.id).length >= LIMITE_CAMPANHAS_POR_CONTA) {
+      return { erro: 'Sua conta já tem ' + LIMITE_CAMPANHAS_POR_CONTA + ' campanhas, o máximo.' };
+    }
+    return armazem.vincularDono(corpo.campanhaId, conta.id, corpo.chaveMestre, corpo.senha, doProprioComputador(pedido), chaveDoEndereco(quemPede(pedido)));
+  });
+
   comConta('/conta/sair', 30, function (corpo) {
     /* Só grava se a chave era mesmo desta conta (contas.sair confere). */
     return contas.sair(corpo.contaId, corpo.chave);
@@ -487,7 +515,10 @@ function criarApi(armazem, opcoes) {
   api.post('/acessos', limite(60), express.json({ limit: '2kb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
     if (!soMestre(corpo, resposta)) return;
-    resposta.json(armazem.listarAcessos(corpo.campanhaId));
+    /* E de que conta ela é: um dono errado não passa despercebido. */
+    const dono = armazem.donoDe(corpo.campanhaId);
+    const conta = dono && contas ? contas.listarContas().find(function (x) { return x.id === dono; }) : null;
+    resposta.json(Object.assign(armazem.listarAcessos(corpo.campanhaId), { contaDona: conta ? conta.usuario : null }));
   });
 
   api.post('/liberar', limite(20), express.json({ limit: '2kb' }), function (pedido, resposta) {

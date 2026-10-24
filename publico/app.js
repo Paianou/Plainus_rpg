@@ -483,6 +483,11 @@ const Entrada = {
     document.getElementById('blocoConvite').hidden = !convite;
     document.getElementById('blocoMestrar').hidden = this.porta !== 'mestrar';
     document.getElementById('blocoVoltaMestre').hidden = !volta;
+    /* O nome volta ao alto do formulário (a conta, em "Vou mestrar", o
+       leva para junto da campanha nova — desenharConta). */
+    const campoNome = document.getElementById('campoNome');
+    const alto = document.getElementById('blocoConvite');
+    if (campoNome.nextElementSibling !== alto) alto.parentNode.insertBefore(campoNome, alto);
     document.getElementById('campoNome').hidden = volta;
     if (!convite) document.getElementById('conviteAchado').hidden = true;
     if (volta) { document.getElementById('codigoMestre').focus(); return; }
@@ -701,6 +706,13 @@ const Entrada = {
        com a conta, no computador do servidor, ou com a senha dele. */
     if (logado) document.getElementById('usuarioLogado').textContent = this.conta.usuario;
     if (this.porta === 'mestrar') document.getElementById('campoNome').hidden = !logado && !this.podeCriar;
+    /* Com a conta, o nome na mesa é da campanha NOVA: vai para baixo de
+       "Nova campanha", junto do nome dela. Sem conta (ou nas outras
+       portas), volta ao lugar de sempre, no alto do formulário. */
+    const campoNome = document.getElementById('campoNome');
+    const criarAqui = document.getElementById('criarAqui');
+    const lugar = logado && this.porta === 'mestrar' ? criarAqui : document.getElementById('blocoConvite');
+    if (campoNome.nextElementSibling !== lugar) lugar.parentNode.insertBefore(campoNome, lugar);
   },
 
   /* Os links "Tenho um convite…" e "Já tenho conta: entrar". */
@@ -829,6 +841,72 @@ const Entrada = {
         item.appendChild(abrir);
         lista.appendChild(item);
       });
+      if (!r.erro) self.carregarSemDono(sessao, r.campanhas);
+    });
+  },
+
+  /* As mesas que este navegador abre como Mestre (Acessos) e que não são
+     de conta nenhuma: o servidor diz quais (só as que a chave abre de
+     verdade e sem dono). Até 15 — o pedido é pequeno de propósito. */
+  carregarSemDono: function (sessao, minhas) {
+    const self = this;
+    const jaMinhas = (minhas || []).map(function (c) { return c.id; });
+    const mesas = Acessos.listar()
+      .filter(function (x) { return x.papel === 'mestre' && jaMinhas.indexOf(x.campanhaId) === -1; })
+      .slice(0, 15)
+      .map(function (x) { return { campanhaId: x.campanhaId, chave: x.chave }; });
+    const bloco = document.getElementById('blocoSemDono');
+    if (!mesas.length) { bloco.hidden = true; return; }
+    Servidor.conta('sem-dono', { contaId: sessao.contaId, chave: sessao.chave, mesas: JSON.stringify(mesas) }).then(function (r) {
+      const lista = document.getElementById('listaSemDono');
+      lista.textContent = '';
+      const campanhas = (r && r.campanhas) || [];
+      bloco.hidden = !campanhas.length;
+      campanhas.forEach(function (c) {
+        const item = el('li', 'item-acesso');
+        const texto = el('span', 'quem-acesso');
+        texto.appendChild(el('strong', '', c.nome));
+        texto.appendChild(el('span', 'sub-acesso', 'Sessão ' + c.sessao + ' · sem conta'));
+        item.appendChild(texto);
+        const acoes = el('span', 'botoes-acesso');
+        /* Com senha de Mestre, ela é a prova (a mesma de entrar como
+           Mestre num computador novo). */
+        if (c.temSenha) {
+          const senha = el('input', 'senha-vincular');
+          senha.type = 'password';
+          senha.maxLength = 100;
+          senha.autocomplete = 'current-password';
+          senha.placeholder = 'Senha do Mestre';
+          senha.dataset.senhaDe = c.id;
+          senha.setAttribute('aria-label', 'Senha do Mestre de ' + c.nome);
+          acoes.appendChild(senha);
+        }
+        const trazer = el('button', 'mini-botao', 'Trazer para a minha conta');
+        trazer.type = 'button';
+        trazer.dataset.vincular = c.id;
+        trazer.setAttribute('aria-label', 'Trazer ' + c.nome + ' para a minha conta');
+        acoes.appendChild(trazer);
+        item.appendChild(acoes);
+        lista.appendChild(item);
+      });
+    });
+  },
+
+  /* Trazer: a prova é a chave de Mestre guardada neste navegador. */
+  vincular: function (botao) {
+    const self = this;
+    const sessao = ContaLocal.ler();
+    const acesso = Acessos.listar().find(function (x) { return x.papel === 'mestre' && x.campanhaId === botao.dataset.vincular; });
+    if (!sessao || !acesso) return;
+    this.limparErro();
+    botao.disabled = true;
+    const campoSenha = document.querySelector('[data-senha-de="' + acesso.campanhaId + '"]');
+    if (campoSenha && !campoSenha.value) { botao.disabled = false; this.mostrarErro('Digite a senha do Mestre desta campanha.', campoSenha); return; }
+    Servidor.conta('vincular', { contaId: sessao.contaId, chave: sessao.chave, campanhaId: acesso.campanhaId, chaveMestre: acesso.chave, senha: campoSenha ? campoSenha.value : undefined }).then(function (r) {
+      botao.disabled = false;
+      if (r.erro) { self.mostrarErro(r.erro, campoSenha || undefined); if (campoSenha) campoSenha.select(); return; }
+      self.mostrarAviso('"' + r.campanha.nome + '" agora é da sua conta: abre de qualquer computador, em "Minhas campanhas".');
+      self.carregarMinhas();
     });
   },
 
@@ -953,6 +1031,8 @@ const Entrada = {
       if (modo) self.trocarModoConta(modo.dataset.contaModo);
       const abrir = evento.target.closest('[data-campanha]');
       if (abrir) self.abrirMinha(abrir);
+      const trazer = evento.target.closest('[data-vincular]');
+      if (trazer) self.vincular(trazer);
     });
 
     /* Enter confirma o formulário aberto. Sem <form>, o navegador não
@@ -964,6 +1044,7 @@ const Entrada = {
       if (evento.target.closest('#blocoContaEntrar')) { self.entrarConta(); return; }
       if (evento.target.closest('#blocoContaCriar')) { self.criarConta(); return; }
       if (evento.target.closest('#blocoContaSenha')) { self.novaSenhaConta(); return; }
+      if (evento.target.dataset.senhaDe) { const b = document.querySelector('[data-vincular="' + evento.target.dataset.senhaDe + '"]'); if (b) self.vincular(b); return; }
       if (self.porta === 'mestrar') self.criar();
       else if (self.porta === 'volta-mestre') self.entrarComoMestre();
       else self.entrar();

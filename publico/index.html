@@ -185,6 +185,15 @@
             </div>
             <h3 class="titulo-conta">Minhas campanhas</h3>
             <ul class="campo lista-acessos" id="listaMinhas"></ul>
+            <!-- As mesas que ESTE navegador abre como Mestre e que ainda
+                 não são de conta nenhuma (de antes das contas): trazê-las
+                 para a conta as põe em "Minhas campanhas", em qualquer
+                 computador. O app.js pergunta ao servidor quais são. -->
+            <div id="blocoSemDono" hidden>
+              <h3 class="titulo-conta">Mesas deste computador sem conta</h3>
+              <p class="campo ajuda-campo">Você é o Mestre delas neste navegador, mas elas ainda não são de nenhuma conta. Traga para a sua: depois, elas abrem de qualquer computador, por aqui.</p>
+              <ul class="campo lista-acessos" id="listaSemDono"></ul>
+            </div>
             <h3 class="titulo-conta">Nova campanha</h3>
           </div>
 

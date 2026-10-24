@@ -82,6 +82,9 @@ const PaginaAcessos = {
       lista.appendChild(item);
     });
 
+    document.getElementById('textoDona').textContent = d.contaDona
+      ? 'Esta campanha é da conta de Mestre "' + d.contaDona + '": ela abre a mesa de qualquer computador, em "Minhas campanhas".'
+      : 'Esta campanha não é de nenhuma conta de Mestre. Entre na sua conta (na entrada, em "Vou mestrar") para trazê-la.';
     const n = d.computadoresDoMestre;
     document.getElementById('textoComputadores').textContent = n <= 1
       ? 'Só este computador abre o painel do Mestre.'
