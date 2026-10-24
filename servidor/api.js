@@ -73,9 +73,15 @@ function quemPede(pedido) {
    na máquina do servidor (o Mestre, em casa) ou os testes. Pelo túnel
    a conexão também vem de 127.0.0.1 — mas o Cloudflare sempre põe o
    CF-Connecting-IP, e quem está do outro lado não consegue tirá-lo. */
+/* E o endereço digitado no navegador (o cabeçalho Host) tem de ser o
+   local. Sem isso, uma página maliciosa aberta NESTE computador poderia
+   apontar o próprio nome para 127.0.0.1 ("DNS rebinding") e falar com o
+   servidor como se fosse daqui — criar o administrador, por exemplo. */
+const HOSTS_LOCAIS = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 function doProprioComputador(pedido) {
   const conexao = pedido.socket && pedido.socket.remoteAddress;
-  return DO_PROPRIO_COMPUTADOR.has(conexao) && pedido.headers['cf-connecting-ip'] === undefined;
+  return DO_PROPRIO_COMPUTADOR.has(conexao) && pedido.headers['cf-connecting-ip'] === undefined
+    && HOSTS_LOCAIS.test(String(pedido.headers.host || ''));
 }
 
 /* A CHAVE DE UM ENDEREÇO, PARA OS LIMITES
@@ -125,6 +131,26 @@ function criarApi(armazem, opcoes) {
     return false;
   };
   const limite = opcoes && opcoes.semLimite ? function () { return function (p, r, seguir) { seguir(); }; } : limitador;
+  const contas = opcoes && opcoes.contas;
+
+  /* A conta deste pedido, conferida pelo servidor: { contaId, chave } no
+     corpo, como as chaves de campanha. Sem conta válida, null. */
+  const contaDoPedido = function (corpo) {
+    return contas && corpo ? contas.conferirSessao(corpo.contaId, corpo.chave) : null;
+  };
+  /* Só uma sessão de ADMINISTRADOR passa. O id do administrador que vai
+     para o cofre sai da sessão conferida — nunca do que o corpo diz. */
+  const soAdmin = function (corpo, resposta) {
+    const conta = contaDoPedido(corpo);
+    if (conta && conta.admin) return conta;
+    if (!conta) resposta.status(401).json({ erro: 'Esta sessão não vale mais. Entre de novo.' });
+    else resposta.status(403).json({ erro: 'Só o administrador faz isso.' });
+    return null;
+  };
+  /* O que vai ao navegador depois de entrar: a conta e a chave nova. */
+  const sessaoDaConta = function (r) {
+    return { contaId: r.conta.id, chave: r.chave, usuario: r.conta.usuario, admin: r.conta.admin };
+  };
 
   /* A SENHA DO SERVIDOR (server.js, PLAINUS_SENHA_SERVIDOR no .env)
      Pelo link do túnel, quem a digita cria campanha e restaura backup
@@ -313,6 +339,108 @@ function criarApi(armazem, opcoes) {
     });
   });
 
+  /* ===================================================================
+     AS CONTAS DE MESTRE (servidor/contas.js)
+       POST /api/conta/estado      já há administrador? o pedido é daqui?
+       POST /api/conta/admin       a PRIMEIRA conta (administrador): só no
+                                   computador do servidor, e só sem nenhuma
+       POST /api/conta/entrar      usuário + senha → sessão
+       POST /api/conta/criar       convite + usuário + senha → conta e sessão
+       POST /api/conta/nova-senha  convite de senha + senha nova → sessão
+       POST /api/conta/eu          esta sessão ainda vale? → a conta
+       POST /api/conta/sair        esta sessão deixa de valer
+       POST /api/admin/...         convites e contas — só administrador
+     =================================================================== */
+  const comConta = function (rota, porMinuto, tratar) {
+    api.post(rota, limite(porMinuto), express.json({ limit: '2kb' }), function (pedido, resposta) {
+      if (!contas) return resposta.status(503).json({ erro: 'As contas não estão ligadas neste servidor.' });
+      /* Só TEXTO passa: um objeto onde se espera um nome ({ toString: 1 })
+         quebraria o String() lá dentro. O resto do corpo é jogado fora. */
+      const corpo = {};
+      const bruto = pedido.body && typeof pedido.body === 'object' ? pedido.body : {};
+      Object.keys(bruto).forEach(function (k) { if (typeof bruto[k] === 'string') corpo[k] = bruto[k]; });
+      let resultado;
+      try {
+        resultado = tratar(corpo, pedido, resposta);
+      } catch (erro) {
+        if (!resposta.headersSent) resposta.status(500).json({ erro: 'O servidor não conseguiu fazer isso.' });
+        return;
+      }
+      if (resultado === undefined) return;
+      Promise.resolve(resultado).then(function (r) {
+        if (resposta.headersSent) return;
+        if (r && r.erro) return resposta.status(400).json({ erro: r.erro });
+        resposta.json(r || {});
+      }, function () {
+        if (!resposta.headersSent) resposta.status(500).json({ erro: 'O servidor não conseguiu fazer isso.' });
+      });
+    });
+  };
+
+  comConta('/conta/estado', 60, function (corpo, pedido) {
+    return { temAdmin: contas.temAdmin(), local: doProprioComputador(pedido) };
+  });
+
+  comConta('/conta/admin', 10, function (corpo, pedido, resposta) {
+    if (!doProprioComputador(pedido)) {
+      resposta.status(403).json({ erro: 'A conta de administrador só se cria no computador onde o servidor está rodando (http://localhost:3000/admin.html).' });
+      return undefined;
+    }
+    return contas.criarAdmin(corpo.usuario, corpo.senha).then(function (r) { return r.erro ? r : sessaoDaConta(r); });
+  });
+
+  comConta('/conta/entrar', 20, function (corpo, pedido) {
+    return contas.entrar(corpo.usuario, corpo.senha, chaveDoEndereco(quemPede(pedido))).then(function (r) { return r.erro ? r : sessaoDaConta(r); });
+  });
+
+  comConta('/conta/criar', 10, function (corpo) {
+    return contas.criarConta(corpo.convite, corpo.usuario, corpo.senha).then(function (r) { return r.erro ? r : sessaoDaConta(r); });
+  });
+
+  comConta('/conta/nova-senha', 10, function (corpo) {
+    return contas.trocarSenhaComConvite(corpo.convite, corpo.senha).then(function (r) { return r.erro ? r : sessaoDaConta(r); });
+  });
+
+  comConta('/conta/eu', 120, function (corpo, pedido, resposta) {
+    const conta = contaDoPedido(corpo);
+    if (!conta) { resposta.status(401).json({ erro: 'Esta sessão não vale mais. Entre de novo.' }); return undefined; }
+    return { conta: conta };
+  });
+
+  comConta('/conta/sair', 30, function (corpo) {
+    /* Só grava se a chave era mesmo desta conta (contas.sair confere). */
+    return contas.sair(corpo.contaId, corpo.chave);
+  });
+
+  comConta('/admin/convites', 60, function (corpo, pedido, resposta) {
+    if (!soAdmin(corpo, resposta)) return undefined;
+    return { convites: contas.listarConvites() };
+  });
+
+  comConta('/admin/convite', 30, function (corpo, pedido, resposta) {
+    const admin = soAdmin(corpo, resposta);
+    if (!admin) return undefined;
+    return contas.criarConvite(admin.id, corpo.tipo === 'senha' ? 'senha' : 'mestre', corpo.paraConta);
+  });
+
+  comConta('/admin/revogar', 30, function (corpo, pedido, resposta) {
+    const admin = soAdmin(corpo, resposta);
+    if (!admin) return undefined;
+    return contas.revogarConvite(admin.id, String(corpo.conviteId || ''));
+  });
+
+  comConta('/admin/contas', 60, function (corpo, pedido, resposta) {
+    if (!soAdmin(corpo, resposta)) return undefined;
+    return { contas: contas.listarContas() };
+  });
+
+  comConta('/admin/desativar', 20, function (corpo, pedido, resposta) {
+    const admin = soAdmin(corpo, resposta);
+    if (!admin) return undefined;
+    return contas.desativarConta(admin.id, String(corpo.paraConta || ''));
+  });
+
+
   api.post('/acessos', limite(60), express.json({ limit: '2kb' }), function (pedido, resposta) {
     const corpo = pedido.body || {};
     if (!soMestre(corpo, resposta)) return;
@@ -361,6 +489,9 @@ function criarApi(armazem, opcoes) {
   api.use(function (erro, pedido, resposta, seguir) {
     if (erro && erro.type === 'entity.too.large') return resposta.status(413).json({ erro: 'Grande demais.' });
     if (erro && erro.type === 'entity.parse.failed') return resposta.status(400).json({ erro: 'Pedido mal formado.' });
+    /* Qualquer outro erro: uma frase, nunca a pilha do Node (que conta
+       os caminhos das pastas deste computador). */
+    if (!resposta.headersSent) return resposta.status(500).json({ erro: 'O servidor não conseguiu fazer isso.' });
     seguir(erro);
   });
 

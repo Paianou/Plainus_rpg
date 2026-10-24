@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  ADMINISTRAÇÃO — as contas de Mestre e os convites.
+
+  É a página do DONO do site (o administrador), não de uma campanha:
+  por isso é avulsa, como a de Acessos, e não tem o códice. Três estados,
+  um de cada vez (o admin.js mostra um só):
+    criarAdmin   ainda não há administrador, e a página foi aberta NO
+                 computador do servidor: cria a conta de administrador
+    entrar       há administrador e este navegador não está logado
+    painel       logado como administrador: convites e contas
+
+  O servidor confere tudo (servidor/api.js, /api/conta e /api/admin):
+  esta página só mostra os botões.
+
+  Os arquivos desta tela:
+    admin.html     o esqueleto (o que você está lendo)
+    admin.js       as perguntas ao servidor e o desenho das listas
+    campanhas.js   a sessão da conta (ContaLocal) e as perguntas HTTP
+-->
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090b">
+  <title>Administração — Plainus RPG</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <main class="pagina-entrada">
+    <div class="entrada-caixa acessos-caixa">
+
+      <header class="entrada-marca">
+        <svg class="arco-gotico" viewBox="0 0 74 58" aria-hidden="true">
+          <path class="brilho" d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+          <path d="M18 57 L18 30 Q37 10 56 30 L56 57" opacity="0.45" />
+          <path d="M28 57 L28 35 Q37 24 46 35 L46 57" opacity="0.28" />
+          <path d="M37 14 L37 57" opacity="0.22" />
+        </svg>
+        <h1 class="titulo">Administração</h1>
+        <p class="subtitulo" id="subtitulo">Carregando…</p>
+      </header>
+
+      <!-- ============ A PRIMEIRA CONTA: o administrador ============ -->
+      <form class="secao-acessos" id="blocoCriarAdmin" hidden novalidate>
+        <h2>Criar a conta de administrador</h2>
+        <p class="campo ajuda-campo">É a primeira conta do site, e só se cria aqui, no computador onde o servidor está rodando. Com ela você gera os convites dos outros Mestres.</p>
+        <div class="campo">
+          <label for="adminUsuario">Usuário</label>
+          <input type="text" id="adminUsuario" maxlength="30" autocomplete="username">
+        </div>
+        <div class="campo">
+          <label for="adminSenha">Senha</label>
+          <input type="password" id="adminSenha" maxlength="100" autocomplete="new-password">
+          <label class="mostrar-senha"><input type="checkbox" data-mostra="adminSenha"> Mostrar a senha</label>
+          <p class="ajuda-campo">Pelo menos 8 caracteres. Não existe "esqueci a senha" para o administrador: guarde-a bem.</p>
+        </div>
+        <div class="campo">
+          <label for="adminSenha2">Repita a senha</label>
+          <input type="password" id="adminSenha2" maxlength="100" autocomplete="new-password">
+        </div>
+        <div class="campo">
+          <button class="botao" type="submit">Criar a conta de administrador</button>
+        </div>
+      </form>
+
+      <!-- ============ ENTRAR ============ -->
+      <form class="secao-acessos" id="blocoEntrar" hidden novalidate>
+        <h2>Entrar</h2>
+        <div class="campo">
+          <label for="entrarUsuario">Usuário</label>
+          <input type="text" id="entrarUsuario" maxlength="30" autocomplete="username">
+        </div>
+        <div class="campo">
+          <label for="entrarSenha">Senha</label>
+          <input type="password" id="entrarSenha" maxlength="100" autocomplete="current-password">
+          <label class="mostrar-senha"><input type="checkbox" data-mostra="entrarSenha"> Mostrar a senha</label>
+        </div>
+        <div class="campo">
+          <button class="botao" type="submit">Entrar</button>
+        </div>
+      </form>
+
+      <!-- ============ O PAINEL DO ADMINISTRADOR ============ -->
+      <div id="blocoPainel" hidden>
+
+        <section class="secao-acessos">
+          <h2>Convites de Mestre</h2>
+          <p class="campo ajuda-campo">Cada convite cria UMA conta de Mestre e vale por 7 dias. Entregue o código à pessoa: ela cria a conta na entrada, em "Vou mestrar".</p>
+          <div class="campo">
+            <button class="botao fantasma" type="button" id="btnConvite">Gerar convite de Mestre</button>
+          </div>
+          <!-- O código aparece UMA vez: o servidor guarda só o resumo dele. -->
+          <div class="campo" id="codigoGerado" hidden>
+            <div class="codigo-gerado">
+              <p class="rotulo-codigo" id="rotuloCodigo"></p>
+              <p class="codigo-convite" id="textoCodigo"></p>
+              <p class="ajuda-campo" id="validadeCodigo"></p>
+              <button class="mini-botao" type="button" id="btnCopiarCodigo">Copiar o código</button>
+            </div>
+          </div>
+          <ul class="campo lista-acessos" id="listaConvites"></ul>
+        </section>
+
+        <section class="secao-acessos">
+          <h2>Contas</h2>
+          <p class="campo ajuda-campo">Esqueceu a senha? Gere um convite de nova senha para a conta da pessoa. Desativar tira a conta do site: ela não entra mais, e os computadores dela caem na hora.</p>
+          <ul class="campo lista-acessos" id="listaContas"></ul>
+        </section>
+
+        <section class="secao-acessos">
+          <h2>Sua sessão</h2>
+          <p class="campo ajuda-campo" id="textoSessao"></p>
+          <div class="campo">
+            <button class="botao fantasma" type="button" id="btnSair">Sair deste computador</button>
+          </div>
+        </section>
+      </div>
+
+      <p class="erro-entrada" id="erro" role="alert"></p>
+      <p class="aviso-entrada" id="aviso" role="status"></p>
+
+      <div class="campo">
+        <a class="link-porta" href="index.html">Ir para a entrada</a>
+      </div>
+    </div>
+  </main>
+
+  <noscript>
+    <div class="tela-restrita">
+      <div class="cartao">
+        <h1>JavaScript desligado</h1>
+        <p>Esta página conversa com o servidor, então precisa de JavaScript para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="campanhas.js"></script>
+  <script src="admin.js"></script>
+</body>
+
+</html>

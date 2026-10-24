@@ -57,6 +57,7 @@ const http = require('http');
 
 const express = require('express');
 const { criarArmazem } = require('./servidor/armazem.js');
+const { criarContas } = require('./servidor/contas.js');
 const { criarApi } = require('./servidor/api.js');
 const { ligarMesa } = require('./servidor/mesa.js');
 
@@ -76,6 +77,17 @@ const rotasDeTeste = process.env.PLAINUS_ROTAS_DE_TESTE === '1' && HOST === '127
 /* ---------- As campanhas (servidor/armazem.js) ---------- */
 const armazem = criarArmazem(PASTA_DADOS, function (texto) { console.log(texto); });
 const quantas = armazem.carregar();
+/* As contas de Mestre e os convites (servidor/contas.js). Se o arquivo
+   existir e não der para ler, carregar() PARA o servidor de propósito:
+   subir sem as contas e gravar por cima apagaria todas. */
+const contas = criarContas(PASTA_DADOS, function (texto) { console.log(texto); });
+let quantasContas;
+try {
+  quantasContas = contas.carregar();
+} catch (erro) {
+  console.error('\nO servidor NÃO subiu: ' + erro.message + '\n');
+  process.exit(1);
+}
 
 
 /* ---------- A lista branca ---------- */
@@ -184,6 +196,7 @@ const senhaServidor = process.env.PLAINUS_SENHA_SERVIDOR || '';
 const senhaServidorLigada = senhaServidor.length >= SENHA_SERVIDOR_MINIMO;
 
 app.use('/api', criarApi(armazem, {
+  contas: contas,
   semLimite: !!rotasDeTeste,
   mesa: function () { return mesa; },
   senhaServidor: senhaServidorLigada ? senhaServidor : null
@@ -231,6 +244,9 @@ servidor.listen(PORTA, HOST, function () {
   const nome = HOST === '127.0.0.1' || HOST === '0.0.0.0' ? 'localhost' : HOST;
   console.log('Plainus no ar em http://' + nome + ':' + PORTA);
   console.log('Entregando ' + ARQUIVOS_DO_SITE.size + ' arquivos do site.');
+  console.log(contas.temAdmin()
+    ? 'Contas de Mestre: ' + quantasContas + '. Administração em /admin.html.'
+    : 'Contas de Mestre: ainda sem administrador — crie a sua conta em http://localhost:' + PORTA + '/admin.html (só neste computador).');
   console.log(quantas + (quantas === 1 ? ' campanha guardada' : ' campanhas guardadas') + ' em ' + PASTA_DADOS + '. Ctrl+C para desligar.');
   if (senhaServidorLigada) console.log('Senha do servidor: ligada — pelo link do túnel, criar campanha pede a senha.');
   else if (senhaServidor) console.log('Senha do servidor: DESLIGADA — PLAINUS_SENHA_SERVIDOR tem menos de ' + SENHA_SERVIDOR_MINIMO + ' caracteres.');

@@ -207,6 +207,21 @@ const Acessos = {
    Cada uma devolve uma Promise com o corpo da resposta, ou { erro }.
    =================================================================== */
 
+/* ---------- A conta de Mestre deste navegador ----------
+   { contaId, chave, usuario, admin } no localStorage: a chave é sorteada
+   pelo servidor e confere lá a cada pedido (servidor/contas.js). Aqui só
+   se guarda — quem decide o que ela abre é o servidor. */
+const CHAVE_CONTA = 'plainus:conta';
+const ContaLocal = {
+  ler: function () {
+    const c = Armazem.ler(CHAVE_CONTA);
+    if (!c || typeof c !== 'object' || !/^u[0-9a-f]{16}$/.test(String(c.contaId)) || typeof c.chave !== 'string' || !c.chave) return null;
+    return { contaId: c.contaId, chave: c.chave.slice(0, 100), usuario: String(c.usuario || '').slice(0, 30), admin: c.admin === true };
+  },
+  gravar: function (c) { return Armazem.gravar(CHAVE_CONTA, c); },
+  limpar: function () { try { localStorage.removeItem(CHAVE_CONTA); } catch (erro) { /* nada a limpar */ } }
+};
+
 const Servidor = {
 
   temServidor: function () {
@@ -222,11 +237,19 @@ const Servidor = {
     }).then(function (resposta) {
       return resposta.json().catch(function () { return {}; }).then(function (dados) {
         if (resposta.ok) return dados;
-        return { erro: (dados && dados.erro) || 'O servidor recusou o pedido (' + resposta.status + ').' };
+        return { erro: (dados && dados.erro) || 'O servidor recusou o pedido (' + resposta.status + ').', status: resposta.status };
       });
     }, function () {
       return { erro: 'Sem conexão com o servidor da mesa. Ele está ligado?' };
     });
+  },
+
+  /* As contas (servidor/api.js, /api/conta/... e /api/admin/...). As da
+     sessão levam a conta e a chave deste navegador. */
+  conta: function (rota, corpo) { return this.pedir('conta/' + rota, corpo || {}); },
+  admin: function (rota, corpo) {
+    const c = ContaLocal.ler() || {};
+    return this.pedir('admin/' + rota, Object.assign({ contaId: c.contaId, chave: c.chave }, corpo || {}));
   },
 
   criarCampanha: function (estado, senha) { return this.pedir('campanhas', { estado: estado, senha: senha || undefined, senhaServidor: SenhaServidor.ler() || undefined }); },

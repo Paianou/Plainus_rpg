@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { quemPede } = require('../../servidor/api.js');
+const { quemPede, doProprioComputador } = require('../../servidor/api.js');
 
 let falhas = 0;
 const ok = (c, t) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + t); if (!c) falhas++; };
@@ -17,6 +17,12 @@ ok(quemPede(pedido('127.0.0.1', '203.0.113.7')) === '203.0.113.7', 'pelo túnel 
 ok(quemPede(pedido('::ffff:127.0.0.1', '2001:db8::1')) === '2001:db8::1', '…também em IPv6');
 ok(quemPede(pedido('192.168.0.20', '203.0.113.7')) === '192.168.0.20', 'conexão direta de outra máquina: o cabeçalho é ignorado (ela poderia inventá-lo)');
 ok(quemPede(pedido('127.0.0.1')) === '127.0.0.1', 'sem túnel, no próprio computador: o endereço da conexão');
+
+/* ---- doProprioComputador: "este computador" de verdade ---- */
+const local = (host, cf) => ({ socket: { remoteAddress: '127.0.0.1' }, headers: Object.assign({ host: host }, cf ? { 'cf-connecting-ip': cf } : {}) });
+ok(doProprioComputador(local('localhost:3000')) && doProprioComputador(local('127.0.0.1:3000')) && doProprioComputador(local('[::1]:3000')), 'no próprio computador, por localhost / 127.0.0.1 / [::1]: é daqui');
+ok(!doProprioComputador(local('pagina-ma.example.com:3000')), 'conexão local com o endereço de OUTRO site (DNS rebinding): não é daqui');
+ok(!doProprioComputador(local('localhost:3000', '203.0.113.7')), 'pelo túnel (com o cabeçalho do Cloudflare): não é daqui');
 
 /* ---- o servidor de verdade ---- */
 (async function () {

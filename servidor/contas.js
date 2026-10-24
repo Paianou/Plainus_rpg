@@ -341,7 +341,9 @@ function criarContas(pastaDados, avisar) {
     const agora = Date.now();
     if (errosDeEntrada.size > 1000) {
       errosDeEntrada.forEach(function (c, k) { if (agora - c.desde > JANELA_ERROS) errosDeEntrada.delete(k); });
-      if (errosDeEntrada.size > 5000) errosDeEntrada.clear();
+      /* Ainda muitas: saem as de nomes que NÃO existem. As das contas de
+         verdade ficam — senão encher a memória zeraria a trava delas. */
+      if (errosDeEntrada.size > 5000) errosDeEntrada.forEach(function (c, k) { if (k.indexOf('nome:') === 0) errosDeEntrada.delete(k); });
     }
     let c = errosDeEntrada.get(chave);
     if (c && agora - c.desde > JANELA_ERROS) { errosDeEntrada.delete(chave); c = null; }
@@ -349,10 +351,38 @@ function criarContas(pastaDados, avisar) {
     return c;
   }
 
+  /* O scrypt custa memória e uns 50 ms de processador. Pedidos de entrar
+     com nomes inventados, em quantidade, ocupariam o servidor inteiro:
+     no máximo 2 rodam ao mesmo tempo, mais uns poucos esperam, e o resto
+     ouve "tente de novo". */
+  const SCRYPT_JUNTOS = 2;
+  const SCRYPT_NA_FILA = 20;
+  let rodando = 0;
+  const fila = [];
+  function comVaga(trabalho) {
+    if (rodando >= SCRYPT_JUNTOS && fila.length >= SCRYPT_NA_FILA) return Promise.resolve({ erro: 'O servidor está ocupado. Tente de novo em alguns segundos.' });
+    return new Promise(function (resolver) {
+      const comecar = function () {
+        rodando += 1;
+        Promise.resolve().then(trabalho).then(function (r) { terminar(); resolver(r); }, function (e) { terminar(); resolver({ erro: 'O servidor não conseguiu conferir a senha.' }); });
+      };
+      if (rodando < SCRYPT_JUNTOS) comecar(); else fila.push(comecar);
+    });
+  }
+  function terminar() {
+    rodando -= 1;
+    const proximo = fila.shift();
+    if (proximo) proximo();
+  }
+
   /* Usuário + senha. A mesma mensagem para "não existe" e "senha
      errada": não conta a quem tenta quais usuários existem. Devolve uma
      Promise com { conta, chave } ou { erro }. */
   function entrar(usuarioDigitado, senha, quem) {
+    return comVaga(function () { return entrarAgora(usuarioDigitado, senha, quem); });
+  }
+
+  function entrarAgora(usuarioDigitado, senha, quem) {
     if (typeof senha !== 'string' || !senha || senha.length > SENHA_MAX) return Promise.resolve(RECUSA_ENTRAR);
     const erros = contaDeErros(usuarioDigitado);
     const pessoa = String(quem || '');

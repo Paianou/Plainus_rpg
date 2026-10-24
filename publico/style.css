@@ -5632,3 +5632,20 @@ a.nome-uso:hover, button.link-aba:hover { color: var(--gelo); }
    ligarMostrarSenha): pequena, no tom das ajudas de campo. */
 .mostrar-senha { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 12px; color: var(--texto-3); cursor: pointer; }
 .mostrar-senha input { width: auto; margin: 0; accent-color: var(--azul); }
+
+/* ---------- 37. ADMINISTRAÇÃO (admin.html) ----------
+   A mesma caixa e as mesmas seções da página de Acessos (.acessos-caixa,
+   .secao-acessos). O
+   código de um convite aparece grande, uma vez só, num quadro com a
+   hairline e o fundo dos campos. */
+.codigo-gerado {
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-p);
+}
+.rotulo-codigo { margin: 0 0 4px; font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--texto-3); }
+.codigo-gerado .codigo-convite { margin: 0 0 6px; font-size: 22px; user-select: all; }
+.codigo-gerado .ajuda-campo { margin: 0 0 10px; }
+/* Dois botões numa linha de conta, lado a lado (quebram no celular). */
+.botoes-acesso { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
