@@ -7,9 +7,9 @@
 
      POST /api/campanhas   criar (da criação em etapas, ou de um backup)
                            → { id, codigo, chave }   a chave do Mestre
-                           no computador do servidor, ou com a senha do
-                           servidor ({ senhaServidor }, PLAINUS_SENHA_SERVIDOR)
-     POST /api/pode-criar  daqui pode criar? → { podeCriar, local, pedeSenha }
+                           no computador do servidor, ou com a conta de
+                           Mestre ({ contaId, contaChave })
+     POST /api/pode-criar  daqui pode criar? → { podeCriar, local, comConta }
      POST /api/convite     o nome da mesa de um código (o link de convite)
      POST /api/entrar      entrar com o código, como jogador
                            → { campanhaId, jogadorId, chave, nome }
@@ -45,7 +45,6 @@
    =================================================================== */
 
 const net = require('net');
-const crypto = require('crypto');
 const express = require('express');
 const { senhaValida } = require('./armazem.js');
 const { imagemDaCena, retratoSeguro } = require('../publico/modelo.js');
@@ -153,25 +152,13 @@ function criarApi(armazem, opcoes) {
     return { contaId: r.conta.id, chave: r.chave, usuario: r.conta.usuario, admin: r.conta.admin };
   };
 
-  /* A SENHA DO SERVIDOR (server.js, PLAINUS_SENHA_SERVIDOR no .env)
-     Pelo link do túnel, quem a digita cria campanha e restaura backup
-     como se estivesse no computador do servidor. Comparada pelo resumo
-     e em tempo constante (como as chaves no armazem.js): o tempo da
-     resposta não conta a quem tenta quantas letras acertou. */
-  const senhaServidor = opcoes && opcoes.senhaServidor ? String(opcoes.senhaServidor) : null;
-  const resumir = function (texto) { return crypto.createHash('sha256').update(String(texto)).digest(); };
-  /* Os espaços nas pontas não contam — o .env também os tira
-     (server.js, lerEnv), e um copiar-e-colar costuma trazer um. */
-  const senhaDoServidorConfere = function (tentativa) {
-    if (!senhaServidor || typeof tentativa !== 'string' || tentativa.length > 200) return false;
-    const limpa = tentativa.trim();
-    if (!limpa) return false;
-    return crypto.timingSafeEqual(resumir(limpa), resumir(senhaServidor.trim()));
-  };
-  /* Daqui pode criar? No computador do servidor, sempre; de fora, só
-     com a senha do servidor certa no corpo do pedido. */
+  /* Daqui pode criar SEM conta? Só no computador do servidor. De fora,
+     o caminho é a conta de Mestre (por convite). Antes havia também uma
+     "senha do servidor" no .env — uma senha só, dividida por todo Mestre,
+     que ele tinha de pedir a quem cuida do servidor. Saiu: a conta faz o
+     mesmo papel, e cada um tem a sua. */
   const podeCriarDaqui = function (pedido) {
-    return doProprioComputador(pedido) || senhaDoServidorConfere(pedido.body && pedido.body.senhaServidor);
+    return doProprioComputador(pedido);
   };
 
   /* Criar campanha (inclusive de um backup, que pode trazer mapas): 8 MB. */
@@ -184,9 +171,8 @@ function criarApi(armazem, opcoes) {
      Mestre criava mais), de memória e de disco. Os jogadores entram
      pelo código; quem cria e restaura backup é o Mestre, em casa. */
   /* A ordem importa: limite e leitura do JSON ANTES da trava, porque a
-     senha do servidor vem no corpo do pedido. */
-  /* Com a CONTA de Mestre: cria pelo link, sem a senha do servidor — a
-     campanha nasce dela (dono). Até LIMITE_CAMPANHAS_POR_CONTA por conta
+     conta vem no corpo do pedido. */
+  /* Com a CONTA de Mestre: cria pelo link — a campanha nasce dela (dono). Até LIMITE_CAMPANHAS_POR_CONTA por conta
      (o administrador não tem teto). */
   api.post('/campanhas', limite(10), express.json({ limit: '8mb' }), function (pedido, resposta, seguir) {
     const corpo = pedido.body || {};
@@ -205,11 +191,8 @@ function criarApi(armazem, opcoes) {
        está tentando. Com a mesma frase para todos, a pessoa não tinha
        como saber o que mudar. */
     const pelaInternet = pedido.headers['cf-connecting-ip'] !== undefined;
-    const tentouSenha = !!(pedido.body && pedido.body.senhaServidor);
     let motivo;
-    if (senhaServidor && tentouSenha) motivo = 'A senha do servidor não confere.';
-    else if (senhaServidor) motivo = 'Pelo link, criar campanha pede a senha do servidor.';
-    else if (pelaInternet) motivo = 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando: abra http://localhost:3000 nele. Para criar pelo link, defina a senha do servidor (PLAINUS_SENHA_SERVIDOR, no arquivo .env — veja o README).';
+    if (pelaInternet) motivo = 'Pelo link, campanhas novas (e backups restaurados) pedem uma conta de Mestre: entre na sua, na entrada, em "Vou mestrar". Não tem conta? Peça um convite ao administrador do site.';
     else motivo = 'Campanhas novas (e backups restaurados) só são criadas no computador onde o servidor está rodando. Este pedido veio de outro computador (' + String(pedido.socket && pedido.socket.remoteAddress).slice(0, 45) + '): use o computador do servidor, em http://localhost:3000.';
     resposta.status(403).json({ erro: motivo });
   }, function (pedido, resposta) {
@@ -237,12 +220,9 @@ function criarApi(armazem, opcoes) {
      avisar ANTES de a pessoa preencher a criação inteira (pelo túnel, o
      aviso só aparecia no fim). Só informa: quem decide continua sendo o
      /campanhas, que recusa do mesmo jeito se alguém pular o aviso. */
-  /*   → { podeCriar, local, pedeSenha }
+  /*   → { podeCriar, local, comConta }
          local       no computador do servidor (senha do Mestre opcional)
-         pedeSenha   de fora, com a senha do servidor ligada: a tela pede
-                     a senha (e confere aqui, mandando { senhaServidor })
-     O limite é o mesmo do /campanhas: é por aqui que alguém tentaria
-     adivinhar a senha do servidor. */
+     O limite é o mesmo do /campanhas. */
   /* comConta: entrou com a conta de Mestre — cria daqui, e a senha do
      Mestre por campanha deixa de ser obrigatória pelo link (a conta é o
      caminho de volta). */
@@ -250,7 +230,7 @@ function criarApi(armazem, opcoes) {
     const local = doProprioComputador(pedido);
     const corpo = pedido.body || {};
     const comConta = !!(contas && typeof corpo.contaId === 'string' && typeof corpo.contaChave === 'string' && contas.conferirSessao(corpo.contaId, corpo.contaChave));
-    resposta.json({ podeCriar: comConta || podeCriarDaqui(pedido), local: local, pedeSenha: !local && !comConta && !!senhaServidor, comConta: comConta });
+    resposta.json({ podeCriar: comConta || podeCriarDaqui(pedido), local: local, comConta: comConta });
   });
 
   /* O código de convite e a entrada dividem o MESMO limite: é por eles

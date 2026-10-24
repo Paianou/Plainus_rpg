@@ -26,6 +26,7 @@ const adm = await api('conta/admin', { usuario: 'Thiago', senha: 'lua nova sobre
 await js(`ContaLocal.gravar(${JSON.stringify({ contaId: adm.contaId, chave: adm.chave, usuario: 'Thiago', admin: true })})`);
 await ir('index.html');
 await js(`document.querySelector('[data-porta="mestrar"]').click()`);
+ok(await aguardar(`!document.getElementById('linkAdmin').hidden && document.getElementById('linkAdmin').getAttribute('href')==='admin.html'`), 'o administrador vê "Administração" ao lado de "Sair da conta"');
 ok(await aguardar(`!document.getElementById('blocoSemDono').hidden && /A Velha Cripta/.test(document.getElementById('listaSemDono').textContent) && /O Poço Fundo/.test(document.getElementById('listaSemDono').textContent) && /Nenhuma campanha ainda/.test(document.getElementById('listaMinhas').textContent)`), 'logado: as duas aparecem em "Mesas deste computador sem conta"');
 ok(await js(`!!document.querySelector('[data-senha-de="${poco.campanhaId}"]') && !document.querySelector('[data-senha-de="${acesso.campanhaId}"]') && document.querySelector('[data-senha-de="${poco.campanhaId}"]').type==='password'`), 'só a que tem senha de Mestre pede a senha, num campo ao lado do botão');
 await js(`document.getElementById('blocoSemDono').scrollIntoView({block:'center'})`);
@@ -72,6 +73,12 @@ await js(`document.querySelector('[data-porta="mestrar"]').click()`);
 await aguardar(`/A Velha Cripta/.test(document.getElementById('listaMinhas').textContent)`);
 await clicarENavegar(`document.querySelector('#listaMinhas [data-campanha="${acesso.campanhaId}"]').click()`);
 ok(await js(`location.pathname.endsWith('mestre.html') && Estado.campanha.nome==='A Velha Cripta'`), 'sem a chave antiga no navegador, a Velha Cripta abre pela conta');
+ok(await js(`!!document.querySelector('#codice .codice-site a[href="admin.html"]')`), 'no painel do Mestre, o administrador tem "Administração" no grupo do site');
+await js(`document.querySelector('#codice .codice-site').scrollIntoView({block:'center'})`);
+await foto('35-codice-admin');
+await js(`ContaLocal.limpar()`);
+await ir('mestre.html');
+ok(await js(`!document.querySelector('#codice a[href="admin.html"]') && !!document.querySelector('#codice .codice-site a[href="ajuda.html"]')`), 'sem a conta de administrador no navegador, o link não aparece');
 
 console.log('\nERROS DE JS:', erros.length ? erros : 'nenhum');
 ws.close(); edge.kill(); process.exit(0);

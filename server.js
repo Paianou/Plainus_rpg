@@ -186,20 +186,15 @@ PASTAS_DO_SITE.forEach(function (pasta) {
 
 /* As perguntas da tela de entrada (criar, entrar, cartões, backup):
    servidor/api.js. */
-/* A SENHA DO SERVIDOR (PLAINUS_SENHA_SERVIDOR, no .env)
-   Criar campanha e restaurar backup só valem no computador do servidor —
-   ou, pelo link do túnel, com esta senha. É o que deixa o Mestre criar
-   pelo link sem abrir a porta para quem só tem o link. Curta demais (ou
-   ausente), fica desligada: uma senha fraca seria pior que nenhuma. */
-const SENHA_SERVIDOR_MINIMO = 12;
-const senhaServidor = process.env.PLAINUS_SENHA_SERVIDOR || '';
-const senhaServidorLigada = senhaServidor.length >= SENHA_SERVIDOR_MINIMO;
+/* A SENHA DO SERVIDOR (PLAINUS_SENHA_SERVIDOR) SAIU: pelo link, quem cria
+   campanha é a conta de Mestre (servidor/contas.js). Um .env antigo que
+   ainda a tenha só ganha um aviso ao ligar — ela não abre mais nada. */
+const senhaServidorAntiga = !!process.env.PLAINUS_SENHA_SERVIDOR;
 
 app.use('/api', criarApi(armazem, {
   contas: contas,
   semLimite: !!rotasDeTeste,
-  mesa: function () { return mesa; },
-  senhaServidor: senhaServidorLigada ? senhaServidor : null
+  mesa: function () { return mesa; }
 }));
 
 /* Os testes do navegador (testes/rodar.mjs) ligam o servidor com
@@ -248,9 +243,7 @@ servidor.listen(PORTA, HOST, function () {
     ? 'Contas de Mestre: ' + quantasContas + '. Administração em /admin.html.'
     : 'Contas de Mestre: ainda sem administrador — crie a sua conta em http://localhost:' + PORTA + '/admin.html (só neste computador).');
   console.log(quantas + (quantas === 1 ? ' campanha guardada' : ' campanhas guardadas') + ' em ' + PASTA_DADOS + '. Ctrl+C para desligar.');
-  if (senhaServidorLigada) console.log('Senha do servidor: ligada — pelo link do túnel, criar campanha pede a senha.');
-  else if (senhaServidor) console.log('Senha do servidor: DESLIGADA — PLAINUS_SENHA_SERVIDOR tem menos de ' + SENHA_SERVIDOR_MINIMO + ' caracteres.');
-  else console.log('Senha do servidor: desligada — criar campanha só em http://localhost:3000 (veja PLAINUS_SENHA_SERVIDOR no README).');
+  if (senhaServidorAntiga) console.log('Aviso: PLAINUS_SENHA_SERVIDOR (no .env) não é mais usada — pelo link, o Mestre cria campanha com a conta dele. Pode apagar a linha.');
 });
 
 /* Desligar com calma: Ctrl+C (SIGINT) ou o sistema pedindo (SIGTERM).

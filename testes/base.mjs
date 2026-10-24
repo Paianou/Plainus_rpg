@@ -56,10 +56,10 @@ let falaDoServidor = '';
 async function ligarServidor() {
   falaDoServidor = '';
   servidor = spawn(process.execPath, [path.join(MESA, 'server.js')], {
-    /* PLAINUS_SENHA_SERVIDOR sempre definida (vazia = desligada): sem
-       isto, o servidor de teste leria a senha do .env de verdade e os
-       roteiros mudariam de comportamento conforme o computador. Um
-       roteiro que quer a senha ligada a põe em process.env e religa. */
+    /* PLAINUS_SENHA_SERVIDOR sempre definida (vazia = ausente): ela não
+       abre mais nada, mas assim o servidor de teste não lê a do .env de
+       verdade. O roteiro 24 a põe em process.env e religa, para conferir
+       que ela não abre mesmo. */
     env: Object.assign({}, process.env, { PORT: String(PORTA_TESTE), HOST: '127.0.0.1', DATA_DIR: DADOS, PLAINUS_ESPERA_GRAVAR: '0', PLAINUS_ROTAS_DE_TESTE: '1', PLAINUS_SENHA_SERVIDOR: process.env.PLAINUS_SENHA_SERVIDOR || '' }),
     stdio: ['ignore', 'pipe', 'pipe']
   });

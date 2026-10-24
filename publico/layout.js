@@ -791,6 +791,13 @@ const Layout = {
     site.setAttribute('role', 'group');
     site.setAttribute('aria-label', 'Site');
     this.SITE.forEach(function (secao) { site.appendChild(link(secao)); });
+    /* Administração (convites e contas): só para quem entrou com a conta
+       de administrador neste navegador. Quem decide é o servidor — a
+       página pergunta de novo; isto só evita mostrar um link inútil. */
+    const conta = typeof ContaLocal !== 'undefined' ? ContaLocal.ler() : null;
+    if (conta && conta.admin) {
+      site.appendChild(link({ id: 'admin', arquivo: 'admin.html', ico: 'escudo', texto: 'Administração', pronta: true }));
+    }
     const sair = criar('button.codice-link');
     sair.type = 'button';
     sair.dataset.acao = 'sair';

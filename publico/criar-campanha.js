@@ -109,7 +109,7 @@ const Criacao = {
     window.plainusCarregando = true;
     Servidor.podeCriar().then(function (r) {
       window.plainusCarregando = false;
-      if (r.podeCriar === false) { self.semCriacaoDaqui(r.pedeSenha); return; }
+      if (r.podeCriar === false) { self.semCriacaoDaqui(); return; }
       /* Pelo link SEM conta, a senha da campanha é o único caminho de
          volta: obrigatória. Com a conta de Mestre, a conta é o caminho
          ("Minhas campanhas"), e a senha fica opcional. */
@@ -122,12 +122,8 @@ const Criacao = {
 
   /* Aberta por fora: some tudo o que é de preencher, fica o aviso e o
      link de volta à entrada. */
-  semCriacaoDaqui: function (pedeSenha) {
-    const aviso = document.getElementById('avisoSoLocal');
-    /* Com a senha do servidor ligada, o caminho é outro: ela é digitada
-       na entrada, em "Vou mestrar", e conferida lá. */
-    if (pedeSenha) aviso.textContent = 'Pelo link, criar campanha pede a senha do servidor. Volte à entrada, abra "Vou mestrar" e digite a senha lá.';
-    aviso.hidden = false;
+  semCriacaoDaqui: function () {
+    document.getElementById('avisoSoLocal').hidden = false;
     document.getElementById('passos').hidden = true;
     document.querySelectorAll('.passo').forEach(function (passo) { passo.hidden = true; });
     document.querySelector('.passos-nav').hidden = true;

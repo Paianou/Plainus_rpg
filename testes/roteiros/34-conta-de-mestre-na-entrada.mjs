@@ -28,7 +28,7 @@ await js(`document.querySelector('[data-conta-modo="criar"]').click()`); await e
 ok(await js(`!document.getElementById('blocoContaCriar').hidden && document.activeElement.id==='conviteMestre'`), '"Tenho um convite de Mestre" abre o formulário de criar conta');
 await js(`document.getElementById('conviteMestre').value=${JSON.stringify(convite.codigo.toLowerCase())}; document.getElementById('novoUsuario').value='Bruna'; document.getElementById('novaSenhaConta').value='senha-da-bruna'; document.getElementById('novaSenhaConta2').value='senha-da-bruna'; document.getElementById('btnCriarConta').click()`);
 ok(await aguardar(`!document.getElementById('blocoMinhaConta').hidden && document.getElementById('usuarioLogado').textContent==='Bruna'`), 'conta criada: "Mestre: Bruna"');
-ok(await aguardar(`/Nenhuma campanha ainda/.test(document.getElementById('listaMinhas').textContent) && !document.getElementById('criarAqui').hidden && document.getElementById('campoSenhaServidor').hidden && document.getElementById('avisoSoLocal').hidden`), '"Minhas campanhas" vazia, e os campos de criar aparecem — sem a senha do servidor');
+ok(await aguardar(`/Nenhuma campanha ainda/.test(document.getElementById('listaMinhas').textContent) && !document.getElementById('criarAqui').hidden && document.getElementById('avisoSoLocal').hidden && document.getElementById('linkAdmin').hidden`), '"Minhas campanhas" vazia, e os campos de criar aparecem; Bruna não é administradora, então o link da Administração não aparece');
 ok(await js(`!document.getElementById('campoNome').hidden && document.getElementById('nome').value===''`), '"Seu nome" aparece vazio: o nome NA MESA é escolhido, e não é o usuário da conta (que é metade do login)');
 await foto('34-logada');
 

@@ -24,18 +24,24 @@ cloudflared tunnel --url http://localhost:3000
 O segundo mostra o link `https://...trycloudflare.com` (muda a cada vez).
 Os jogadores entram por ele, em "Tenho um convite", com o código da mesa.
 
-**O Mestre também pode entrar pelo link**, com a senha do servidor: um
-arquivo `.env` na pasta (fica fora do Git), com a linha
+**O Mestre também mestra pelo link**, com uma **conta de Mestre**:
 
-```
-PLAINUS_SENHA_SERVIDOR=uma-senha-longa-de-pelo-menos-12-caracteres
-```
+1. Uma vez só, no computador do servidor, abra
+   `http://localhost:3000/admin.html` e crie a conta de administrador
+   (a sua). Ela também é uma conta de Mestre.
+2. Para outro Mestre, gere um convite de Mestre na mesma página e mande
+   o código a ele: com o código, ele cria a própria conta na entrada.
+3. Pelo link, em "Vou mestrar", entre com usuário e senha: dá para criar
+   campanha, restaurar backup e abrir as suas campanhas em "Minhas
+   campanhas" — o link muda a cada vez, a conta não.
 
-Com ela, pelo link, "Vou mestrar" pede essa senha para criar campanha ou
-restaurar backup — e a campanha criada pelo link exige a senha do Mestre,
-porque o link muda: em outra sessão, volte à mesa por "Já tenho uma mesa:
-entrar como Mestre", com o código e essa senha. Sem o `.env`, criar
-campanha só funciona em `http://localhost:3000`.
+Campanhas criadas antes das contas aparecem em "Mesas deste computador
+sem conta", no navegador em que você é o Mestre delas: "Trazer para a
+minha conta" pede a senha do Mestre da campanha (ou, se ela não tiver
+senha, que você esteja no computador do servidor).
+
+Sem conta, criar campanha só funciona em `http://localhost:3000`. A
+antiga `PLAINUS_SENHA_SERVIDOR` do `.env` não é mais usada.
 
 ## Onde fica cada coisa
 

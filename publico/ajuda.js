@@ -66,7 +66,7 @@ const Ajuda = {
         p('Mande esse link aos amigos, junto com o código de convite (Configurações → "Copiar convite"). O link muda cada vez que o túnel liga; o código, não.'),
         p('Cada amigo abre o link, escolhe "Tenho um convite", digita o código e o nome, e cria a ficha.')
       ]),
-      criar('p.explica-uso', 'Para VOCÊ entrar pelo link (de outro computador), defina a senha do servidor (PLAINUS_SENHA_SERVIDOR) no arquivo .env da pasta minha-mesa. Pelo link, a senha do Mestre da campanha é sempre pedida.'),
+      criar('p.explica-uso', 'Para VOCÊ mestrar pelo link (de outro computador), use a sua conta de Mestre: na entrada, "Vou mestrar" → entre com o usuário e a senha, e suas campanhas aparecem em "Minhas campanhas". Quem cuida do servidor cria a conta de administrador uma vez, em http://localhost:3000/admin.html, e de lá faz convites para outros Mestres.'),
       criar('p.explica-uso', 'Sem o código de convite, ninguém vê nada da mesa — o link sozinho não abre a campanha.')
     ]);
   },

@@ -129,30 +129,13 @@ const Sessao = {
 };
 
 
-/* ===================================================================
-   A SENHA DO SERVIDOR — para o Mestre criar pelo link do túnel
-   Fica no sessionStorage: só nesta aba, e some ao fechá-la. Vai junto
-   da criação (e da restauração de backup), que mudam de página no meio
-   do caminho — por isso não basta guardá-la numa variável.
-   =================================================================== */
-
-const CHAVE_SENHA_SERVIDOR = 'plainus:senha-servidor';
-
-const SenhaServidor = {
-  ler: function () {
-    const deposito = depositoDaSessao();
-    const s = deposito ? Armazem.ler(CHAVE_SENHA_SERVIDOR, deposito) : null;
-    return typeof s === 'string' ? s.slice(0, 200) : null;
-  },
-  guardar: function (senha) {
-    const deposito = depositoDaSessao();
-    return deposito ? Armazem.gravar(CHAVE_SENHA_SERVIDOR, String(senha).slice(0, 200), deposito) : false;
-  },
-  esquecer: function () {
-    const deposito = depositoDaSessao();
-    if (deposito) Armazem.apagar(CHAVE_SENHA_SERVIDOR, deposito);
-  }
-};
+/* A antiga "senha do servidor" ficava nesta aba (sessionStorage). Ela
+   não existe mais (a conta de Mestre faz o papel dela): uma que tenha
+   ficado de antes é apagada, para não continuar guardada à toa. */
+(function () {
+  const deposito = depositoDaSessao();
+  if (deposito) Armazem.apagar('plainus:senha-servidor', deposito);
+})();
 
 
 /* ===================================================================
@@ -258,12 +241,12 @@ const Servidor = {
     const c = ContaLocal.ler();
     return c ? { contaId: c.contaId, contaChave: c.chave } : {};
   },
-  criarCampanha: function (estado, senha) { return this.pedir('campanhas', Object.assign({ estado: estado, senha: senha || undefined, senhaServidor: SenhaServidor.ler() || undefined }, this.daConta())); },
+  criarCampanha: function (estado, senha) { return this.pedir('campanhas', Object.assign({ estado: estado, senha: senha || undefined }, this.daConta())); },
   /* Criar e restaurar backup só valem no computador do servidor, ou
      pelo link com a senha do servidor. A tela pergunta antes, para
      avisar (ou pedir a senha) cedo. `tentativa`: conferir uma senha
      digitada agora; sem ela, vale a já guardada nesta aba. */
-  podeCriar: function (tentativa) { return this.pedir('pode-criar', Object.assign({ senhaServidor: tentativa || SenhaServidor.ler() || undefined }, this.daConta())); },
+  podeCriar: function () { return this.pedir('pode-criar', this.daConta()); },
   convite: function (codigo) { return this.pedir('convite', { codigo: codigo }); },
   entrar: function (codigo, nome) { return this.pedir('entrar', { codigo: codigo, nome: nome }); },
   cartoes: function (acessos) { return this.pedir('cartoes', { mesas: acessos }); },
