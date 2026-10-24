@@ -89,8 +89,9 @@ const Atalhos = {
       [['Ctrl', '+', 'Z'], 'Desfazer o último apagar, enquanto o aviso estiver na tela'],
       [['Esc'], 'Fechar janelas, a busca e a rolagem de dados']
     ];
-    /* Cada tela tem o que tem: a busca só existe no Mestre. */
-    if (typeof Busca !== 'undefined') lista.splice(1, 0, [['Ctrl', '+', 'K'], 'Buscar em tudo da campanha']);
+    /* Cada tela tem o que tem: a busca diz o que procura ali (no Mestre,
+       tudo da campanha; no jogador, o que é dele e as regras). */
+    if (typeof Busca !== 'undefined') lista.splice(1, 0, [['Ctrl', '+', 'K'], Busca.textos.atalho]);
     if (typeof Chat !== 'undefined') lista.push([['Enter'], 'Enviar a mensagem no chat (Shift + Enter pula a linha)']);
     lista.push([['?'], 'Abrir esta lista']);
     return lista;

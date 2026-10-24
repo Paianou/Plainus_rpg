@@ -32,6 +32,14 @@
 
    <dialog> e showModal() dão de graça o que custaria dezenas de linhas:
    fundo escurecido, Esc fechando, e o foco preso dentro da caixa.
+
+
+   NO PAINEL DO JOGADOR
+   A mesma caixa, com OUTRO índice: Busca.fonte(por) monta só o que o
+   jogador pode ver (as abas, as regras públicas, o inventário dele) —
+   o índice do Mestre, com segredos e NPCs, nem existe lá (e lá não há
+   Estado). Cada item do jogador traz uma ação (abrir uma aba do mesmo
+   painel), e não uma página. Busca.textos troca as palavras da caixa.
    =================================================================== */
 
 const Busca = {
@@ -40,6 +48,14 @@ const Busca = {
   resultados: [],
   ativo: 0,           /* qual resultado as setas estão marcando */
   caixa: null,
+  fonte: null,        /* no jogador: function (por) que monta o índice dele */
+  textos: {
+    campo: 'Buscar magia, monstro, NPC, segredo, cena...',
+    rotulo: 'Buscar na campanha',          /* o campo */
+    caixa: 'Busca na campanha',            /* a janela */
+    inicial: 'Telas',                       /* o grupo da caixa vazia */
+    atalho: 'Buscar em tudo da campanha'    /* a linha da lista de atalhos */
+  },
 
 
   /* ---------- Abrir e fechar ---------- */
@@ -68,10 +84,10 @@ const Busca = {
     const campo = document.createElement('input');
     campo.type = 'text';
     campo.id = 'buscaGlobalCampo';
-    campo.placeholder = 'Buscar magia, monstro, NPC, segredo, cena...';
+    campo.placeholder = this.textos.campo;
     campo.autocomplete = 'off';
     campo.spellcheck = false;
-    campo.setAttribute('aria-label', 'Buscar na campanha');
+    campo.setAttribute('aria-label', this.textos.rotulo);
     campo.setAttribute('aria-controls', 'buscaGlobalLista');
 
     const lista = criar('div.busca-lista');
@@ -87,7 +103,7 @@ const Busca = {
     ]);
 
     this.caixa = criar('dialog.busca-global', [topo, lista, rodape]);
-    this.caixa.setAttribute('aria-label', 'Busca na campanha');
+    this.caixa.setAttribute('aria-label', this.textos.caixa);
     document.body.appendChild(this.caixa);
 
     campo.addEventListener('input', function () { self.filtrar(campo.value); });
@@ -112,14 +128,15 @@ const Busca = {
 
 
   /* ---------- O índice ----------
-     Cada item: { grupo, titulo, detalhe, texto, pagina, pedido }
+     Cada item: { grupo, titulo, detalhe, texto, pagina, pedido, acao }
        texto   onde a busca procura (já sem acento e minúsculo)
-       pedido  o que vai depois do #abrir= ; vazio = só abrir a tela */
+       pedido  o que vai depois do #abrir= ; vazio = só abrir a tela
+       acao    (jogador) o que fazer ao escolher, no lugar da página */
 
   montarIndice: function () {
     const itens = [];
 
-    function por(grupo, titulo, detalhe, extras, pagina, pedido) {
+    function por(grupo, titulo, detalhe, extras, pagina, pedido, acao) {
       itens.push({
         grupo: grupo,
         titulo: titulo,
@@ -128,8 +145,15 @@ const Busca = {
            notas teria a palavra "undefined" no texto buscável. */
         texto: semAcento([titulo, detalhe].concat(extras || []).filter(Boolean).join(' ')),
         pagina: pagina,
-        pedido: pedido || ''
+        pedido: pedido || '',
+        acao: acao || null
       });
+    }
+
+    /* Outra tela (o painel do jogador) monta o próprio índice. */
+    if (this.fonte) {
+      this.fonte(por);
+      return itens;
     }
 
     /* As telas: Ctrl+K também serve para ir de uma tela a outra. */
@@ -215,7 +239,8 @@ const Busca = {
 
     if (!termos.length) {
       /* Caixa vazia: mostra as telas, como um atalho de navegação. */
-      this.resultados = this.indice.filter(function (item) { return item.grupo === 'Telas'; });
+      const inicial = this.textos.inicial;
+      this.resultados = this.indice.filter(function (item) { return item.grupo === inicial; });
     } else {
       /* Todos os termos precisam aparecer ("bola fogo" acha "Bola de
          Fogo"). A nota ordena: começar pelo termo vale mais que
@@ -308,6 +333,7 @@ const Busca = {
     if (!item) return;
 
     this.fechar();
+    if (item.acao) { item.acao(); return; }
 
     const destino = item.pagina + (item.pedido ? '#abrir=' + encodeURIComponent(item.pedido) : '');
     const aqui = location.pathname.split('/').pop() || 'index.html';

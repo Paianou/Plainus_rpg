@@ -82,6 +82,7 @@ const Jogador = {
     const sessao = this.sessao;
     document.getElementById('app').hidden = false;
     this.ligarSom();
+    this.ligarBusca();
 
     /* Abriu com #aba=inventario no endereço (F5, link, voltar do
        navegador): começa nessa aba, e não na Ficha. */
@@ -694,6 +695,83 @@ const Jogador = {
   },
 
 
+  /* ---------- A busca (Ctrl+K) ----------
+     A caixa do Mestre (busca.js), com o índice do jogador: só o que ele
+     já pode ver — as abas do painel, o catálogo de regras (o mesmo da
+     aba Regras: magias, equipamento, condições; o bestiário fica de
+     fora) e os itens do inventário dele. Escolher leva à aba certa, com
+     o verbete aberto. Enquanto não há personagem (ou a ficha está sendo
+     editada), não há para onde ir: a busca não abre. */
+  ligarBusca: function () {
+    const self = this;
+    Busca.textos = {
+      campo: 'Buscar magia, condição, equipamento, item, aba...',
+      rotulo: 'Buscar no painel',
+      caixa: 'Busca no painel',
+      inicial: 'Abas',
+      atalho: 'Buscar abas, regras e o seu inventário'
+    };
+    Busca.fonte = function (por) {
+      self.abasVisiveis().concat(self.ABAS_SITE).forEach(function (a) {
+        por('Abas', a[2], a[3], [], null, '', function () { self.irParaAba(a[0]); });
+      });
+      const meu = self.visao.meuHeroi;
+      ((meu && meu.ficha.itens) || []).forEach(function (i) {
+        por('Seu inventário', i.nome, i.quantidade > 1 ? i.quantidade + ' unidades' : '', [], null, '', function () { self.irParaAba('inventario'); });
+      });
+      MAGIAS.forEach(function (m) {
+        por('Magias', m.nome, (m.nivel === 0 ? 'Truque' : m.nivel + 'º círculo') + ' · ' + m.escola,
+          [m.classes.join(' ')], null, '', function () { self.abrirRegra('magias', m.nome); });
+      });
+      EQUIPAMENTO.forEach(function (e) {
+        por('Equipamento', e.nome, e.categoria, [e.propriedades], null, '', function () { self.abrirRegra('equipamento', e.nome); });
+      });
+      Object.keys(CONDICOES).forEach(function (nome) {
+        por('Condições', nome, 'Condição', [], null, '', function () { self.abrirRegra('condicoes', nome); });
+      });
+    };
+    document.addEventListener('keydown', function (evento) {
+      if ((evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === 'k') {
+        evento.preventDefault();
+        self.buscar();
+      }
+    });
+  },
+
+  podeBuscar: function () {
+    return !!(this.visao && this.visao.meuHeroi) && this.modo !== 'editar';
+  },
+
+  buscar: function () {
+    if (this.podeBuscar()) Busca.abrir();
+    else Layout.recado('A busca abre quando a ficha estiver pronta.');
+  },
+
+  /* Ir a uma aba de fora da navegação (a busca): como clicar nela — o
+     endereço acompanha, para o F5 e o "voltar" do navegador. O redesenho
+     tira da tela o que tinha o foco: ele vai para a aba aberta, na
+     navegação lateral (como depois de clicar nela). */
+  irParaAba: function (id) {
+    this.entrando = this.aba !== id;
+    this.aba = id;
+    location.hash = 'aba=' + id;
+    this.render();
+    this.focarAbaAtiva();
+  },
+
+  abrirRegra: function (tipo, nome) {
+    this.entrando = this.aba !== 'regras';
+    RegrasJogador.abrir(tipo, nome);
+    location.hash = 'aba=regras';
+    this.focarAbaAtiva();
+  },
+
+  focarAbaAtiva: function () {
+    const ativa = document.querySelector('.nav-jogador .codice-link.ativo');
+    if (ativa) ativa.focus();
+  },
+
+
   /* Só o contador do botão de chat — sem redesenhar a barra. A mesma
      regra da pílula da aba: com o Chat aberto, nada a contar. */
   atualizarChat: function () {
@@ -742,6 +820,19 @@ const Jogador = {
         criar('span.pista', audio.pista),
         botaoSom
       ]));
+    }
+
+    /* A busca (Ctrl+K) — a mesma da barra do Mestre. Só com personagem
+       pronto: antes disso, não há aba para onde ela leve. */
+    if (this.podeBuscar()) {
+      const busca = criar('button.icone-botao.largo');
+      busca.type = 'button';
+      busca.id = 'botaoBusca';
+      busca.dataset.acao = 'busca';
+      busca.setAttribute('aria-label', 'Buscar');
+      busca.appendChild(Icone.svg('busca', 15));
+      busca.appendChild(criar('span.atalho', 'Ctrl+K'));
+      barra.appendChild(busca);
     }
 
     /* O chat: leva à aba Chat, com o número de mensagens novas. */
@@ -1525,6 +1616,10 @@ const Jogador = {
 
         case 'som-jogador':
           self.alternarSom();
+          break;
+
+        case 'busca':
+          self.buscar();
           break;
 
         /* A aba é estado de vista: troca e redesenha, sem gravar nada.
