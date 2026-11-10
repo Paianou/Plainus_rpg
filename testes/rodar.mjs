@@ -6,6 +6,9 @@
      node testes/rodar.mjs node         só os testes no Node (segundos)
      node testes/rodar.mjs 08 15        só os roteiros que começam com 08 e 15
      node testes/rodar.mjs dados        só os roteiros com "dados" no nome
+     node testes/rodar.mjs vitrine      NÃO é teste: monta a campanha de
+                                        demonstração e tira as capturas
+                                        da landing (testes/vitrine/)
 
    AS FAMÍLIAS DE TESTE
      testes/acoes/*.test.cjs     o acoes.js direto no Node, sem navegador —
@@ -39,6 +42,9 @@ const LIMITE_ROTEIRO = 10 * 60 * 1000;   /* o mais longo (o do chat) leva uns 3 
 const filtros = process.argv.slice(2);
 /* 'acoes' era o nome antigo deste atalho; continua valendo. */
 const soNode = filtros.length === 1 && (filtros[0] === 'node' || filtros[0] === 'acoes');
+/* A vitrine mora fora de roteiros/ de propósito: o npm test de sempre
+   não a roda (ela escreve na landing/). Só quando pedida pelo nome. */
+const soVitrine = filtros.length === 1 && filtros[0] === 'vitrine';
 const quer = (nome) => !filtros.length || filtros.some((f) => nome.startsWith(f) || nome.includes(f));
 
 
@@ -128,7 +134,8 @@ if (soNode || !filtros.length) {
 if (!soNode) {
   const navegador = acharNavegador();
   const base = readFileSync(path.join(TESTES, 'base.mjs'), 'utf8');
-  const roteiros = readdirSync(path.join(TESTES, 'roteiros')).filter((f) => f.endsWith('.mjs')).sort()
+  const pastaRoteiros = path.join(TESTES, soVitrine ? 'vitrine' : 'roteiros');
+  const roteiros = soVitrine ? ['vitrine.mjs'] : readdirSync(pastaRoteiros).filter((f) => f.endsWith('.mjs')).sort()
     .filter((f) => quer(f.replace('.mjs', '')));
 
   if (!navegador) {
@@ -142,7 +149,7 @@ if (!soNode) {
       mkdirSync(pasta, { recursive: true });
       /* A base vai colada na frente do roteiro, num arquivo só. */
       const montado = path.join(pasta, 'rodando.mjs');
-      writeFileSync(montado, base + '\n\n' + readFileSync(path.join(TESTES, 'roteiros', f), 'utf8'));
+      writeFileSync(montado, base + '\n\n' + readFileSync(path.join(pastaRoteiros, f), 'utf8'));
 
       fecharNavegadorDosTestes();
       const inicio = Date.now();
