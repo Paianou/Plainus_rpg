@@ -19,7 +19,7 @@ await clicarENavegar(`document.getElementById('btnAvancar').click()`);
 ok(await js(`location.pathname.endsWith('mestre.html')`) && !dialogos.includes('beforeunload'), 'terminar a criação vai ao painel SEM perguntar (a saída é o salvamento)');
 
 /* ---- item 2: a marca leva ao início ---- */
-ok(await js(`document.querySelector('.barra-topo a.marca-mestre').getAttribute('href')`) === 'index.html', 'Mestre: "Plainus RPG" na barra é um link para o início');
+ok(await js(`document.querySelector('.barra-topo a.marca-mestre').getAttribute('href')`) === 'index.html', 'Mestre: "Runlise" na barra é um link para o início');
 await clicarENavegar(`document.querySelector('.barra-topo a.marca-mestre').click()`);
 ok(await js(`location.pathname.endsWith('index.html') && document.querySelectorAll('.campanha-salva').length===1`), 'clicar na marca leva à entrada, com a campanha em "Suas mesas"');
 await clicarENavegar(`document.querySelector('.campanha-salva [data-acao="continuar"]').click()`);

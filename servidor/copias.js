@@ -176,12 +176,12 @@ function lerCopia(arquivo) {
   try {
     pacote = JSON.parse(zlib.gunzipSync(fs.readFileSync(arquivo)).toString('utf8'));
   } catch (erro) {
-    throw new Error('não é uma cópia do Plainus (ou o arquivo está estragado)');
+    throw new Error('não é uma cópia da Runlise (ou o arquivo está estragado)');
   }
   if (!pacote || pacote.formato !== FORMATO || typeof pacote.arquivos !== 'object' || !pacote.arquivos) {
-    throw new Error('não é uma cópia do Plainus');
+    throw new Error('não é uma cópia da Runlise');
   }
-  if (pacote.versao > VERSAO) throw new Error('a cópia é de uma versão mais nova do Plainus');
+  if (pacote.versao > VERSAO) throw new Error('a cópia é de uma versão mais nova da Runlise');
   const arquivos = {};
   Object.keys(pacote.arquivos).forEach(function (caminho) {
     arquivos[caminho] = Buffer.from(String(pacote.arquivos[caminho]), 'base64');

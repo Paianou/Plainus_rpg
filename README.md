@@ -1,4 +1,6 @@
-# Plainus RPG
+# Runlise
+
+Mesa virtual de RPG (antes chamada Plainus — o nome ainda aparece por dentro: formatos de arquivo, chaves do navegador e variáveis `PLAINUS_*`).
 
 Uma mesa virtual para jogar D&D 5e com os amigos: o Mestre controla o
 mundo, cada jogador o próprio personagem, tudo em tempo real.

@@ -1,6 +1,6 @@
 /* O site servido pelo server.js (http://) — o servidor que a base liga
    para cada roteiro. */
-ok(falaDoServidor.includes('Plainus no ar em http://localhost:' + PORTA_TESTE), 'npm start: o servidor liga e diz o endereço');
+ok(falaDoServidor.includes('Runlise no ar em http://localhost:' + PORTA_TESTE), 'npm start: o servidor liga e diz o endereço');
 
 const irHttp = (caminho) => ir(caminho);
 const esperarPor = (expr, limite) => aguardar(expr, js, limite);

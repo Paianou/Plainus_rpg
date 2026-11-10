@@ -35,7 +35,7 @@ ok(await js(`document.querySelector('.campanha-backup.nunca')?.textContent`) ===
 await foto('b1-lista');
 await js(`document.querySelector('[data-acao="backup"]').click()`); await espera(1200);
 const baixados = readdirSync(PASTA);
-ok(baixados.length === 1 && /^plainus-teste-dados-\d{4}-\d\d-\d\d\.json$/.test(baixados[0]), 'baixou o arquivo: ' + baixados.join(', '));
+ok(baixados.length === 1 && /^runlise-teste-dados-\d{4}-\d\d-\d\d\.json$/.test(baixados[0]), 'baixou o arquivo: ' + baixados.join(', '));
 const env = JSON.parse(readFileSync(path.join(PASTA, baixados[0]), 'utf8'));
 const codigoOriginal = env.estado.campanha.codigo;
 ok(env.formato === 'plainus-campanha' && env.versao === 1 && env.estado.herois.length === 1 && env.estado.herois[0].nome === 'Lyra', 'o arquivo tem o envelope e a campanha inteira (com a Lyra)');
@@ -74,7 +74,7 @@ await ir('index.html');
 
 /* arquivos ruins */
 const ruins = [
-  ['nao-json.json', 'isto não é json {', /não é um backup do Plainus/],
+  ['nao-json.json', 'isto não é json {', /não é um backup da Runlise/],
   ['outro.json', JSON.stringify({ nome: 'x' }), /não é um backup de campanha/],
   ['futuro.json', JSON.stringify({ formato: 'plainus-campanha', versao: 99, estado: env.estado }), /versão mais nova/],
   ['oco.json', JSON.stringify({ formato: 'plainus-campanha', versao: 1, estado: { herois: [] } }), /incompleto/]

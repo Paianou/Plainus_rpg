@@ -204,7 +204,7 @@ const Criacao = {
     this.ordem = [1, 2, 3, 4, 6];
     this.idEditando = sessao.campanhaId;
 
-    document.title = 'Editar campanha — Plainus RPG';
+    document.title = 'Editar campanha — Runlise';
     document.getElementById('tituloForm').textContent = 'Editar campanha';
     document.getElementById('subtituloForm').textContent = estado.campanha.nome;
     document.querySelector('#passos li[data-passo="5"]').hidden = true;

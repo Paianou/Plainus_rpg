@@ -213,7 +213,7 @@ function criarArmazem(pastaDados, avisar) {
       if (!nome.endsWith('.json') || !ID_CAMPANHA.test(id)) return;   /* .tmp e o que não for nosso */
       try {
         const envelope = JSON.parse(fs.readFileSync(arquivoDe(id), 'utf8'));
-        if (!envelope || envelope.formato !== FORMATO) throw new Error('não é uma campanha do Plainus');
+        if (!envelope || envelope.formato !== FORMATO) throw new Error('não é uma campanha da Runlise');
         const estado = conferirCampanha(envelope.estado);
         if (typeof estado === 'string') throw new Error(estado);
         const acessos = acessosConferidos(envelope.acessos);

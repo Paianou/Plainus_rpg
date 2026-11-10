@@ -103,7 +103,7 @@ const Backup = {
     setTimeout(function () { URL.revokeObjectURL(endereco); }, 1000);
   },
 
-  /* "plainus-cronicas-de-ravendusk-2026-10-08.json": sem acento, sem
+  /* "runlise-cronicas-de-ravendusk-2026-10-08.json": sem acento, sem
      espaço, sem barra — nomes que qualquer sistema aceita — e com a
      data, para dois backups não terem o mesmo nome. */
   nomeDoArquivo: function (nome) {
@@ -115,7 +115,7 @@ const Backup = {
       .slice(0, 40) || 'campanha';
     const hoje = new Date();
     const data = hoje.getFullYear() + '-' + ('0' + (hoje.getMonth() + 1)).slice(-2) + '-' + ('0' + hoje.getDate()).slice(-2);
-    return 'plainus-' + base + '-' + data + '.json';
+    return 'runlise-' + base + '-' + data + '.json';
   },
 
 
@@ -173,7 +173,7 @@ const Backup = {
       try {
         dados = JSON.parse(texto);
       } catch (erro) {
-        return { ok: false, erro: 'Esse arquivo não é um backup do Plainus (não deu para ler o conteúdo).' };
+        return { ok: false, erro: 'Esse arquivo não é um backup da Runlise (não deu para ler o conteúdo).' };
       }
 
       const conferido = self.validar(dados);
@@ -196,7 +196,7 @@ const Backup = {
   /* Devolve o Estado limpo, ou um texto dizendo o que está errado. */
   validar: function (dados) {
     if (!dados || typeof dados !== 'object' || dados.formato !== this.FORMATO) {
-      return 'Esse arquivo não é um backup de campanha do Plainus.';
+      return 'Esse arquivo não é um backup de campanha da Runlise.';
     }
     if (typeof dados.versao !== 'number' || dados.versao > this.VERSAO) {
       return 'Esse backup foi feito por uma versão mais nova do site. Atualize os arquivos e tente de novo.';

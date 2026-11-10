@@ -252,7 +252,7 @@ servidor.on('error', function (erro) {
 servidor.listen(PORTA, HOST, function () {
   /* 127.0.0.1 e 0.0.0.0 abrem no navegador como "localhost". */
   const nome = HOST === '127.0.0.1' || HOST === '0.0.0.0' ? 'localhost' : HOST;
-  console.log('Plainus no ar em http://' + nome + ':' + PORTA);
+  console.log('Runlise no ar em http://' + nome + ':' + PORTA);
   console.log('Entregando ' + ARQUIVOS_DO_SITE.size + ' arquivos do site.');
   console.log(contas.temAdmin()
     ? 'Contas de Mestre: ' + quantasContas + '. Administração em /admin.html.'

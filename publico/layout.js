@@ -113,13 +113,13 @@ function marcaDoSite(emblema, funcao) {
   const marca = criar('a.marca-mestre', [
     emblema,
     criar('div', [
-      criar('div.nome', 'Plainus RPG'),
+      criar('div.nome', 'Runlise'),
       criar('div.funcao', funcao)
     ])
   ]);
   marca.href = 'index.html';
   marca.title = 'Ir para o início';
-  marca.setAttribute('aria-label', 'Plainus RPG — ir para o início');
+  marca.setAttribute('aria-label', 'Runlise — ir para o início');
   return marca;
 }
 

@@ -1,4 +1,4 @@
-# DESIGN.md - Plainus (minha-mesa)
+# DESIGN.md - Runlise (minha-mesa)
 
 A identidade visual da mesa, escrita como regra. Descreve o que o site
 JÁ é (o `style.css` e o `CLAUDE.md`), não um visual novo. Quando o código
