@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!--
+  LANDING 1 — a página que apresenta a Runlise.
+
+  Só estrutura e texto, por enquanto. A aparência vem no landing.css
+  (arquivo 2) e as animações e o d20 no landing.js (arquivo 3).
+  Para ver: dê duplo clique neste arquivo. Ele abre no navegador sem
+  servidor e sem estilo — é para conferir a ORDEM das seções e as
+  PALAVRAS, antes de qualquer cor.
+
+  POR QUE UMA PASTA À PARTE (landing/, fora de publico/)
+  A mesa e a landing são dois sites diferentes:
+    - a mesa precisa do servidor Node ligado (Socket.IO, campanhas);
+    - a landing é só HTML e CSS, e vai para a Vercel, de graça.
+  O servidor da mesa só entrega o que está em publico/, então nada
+  daqui vaza para lá. E a Vercel publica só esta pasta. Por isso a
+  landing não pode usar os arquivos da mesa (style.css, icones.js):
+  o que ela precisa da mesa — o arco, os ícones, os tokens — vem
+  COPIADO, com o mesmo desenho.
+-->
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- A mesma cor de barra do navegador da mesa: quem passa da landing
+       para a mesa não vê a "moldura" do celular mudar de cor. -->
+  <meta name="theme-color" content="#08090b">
+  <title>Runlise — a mesa virtual da sua campanha</title>
+  <!-- A frase que o Google e o WhatsApp mostram debaixo do link.
+       Sem ela, cada um inventa a sua a partir do primeiro texto que acha. -->
+  <meta name="description" content="Mesa virtual para campanhas de RPG de 5ª edição. O Mestre controla o mundo, cada jogador o seu personagem, tudo em tempo real. Sem instalar nada.">
+  <!-- O mesmo ícone de aba da mesa: o arco em azul. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315171c'/%3E%3Cpath d='M9 25 L9 15 Q16 6 23 15 L23 25' fill='none' stroke='%234d8dff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+
+  <!-- ============ CABEÇALHO FIXO ============
+    Fica preso no topo enquanto a página rola (o CSS faz isso).
+    Os links de <nav> levam a seções DESTA página (#recursos...):
+    o navegador rola até o elemento com aquele id. Sem JavaScript.
+    "Pedir convite" também é um link interno — leva à chamada final,
+    onde está o botão do formulário. Um botão só para o formulário,
+    em um lugar só: se o link do Google Forms mudar, muda uma vez.
+  -->
+  <header class="topo">
+    <!-- O mesmo arco da mesa, inteiro (os 5 traços + o brilho), só
+         que pequeno: o tamanho vem do CSS, o desenho não muda. -->
+    <a class="topo-marca" href="#inicio">
+      <svg class="arco-gotico pequeno" viewBox="0 0 74 58" aria-hidden="true">
+        <path class="brilho" d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+        <path d="M8 57 L8 26 Q37 -4 66 26 L66 57" />
+        <path d="M18 57 L18 30 Q37 10 56 30 L56 57" opacity="0.45" />
+        <path d="M28 57 L28 35 Q37 24 46 35 L46 57" opacity="0.28" />
+        <path d="M37 14 L37 57" opacity="0.22" />
+      </svg>
+      <span class="marca">Runlise</span>
+    </a>
+    <!-- aria-label: a página pode ter mais de uma navegação (o rodapé
+         também tem links); o nome diz ao leitor de tela qual é qual. -->
+    <nav class="topo-links" aria-label="Seções da página">
+      <a href="#recursos">Recursos</a>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#dado">Role o dado</a>
+    </nav>
+    <a class="botao fantasma pequeno" href="#convite">Pedir convite</a>
+  </header>
+
+
+  <main>
+
+    <!-- ============ ABERTURA ============
+      A primeira tela: o que é, em uma frase, e o que fazer.
+      Duas colunas no computador: o texto à esquerda, o d20 de pedra à
+      direita. No celular, o d20 (menor) vem antes do texto — a ordem
+      visual muda no CSS, a ordem do HTML continua "texto primeiro",
+      que é a que o leitor de tela e o Google leem.
+
+      O <h1> é a frase de impacto — UM por página, como em todas as
+      telas da mesa (DESIGN.md). Os títulos de seção abaixo são <h2>.
+      SEM o arco gótico aqui (decidido com a página na tela): o arco
+      do cabeçalho já assina a marca em toda a página, e o d20 fica
+      sozinho como o ornamento marcante — "gótico com parcimônia", um
+      ornamento, não dois disputando a mesma tela. O papel de mapa
+      (.com-quadriculado) fica atrás do título — o <header> de dentro —,
+      como na entrada da mesa.
+    -->
+    <section class="abertura" id="inicio">
+      <div class="abertura-coluna">
+        <header class="abertura-marca com-quadriculado">
+          <p class="sobretitulo">Mesa virtual para RPG de 5ª edição</p>
+          <h1>A mesa está posta. Só falta o grupo.</h1>
+          <p class="abertura-texto">O Mestre controla o mundo, cada jogador controla o seu personagem, e tudo acontece ao mesmo tempo, na tela de todos. Sem instalar nada.</p>
+        </header>
+
+        <!--
+          As duas ações. São <a>, e não <button>: as duas LEVAM a outro
+          lugar (a chamada final, a mesa). Link é o elemento de "ir para";
+          botão é o de "fazer algo aqui". Com <a>, o leitor de tela
+          anuncia "link", e o clique do meio abre numa aba nova.
+          A aparência de botão vem das classes da mesa: .botao (cheio,
+          a ação principal) e .botao.fantasma (contorno azul). Um botão
+          cheio por área, como no DESIGN.md.
+        -->
+        <div class="abertura-acoes">
+          <a class="botao" href="#convite">Pedir convite de Mestre</a>
+          <!-- O endereço da mesa ainda não existe: nasce no passo do
+               túnel com nome. Até lá, este link não abre nada. -->
+          <a class="botao fantasma" href="https://mesa.runlise.com/">Tenho um convite</a>
+        </div>
+        <p class="abertura-nota">Beta fechado e gratuito. Jogadores não precisam de conta.</p>
+      </div>
+
+      <!--
+        O D20 DE PEDRA — o ornamento da abertura.
+        O landing.js (arquivo 3) desenha aqui um d20 em 3D (Three.js):
+        pedra grafite, arestas com um fio de luz azul, girando devagar.
+        O desenho que já está aqui dentro é o PLANO B — o mesmo d20
+        visto de frente da seção "Role o dado". Ele fica à vista:
+          - antes de o 3D carregar (o Three.js chega depois do texto);
+          - em aparelho sem 3D (sem WebGL);
+          - para quem pediu menos movimento no sistema.
+        Quando o 3D está pronto, o JS esconde o desenho e põe o 3D no
+        lugar. É enfeite: aria-hidden, o leitor de tela pula.
+      -->
+      <div class="abertura-d20" aria-hidden="true">
+        <svg class="d20-desenho" viewBox="0 0 100 100">
+          <path d="M50 4 L90 27 L90 73 L50 96 L10 73 L10 27 Z" />
+          <path d="M50 28 L74 68 L26 68 Z" />
+          <path d="M50 28 L10 27 M50 28 L90 27 M26 68 L10 27 M26 68 L10 73 M26 68 L50 96 M74 68 L90 27 M74 68 L90 73 M74 68 L50 96" />
+        </svg>
+      </div>
+    </section>
+
+
+    <!-- ============ A MESA FUNCIONANDO ============
+      O vídeo da mesa em uso, logo depois da abertura: o Mestre move um
+      esqueleto, a Lyra anda duas casas e ataca — nas duas telas, no
+      mesmo instante. Ele é GRAVADO pelo testes/vitrine/vitrine.mjs
+      (node testes/rodar.mjs vitrine): refazer o vídeo é rodar de novo.
+
+      Dois formatos: WebM (menor) e MP4 (para o Safari antigo, que não
+      toca WebM). O navegador usa o primeiro que souber tocar.
+      Sem "autoplay" de propósito: o landing.js dá o play só para quem
+      não pediu menos movimento, e só enquanto o vídeo está na tela.
+      preload="none": nada é baixado antes disso. O "poster" é a foto do
+      mesmo momento — é o que vê quem não roda o vídeo.
+      muted + playsinline: sem som (o navegador só deixa tocar sozinho
+      vídeo mudo) e, no iPhone, dentro da página, não em tela cheia.
+
+      O botão "Pausar": um vídeo que se mexe sozinho por mais de 5
+      segundos precisa de um jeito de parar (é regra de acessibilidade,
+      WCAG 2.2.2) — para quem se distrai com movimento enquanto lê.
+    -->
+    <section class="demonstracao" aria-labelledby="titulo-demonstracao">
+      <h2 id="titulo-demonstracao">Veja a mesa funcionando</h2>
+      <figure class="demonstracao-midia com-imagem">
+        <!-- controls: SEM JavaScript, a pessoa ainda consegue dar o play
+             (com os controles do navegador). Com JavaScript, o landing.js
+             tira os controles e põe o botão da página no lugar, e troca
+             para a versão empilhada no celular. -->
+        <video controls muted loop playsinline preload="none" poster="midia/lado-a-lado.webp" width="1600" height="517" aria-describedby="legenda-demonstracao">
+          <source src="midia/mesa.webm" type="video/webm">
+          <source src="midia/mesa.mp4" type="video/mp4">
+        </video>
+        <figcaption>
+          <span id="legenda-demonstracao">O Mestre move um esqueleto; a jogadora da Lyra anda e ataca. Cada um vê o outro na hora, na própria tela.</span>
+          <button class="botao fantasma pequeno" type="button" id="botaoVideo" hidden>Pausar</button>
+        </figcaption>
+      </figure>
+    </section>
+
+
+    <!-- ============ MANIFESTO ============
+      Uma frase só, grande: por que a Runlise existe.
+      O <h2> fica só para o leitor de tela (.so-leitor): na tela, a
+      própria frase é o destaque, mas quem navega pelos títulos
+      (leitor de tela) precisa achar a seção pelo nome.
+    -->
+    <section class="manifesto" aria-labelledby="titulo-manifesto">
+      <h2 class="so-leitor" id="titulo-manifesto">Por que a Runlise existe</h2>
+      <p class="manifesto-frase">Jogar online não devia dar mais trabalho que a própria aventura. Sem planilha, sem dez abas abertas: o grupo abre um link e a sessão começa.</p>
+    </section>
+
+
+    <!-- ============ RECURSOS ============
+      Três blocos iguais por dentro (ícone, título, texto, lista,
+      captura). Cada um é um <article>: um pedaço que faria sentido
+      sozinho, fora da página. Os títulos deles são <h3>, um nível
+      abaixo do <h2> da seção — a ordem dos títulos é o "índice" que
+      o leitor de tela lê.
+      Cada bloco tem a SUA captura. O CSS e o JS (arquivos 2 e 3) vão
+      deixar a captura parada ao lado enquanto o texto passa. Sem eles,
+      cada captura aparece debaixo do seu texto — e a página continua
+      fazendo sentido.
+    -->
+    <section class="recursos" id="recursos" aria-labelledby="titulo-recursos">
+      <h2 id="titulo-recursos">Tudo o que a mesa precisa</h2>
+
+      <article class="recurso">
+        <!-- Ícones em traço, copiados do icones.js da mesa (o mesmo
+             desenho, a mesma grade 24x24). O traço vem da regra .ico
+             (que o landing.css copia do style.css): stroke currentColor,
+             sem preenchimento — o ícone herda a cor do texto ao redor.
+             Até o CSS existir, eles aparecem preenchidos de preto. -->
+        <svg class="ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 8l3.5 4L12 5l4.5 7L20 8v10H4z"/><path d="M4 18h16"/></svg>
+        <h3>Para o Mestre</h3>
+        <p>Tudo o que você prepara antes da sessão e usa durante ela, num painel só.</p>
+        <ul>
+          <li>Mapas com tokens e paredes</li>
+          <li>Combate com iniciativa e pontos de vida</li>
+          <li>Bestiário e compêndio de regras</li>
+          <li>Diário, NPCs e tabelas da campanha</li>
+        </ul>
+        <!-- As capturas vêm do testes/vitrine/vitrine.mjs (node testes/rodar.mjs
+             vitrine), que monta uma campanha de demonstração e fotografa a
+             mesa. width/height: o navegador reserva o espaço antes de a
+             foto chegar, e a página não "pula". loading="lazy": só baixa
+             quando a pessoa rola até perto. -->
+        <figure class="recurso-captura">
+          <img src="midia/mestre.webp" width="1440" height="900" loading="lazy" decoding="async" alt="O painel do Mestre na tela de Mapas: o Salão dos Ossos, com o grupo de um lado da passagem e os esqueletos do outro.">
+        </figure>
+      </article>
+
+      <article class="recurso">
+        <svg class="ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>
+        <h3>Para o jogador</h3>
+        <p>O seu personagem inteiro na mão, no computador ou no celular.</p>
+        <ul>
+          <li>Ficha completa, com ataques, magias e recursos</li>
+          <li>Inventário</li>
+          <li>Dados 3D que rolam na tela</li>
+          <li>Chat com a mesa</li>
+        </ul>
+        <figure class="recurso-captura">
+          <img src="midia/ficha.webp" width="1440" height="900" loading="lazy" decoding="async" alt="A ficha da Lyra, maga elfa: atributos, ataque com adaga, magias e os dados ao lado.">
+        </figure>
+      </article>
+
+      <article class="recurso">
+        <svg class="ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg>
+        <h3>Tudo em tempo real</h3>
+        <p>O que acontece na mesa aparece para o grupo na hora.</p>
+        <ul>
+          <li>O Mestre move um token, e todos veem</li>
+          <li>Cada um vê só o que deve: os segredos do Mestre ficam com ele</li>
+          <li>Salvamento automático: a campanha continua de onde parou</li>
+        </ul>
+        <figure class="recurso-captura">
+          <img src="midia/jogador-mesa.webp" width="1440" height="900" loading="lazy" decoding="async" alt="O mapa como a jogadora da Lyra vê, no meio do combate: o aviso de que é a vez dela e os monstros do outro lado.">
+        </figure>
+      </article>
+    </section>
+
+
+    <!-- ============ COMO FUNCIONA ============
+      Três passos em ordem, então <ol> (lista NUMERADA): a ordem faz
+      parte do conteúdo. Com <ul>, o leitor de tela não diria
+      "1 de 3", e sem CSS os números sumiriam.
+      A classe é .etapas, e não .passos: na mesa, .passos é a barra de
+      progresso da criação de campanha — outro papel, com outro visual.
+    -->
+    <section class="como-funciona" id="como-funciona" aria-labelledby="titulo-como">
+      <h2 id="titulo-como">Como funciona</h2>
+      <ol class="etapas">
+        <li>
+          <h3>O Mestre cria a campanha</h3>
+          <p>Com a conta de Mestre, dê um nome à campanha e prepare o primeiro mapa.</p>
+        </li>
+        <li>
+          <h3>Manda o código para o grupo</h3>
+          <p>Um código de 12 caracteres, ou o link de convite, pelo WhatsApp ou pelo Discord.</p>
+        </li>
+        <li>
+          <h3>Todos jogam</h3>
+          <p>Cada jogador entra com o código e o próprio nome. Sem cadastro, sem instalar nada.</p>
+        </li>
+      </ol>
+    </section>
+
+
+    <!-- ============ ROLE O DADO ============
+      O único momento de brincadeira da página: um d20 que rola.
+      É um <button>: clicar FAZ algo aqui (rola), não leva a lugar
+      nenhum. Funciona também pelo teclado (Tab até ele, Enter ou
+      Espaço) — de graça, por ser <button>.
+      O resultado vai para um parágrafo com aria-live="polite": quando
+      o texto dele muda, o leitor de tela lê o número em voz alta,
+      sem a pessoa precisar procurar.
+      O desenho é o d20 visto de frente: o hexágono com o triângulo no
+      meio — a mesma silhueta dos retratos em hexágono da mesa.
+      É o MESMO d20 de pedra da abertura: o landing.js põe o 3D aqui
+      também, e o clique o faz rolar. O desenho fica de plano B, como
+      lá em cima.
+    -->
+    <section class="dado" id="dado" aria-labelledby="titulo-dado">
+      <h2 id="titulo-dado">Role o dado</h2>
+      <p>Toda aventura começa com um teste. Clique no d20.</p>
+      <button class="d20" type="button" id="botaoD20">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M50 4 L90 27 L90 73 L50 96 L10 73 L10 27 Z" />
+          <path d="M50 28 L74 68 L26 68 Z" />
+          <path d="M50 28 L10 27 M50 28 L90 27 M26 68 L10 27 M26 68 L10 73 M26 68 L50 96 M74 68 L90 27 M74 68 L90 73 M74 68 L50 96" />
+        </svg>
+        <!-- aria-hidden no número: senão ele entra no NOME do botão
+             ("20 Rolar o d20") e o nome muda a cada rolagem. O número
+             para o leitor de tela é o do resultado, logo abaixo. -->
+        <span class="d20-numero" id="numeroD20" aria-hidden="true">20</span>
+        <!-- O nome do botão para o leitor de tela: o número desenhado
+             sozinho ("20") não diz o que o botão faz. -->
+        <span class="so-leitor">Rolar o d20</span>
+      </button>
+      <p class="d20-resultado" id="resultadoD20" aria-live="polite"></p>
+    </section>
+
+
+    <!-- ============ CHAMADA FINAL: PEDIR CONVITE ============
+      O único lugar com o link do formulário (Google Forms). Abre numa
+      aba nova (target="_blank"), para a pessoa não perder a landing.
+      rel="noopener": a aba nova não ganha acesso a esta página pelo
+      window.opener — um cuidado padrão com links que abrem abas.
+      O que a pessoa vê depois de enviar (a confirmação, ou um erro) é
+      do próprio Google Forms: a landing não recebe nada.
+      O link abaixo é PROVISÓRIO: troque pelo do seu formulário.
+    -->
+    <section class="chamada" id="convite" aria-labelledby="titulo-convite">
+      <h2 id="titulo-convite">A mesa está em beta fechado</h2>
+      <p>A Runlise está abrindo aos poucos, para cada grupo ter uma boa primeira sessão. Peça o seu convite de Mestre: é grátis.</p>
+      <a class="botao" href="https://forms.gle/COLOQUE-O-LINK-DO-SEU-FORMULARIO" target="_blank" rel="noopener">Pedir convite de Mestre</a>
+      <p class="chamada-nota">Abre um formulário do Google numa aba nova. Os convites são enviados pelo contato que você deixar.</p>
+    </section>
+
+  </main>
+
+
+  <!-- ============ RODAPÉ ============
+    A atribuição do SRD 5.1 é OBRIGATÓRIA: a licença CC-BY-4.0 deixa
+    usar o conteúdo (até comercialmente) desde que se diga de onde ele
+    veio. "Não afiliada": o nome D&D e a Wizards são marcas deles — a
+    Runlise usa só o que a licença libera.
+    Ainda faltam aqui: os Termos e a Privacidade (páginas a fazer) e
+    o GitHub (depende da decisão sobre o repositório público).
+  -->
+  <footer class="rodape">
+    <p class="marca">Runlise</p>
+    <p class="rodape-licenca">
+      Este site inclui material do System Reference Document 5.1 (“SRD 5.1”), da Wizards of the Coast LLC, disponível em
+      <a href="https://dnd.wizards.com/resources/systems-reference-document">dnd.wizards.com</a>.
+      O SRD 5.1 está sob a licença
+      <a href="https://creativecommons.org/licenses/by/4.0/legalcode">Creative Commons Atribuição 4.0 Internacional</a>.
+      A Runlise não é afiliada à Wizards of the Coast.
+    </p>
+    <p class="rodape-ano">© 2026 Runlise</p>
+  </footer>
+
+  <!-- O comportamento (o d20 em 3D, a rolagem, o vídeo). defer: o
+       navegador baixa o script sem parar de montar a página, e só o
+       roda quando o HTML inteiro já existe — os getElementById dele
+       acham os elementos. -->
+  <script src="landing.js" defer></script>
+
+</body>
+</html>

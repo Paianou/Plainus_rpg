@@ -1,0 +1,764 @@
+@import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ===================================================================
+   LANDING 2 — landing.css, a aparência da landing da Runlise.
+
+   A MESMA CARA DA MESA, SEM O PESO DA MESA
+   O style.css da mesa tem 170 KB: é o visual de 16 telas. A landing
+   precisa de uma fração dele. Então este arquivo COPIA da mesa só o
+   que a landing usa — os tokens (cores, cantos, sombras), o grão de
+   filme, o arco, os botões, o .ico e o .so-leitor — com os mesmos
+   valores. A regra da cópia: a fonte da verdade é o DESIGN.md. Se um
+   token mudar lá (e no style.css), muda aqui também.
+
+   UMA COISA MARCANTE, O RESTO QUIETO
+   O ornamento da página é o d20 da abertura. Todo o resto é contido:
+   texto alinhado à esquerda, hairlines de 1px separando as seções,
+   o azul aparecendo pouco (foco, botão secundário, um detalhe por
+   seção) para continuar chamando atenção quando aparece.
+
+   Ordem: 1 tokens · 2 base · 3 peças da mesa · 4 cabeçalho ·
+   5 abertura · 6 seções · 7 rodapé · 8 celular · 9 menos movimento
+   =================================================================== */
+
+
+/* ---------- 1. TOKENS (copiados do :root do style.css) ---------- */
+:root {
+  --breu:      #08090b;
+  --cripta:    #0c0e12;
+  --pedra:     #15171c;
+  --pedra-2:   #1b1e24;
+  --pedra-3:   #23262d;
+  --relevo:         rgba(255, 255, 255, .055);
+  --hairline:       rgba(255, 255, 255, .07);
+  --hairline-forte: rgba(255, 255, 255, .13);
+
+  --azul:       #4d8dff;
+  --azul-fundo: rgba(77, 141, 255, .12);
+  --gelo:       #a9c4ff;
+
+  --texto:   #e6e8f0;
+  --texto-2: #949bb0;
+  --texto-3: #80879b;
+
+  --sombra-baixa: 0 1px 2px rgba(0, 0, 0, .5);
+  --sombra:       0 12px 32px -8px rgba(0, 0, 0, .7);
+  --sombra-alta:  0 32px 64px -16px rgba(0, 0, 0, .85);
+
+  --r-p: 8px;
+  --r-m: 12px;
+  --r-g: 18px;
+
+  --transicao: 180ms cubic-bezier(.22, .61, .36, 1);
+
+  /* --- Só da landing --- */
+  /* O título da abertura. A escala da mesa para em 32px (o maior
+     título de tela); uma vitrine pede mais. clamp() = "cresce com a
+     largura da tela, mas nunca menos de 32px nem mais de 48px". */
+  --t-vitrine: clamp(2rem, 1.2rem + 3.4vw, 3rem);
+  /* A largura máxima do conteúdo, e a folga das bordas. */
+  --largura: 1120px;
+  --margem: 24px;
+  /* A altura do cabeçalho fixo: as seções descontam ela ao rolar. */
+  --altura-topo: 64px;
+}
+
+
+/* ---------- 2. BASE ---------- */
+* { box-sizing: border-box; }
+
+html {
+  /* Clicar em "Recursos" no cabeçalho ROLA até a seção, em vez de
+     pular. scroll-padding-top: para a seção não parar escondida
+     atrás do cabeçalho fixo. */
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--altura-topo) + 16px);
+}
+
+html, body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--texto);
+  background: var(--breu);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
+}
+
+h1, h2, .marca {
+  font-family: 'Marcellus', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: .02em;
+  /* text-wrap: balance — o navegador distribui as palavras para as
+     linhas de um título ficarem do mesmo tamanho, sem uma palavra
+     sobrando sozinha na última. */
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+/* Grão de filme sobre tudo — o mesmo da mesa. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  opacity: .3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23r)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+[hidden] { display: none !important; }
+::selection { background: rgba(77, 141, 255, .32); }
+:focus-visible { outline: 2px solid var(--azul); outline-offset: 3px; }
+
+a { color: var(--gelo); text-underline-offset: 3px; }
+
+
+/* ---------- 3. PEÇAS DA MESA (copiadas do style.css) ---------- */
+
+/* Ícones em traço: herdam a cor do texto. */
+.ico {
+  display: inline-block;
+  vertical-align: -3px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* Só para leitor de tela: fora da vista, mas lido. */
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* O arco gótico — os traços e o brilho que pulsa. */
+.arco-gotico { display: block; overflow: visible; }
+.arco-gotico path { fill: none; stroke: var(--texto-2); stroke-width: 1.1; opacity: .9; }
+.arco-gotico .brilho {
+  stroke: var(--azul);
+  stroke-width: 3.5;
+  opacity: .22;
+  filter: blur(3px);
+  animation: pulsar 5s ease-in-out infinite;
+}
+@keyframes pulsar {
+  0%, 100% { opacity: .16; }
+  50%      { opacity: .38; }
+}
+
+/* Os botões da mesa (.botao cheio, .botao.fantasma contorno azul).
+   Três diferenças, porque na landing eles são LINKS (<a>) e não
+   ocupam a largura toda como nos formulários da mesa:
+     display: inline-flex   um <a> nasce "em linha"; assim ele aceita
+                            padding em volta e centraliza o texto
+     width: auto            do tamanho do texto, não da coluna
+     text-decoration: none  link sem sublinhado — a aparência já
+                            diz que é clicável
+   E sem o margin-top: auto da mesa, que empurrava o botão para o pé
+   de uma coluna de formulário — aqui não há coluna. */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 24px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .03em;
+  color: var(--texto);
+  text-decoration: none;
+  cursor: pointer;
+  background: linear-gradient(180deg, #3b3e46, #26282e);
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 rgba(255, 255, 255, .14);
+  transition: var(--transicao);
+}
+.botao:hover {
+  transform: translateY(-1px);
+  border-color: rgba(77, 141, 255, .4);
+  box-shadow: 0 10px 26px -8px rgba(77, 141, 255, .35), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.botao:active { transform: translateY(0); }
+
+.botao.fantasma {
+  color: var(--gelo);
+  background: rgba(77, 141, 255, .08);
+  border-color: rgba(77, 141, 255, .35);
+  box-shadow: var(--sombra-baixa), inset 0 1px 0 var(--relevo);
+}
+.botao.fantasma:hover {
+  box-shadow: 0 10px 26px -10px rgba(77, 141, 255, .45), inset 0 1px 0 var(--relevo);
+}
+
+/* O botão pequeno da mesa (.botao.pequeno), para caber numa barra. */
+.botao.pequeno {
+  gap: 7px;
+  padding: 10px 15px;
+  font-size: 12.5px;
+}
+
+/* O papel quadriculado atrás do título — quadrados de 20px na cor
+   das hairlines, sumindo para baixo. O ::before fica ATRÁS (z-index
+   -1) porque o pai tem isolation: isolate. */
+.com-quadriculado {
+  position: relative;
+  isolation: isolate;
+}
+.com-quadriculado::before {
+  content: '';
+  position: absolute;
+  inset: -32px -32px 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: var(--r-g) var(--r-g) 0 0;
+  background-image:
+    linear-gradient(var(--hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size: 20px 20px;
+  /* Na mesa, o quadriculado mora dentro de um cartão, que corta as
+     bordas. Aqui ele está solto no fundo: some em TODAS as direções
+     (máscara radial), senão vira uma caixa de cantos retos. */
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 35% 35%, #000 25%, transparent 75%);
+  mask-image: radial-gradient(ellipse 60% 70% at 35% 35%, #000 25%, transparent 75%);
+}
+
+
+/* ---------- 4. CABEÇALHO FIXO ----------
+   position: fixed tira o cabeçalho do fluxo: ele fica preso no topo
+   da JANELA, e a página rola por baixo dele. O fundo é translúcido
+   com desfoque (backdrop-filter): o que passa por baixo vira névoa,
+   e o texto do cabeçalho continua legível. */
+.topo {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10;
+  height: var(--altura-topo);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 max(var(--margem), calc((100% - var(--largura)) / 2));
+  background: rgba(8, 9, 11, .72);
+  border-bottom: 1px solid var(--hairline);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.topo-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--texto);
+  text-decoration: none;
+}
+.topo-marca .arco-gotico { width: 26px; height: 20px; }
+.topo-marca .marca { font-size: 18px; letter-spacing: .06em; }
+
+/* margin-left: auto empurra os links (e o botão depois deles) para
+   a direita: a marca fica sozinha à esquerda. */
+.topo-links { display: flex; gap: 4px; margin-left: auto; }
+.topo-links a {
+  padding: 8px 12px;
+  border-radius: var(--r-p);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texto-2);
+  text-decoration: none;
+  transition: var(--transicao);
+}
+.topo-links a:hover { color: var(--texto); background: var(--relevo); }
+
+/* O botão do cabeçalho é o .botao.pequeno da mesa (copiado na seção 3). */
+
+
+/* ---------- 5. ABERTURA ----------
+   Cada seção ocupa a largura toda (para o fundo e as hairlines irem
+   de ponta a ponta), mas o CONTEÚDO fica numa coluna de no máximo
+   --largura. O truque está no padding dos lados:
+     max(24px, (largura da tela - 1120px) / 2)
+   Em tela grande, sobra espaço igual dos dois lados; em tela pequena,
+   fica a folga mínima de 24px. */
+.abertura,
+.demonstracao,
+.manifesto,
+.recursos,
+.como-funciona,
+.dado,
+.chamada,
+.rodape {
+  padding-inline: max(var(--margem), calc((100% - var(--largura)) / 2));
+}
+
+.abertura {
+  position: relative;
+  overflow: clip;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  align-items: center;
+  gap: 48px;
+  padding-top: calc(var(--altura-topo) + 48px);
+  padding-bottom: 64px;
+  background: radial-gradient(ellipse 70% 55% at 70% 20%, rgba(77, 141, 255, .10), transparent 60%), var(--breu);
+}
+
+/* As duas luzes que derivam devagar — as mesmas da entrada da mesa. */
+.abertura::before,
+.abertura::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  width: 46vw;
+  height: 46vw;
+  max-width: 560px;
+  max-height: 560px;
+  border-radius: 50%;
+  filter: blur(70px);
+  /* A opacidade de repouso: é a que fica para quem pediu menos
+     movimento (a animação para, e sem esta linha a luz ficaria 100%). */
+  opacity: .55;
+  pointer-events: none;
+}
+.abertura::before {
+  top: -14%;
+  left: -10%;
+  background: radial-gradient(circle, var(--gelo), transparent 70%);
+  animation: derivar-a 18s ease-in-out infinite;
+}
+.abertura::after {
+  bottom: -18%;
+  right: -12%;
+  background: radial-gradient(circle, var(--azul), transparent 70%);
+  animation: derivar-b 22s ease-in-out infinite;
+}
+@keyframes derivar-a {
+  0%, 100% { transform: translate(0, 0) scale(1);     opacity: .28; }
+  50%      { transform: translate(4%, 6%) scale(1.12); opacity: .45; }
+}
+@keyframes derivar-b {
+  0%, 100% { transform: translate(0, 0) scale(1);      opacity: .4; }
+  50%      { transform: translate(-5%, -4%) scale(1.1); opacity: .65; }
+}
+
+/* O conteúdo fica NA FRENTE das luzes (z-index acima do 0 delas). */
+.abertura-coluna,
+.abertura-d20 { position: relative; z-index: 1; }
+
+.sobretitulo {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texto-2);
+}
+
+.abertura h1 {
+  margin: 0 0 16px;
+  font-size: var(--t-vitrine);
+  line-height: 1.1;
+}
+
+.abertura-texto {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+
+.abertura-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.abertura-nota {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: var(--texto-3);
+}
+
+/* O lugar do d20. aspect-ratio: 1 = sempre quadrado, de qualquer
+   largura. O 3D (landing.js) vai ocupar este quadrado inteiro. */
+.abertura-d20 {
+  display: grid;
+  place-items: center;
+  width: min(100%, 440px);
+  aspect-ratio: 1;
+  justify-self: center;
+}
+/* Uma luz azul atrás do dado: a "luz arcana" que vem de dentro. */
+.abertura-d20::before {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(77, 141, 255, .22), transparent 70%);
+  filter: blur(24px);
+}
+
+/* O d20 desenhado (o plano B do 3D): só traço, fino, como os ícones.
+   vector-effect: o traço fica com 1.2px na tela, seja qual for o
+   tamanho do desenho — sem ele, o traço engrossaria junto. */
+.d20-desenho {
+  position: relative;
+  width: 72%;
+  fill: none;
+  stroke: var(--texto-2);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.d20-desenho path { vector-effect: non-scaling-stroke; }
+.d20-desenho path:first-child { stroke: var(--gelo); }
+
+
+/* ---------- 6. AS SEÇÕES ----------
+   Separadas por uma hairline no topo, e não por fundos de cores
+   diferentes: é como a mesa separa as superfícies (DESIGN.md). */
+.demonstracao,
+.manifesto,
+.recursos,
+.como-funciona,
+.dado,
+.chamada {
+  padding-top: 96px;
+  padding-bottom: 96px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* O h2 da mesa: flex, para o pingo de luz ficar ao lado do texto. */
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 32px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+/* O pingo de luz antes do título — o mesmo da mesa: marca "isto é um
+   nome próprio". Copiado do style.css. */
+h2::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--azul);
+  box-shadow: 0 0 10px var(--azul);
+  flex-shrink: 0;
+}
+
+/* --- Os quadros de vídeo e captura: superfície de pedra, hairline,
+   luz no topo — o mesmo acabamento dos cartões da mesa. --- */
+.demonstracao-midia,
+.recurso-captura {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--pedra-2), var(--pedra));
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-g);
+  box-shadow: var(--sombra-alta), inset 0 1px 0 var(--relevo);
+}
+.demonstracao-midia { aspect-ratio: 16 / 9; }
+
+/* A foto ocupa o quadro inteiro. object-fit: cover corta o que sobrar
+   (em vez de esticar), e object-position: canto de cima à esquerda —
+   é onde ficam o nome da tela e o mapa, a parte que importa. */
+.demonstracao-midia img,
+.demonstracao-midia video,
+.recurso-captura > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+}
+/* A foto lado a lado é mais larga que 16:9: o quadro segue a foto. */
+.demonstracao-midia.com-imagem { display: block; aspect-ratio: auto; }
+.demonstracao-midia.com-imagem img,
+.demonstracao-midia.com-imagem video { height: auto; }
+/* A legenda é texto da página (não desenhada na foto): segue a fonte e
+   o tamanho da landing, e o leitor de tela a lê junto. */
+.demonstracao-midia figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--texto-2);
+}
+
+
+/* --- Manifesto: uma frase grande, sozinha. --- */
+.manifesto-frase {
+  max-width: 34ch;
+  margin: 0;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 32px;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+/* --- Recursos ---
+   Cada recurso é uma grade de duas colunas: o texto à esquerda, a
+   captura à direita. grid-template-areas dá NOME às regiões; cada
+   filho diz em qual região mora. A captura ocupa as 4 linhas da
+   direita, e o texto desce empilhado à esquerda. */
+.recurso {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  grid-template-areas:
+    "ico     captura"
+    "titulo  captura"
+    "texto   captura"
+    "lista   captura";
+  grid-template-rows: auto auto auto 1fr;
+  column-gap: 48px;
+  padding: 48px 0;
+  border-top: 1px solid var(--hairline);
+}
+.recurso:first-of-type { border-top: 0; padding-top: 0; }
+
+/* Os recursos ALTERNAM o lado da captura: direita, esquerda, direita.
+   Três blocos com o mesmo desenho, um embaixo do outro, viram uma
+   lista monótona; trocando o lado, o olho faz um zigue-zague e cada
+   bloco parece um momento próprio. Só no computador (min-width): no
+   celular é tudo uma pilha. Dentro do @media porque a regra com
+   :nth-of-type é mais específica que a do celular, e venceria. */
+@media (min-width: 721px) {
+  .recurso:nth-of-type(even) {
+    grid-template-columns: 1.25fr 1fr;
+    grid-template-areas:
+      "captura ico"
+      "captura titulo"
+      "captura texto"
+      "captura lista";
+  }
+}
+.recurso > .ico { grid-area: ico; color: var(--azul); margin-bottom: 16px; }
+/* O h3 do recurso em Marcellus, como os títulos: é um nome ("Para o
+   Mestre"). O h3 das etapas fica em Inter: é uma frase de ação. */
+.recurso > h3 {
+  grid-area: titulo;
+  margin: 0 0 8px;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: .02em;
+}
+.recurso > p { grid-area: texto; margin: 0 0 16px; color: var(--texto-2); }
+.recurso > ul { grid-area: lista; margin: 0; padding: 0; list-style: none; }
+.recurso > .recurso-captura { grid-area: captura; align-self: center; }
+
+/* Cada item da lista separado por hairline: precisão, sem marcador. */
+.recurso li {
+  padding: 8px 0;
+  border-top: 1px solid var(--hairline);
+}
+.recurso li:last-child { border-bottom: 1px solid var(--hairline); }
+
+/* --- Como funciona: três etapas numeradas ---
+   O número vem de um CONTADOR do CSS (counter): o <ol> zera, cada
+   <li> soma 1, e o ::before escreve o número. Assim o número é parte
+   do desenho, e o leitor de tela continua lendo "1 de 3" pelo <ol>. */
+.etapas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: etapa;
+}
+.etapas li {
+  counter-increment: etapa;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline-forte);
+}
+.etapas li::before {
+  content: counter(etapa);
+  display: block;
+  margin-bottom: 16px;
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--gelo);
+}
+.etapas h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.etapas p { margin: 0; color: var(--texto-2); }
+
+/* --- Role o dado --- */
+.dado { text-align: center; }
+.dado h2 { justify-content: center; margin-bottom: 8px; }
+.dado > p { margin: 0 0 32px; color: var(--texto-2); }
+
+/* O botão do d20: sem a "caixa" de botão do navegador — o próprio
+   dado é o botão. position: relative para o número ficar POR CIMA
+   do desenho (position: absolute dentro dele). */
+.d20 {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 192px;
+  height: 192px;
+  padding: 0;
+  color: var(--texto-2);
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transicao);
+}
+.d20:hover { color: var(--gelo); transform: translateY(-1px); }
+.d20 svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.d20 svg path { vector-effect: non-scaling-stroke; }
+/* O número no meio do triângulo central (que fica um pouco abaixo
+   do centro do hexágono, por isso top: 54%). */
+.d20-numero {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Marcellus', Georgia, serif;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--texto);
+}
+/* min-height: o espaço do resultado existe mesmo vazio — sem ele, a
+   página "pularia" para baixo na primeira rolagem. */
+.d20-resultado {
+  min-height: 1.5em;
+  margin: 16px 0 0;
+  color: var(--texto-2);
+}
+
+/* --- Chamada final --- */
+.chamada {
+  text-align: center;
+  background: radial-gradient(ellipse 60% 70% at 50% 0%, rgba(77, 141, 255, .08), transparent 70%);
+}
+.chamada h2 { justify-content: center; margin-bottom: 16px; }
+.chamada > p { max-width: 52ch; margin: 0 auto 32px; color: var(--texto-2); }
+/* .chamada > .chamada-nota, e não só .chamada-nota: a regra de cima
+   (.chamada > p) é mais específica que uma classe sozinha e venceria. */
+.chamada > .chamada-nota { margin: 16px auto 0; font-size: 13px; color: var(--texto-3); }
+
+
+/* ---------- 7. RODAPÉ ---------- */
+.rodape {
+  padding-top: 48px;
+  padding-bottom: 48px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--texto-3);
+}
+.rodape .marca { margin: 0 0 16px; font-size: 18px; color: var(--texto-2); }
+.rodape-licenca { max-width: 72ch; margin: 0 0 16px; }
+.rodape a { color: var(--texto-2); }
+.rodape-ano { margin: 0; }
+
+
+/* ---------- 8. CELULAR (até 720px, a quebra da mesa) ---------- */
+@media (max-width: 720px) {
+  /* Os links do cabeçalho somem: no celular, sobram a marca e o
+     botão. Quem quiser as seções, rola. */
+  .topo-links { display: none; }
+  /* 44px de altura no celular: o alvo de toque do DESIGN.md — para
+     todo botão pequeno (o do cabeçalho e o do vídeo). */
+  .topo .botao { margin-left: auto; }
+  .botao.pequeno { min-height: 44px; }
+
+  /* Uma coluna só. order: -1 põe o d20 ANTES do texto na tela — só
+     na tela: no HTML (e para o leitor de tela) o texto continua
+     primeiro. */
+  .abertura {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    min-height: auto;
+    padding-top: calc(var(--altura-topo) + 24px);
+  }
+  .abertura-d20 { order: -1; width: min(100%, 240px); }
+
+  .demonstracao, .manifesto, .recursos, .como-funciona, .dado, .chamada {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
+  h2 { font-size: 24px; margin-bottom: 24px; }
+  .manifesto-frase { font-size: 24px; }
+
+  /* O recurso vira uma pilha: ícone, título, texto, lista, captura. */
+  .recurso {
+    grid-template-columns: 1fr;
+    grid-template-areas: "ico" "titulo" "texto" "lista" "captura";
+    grid-template-rows: none;
+  }
+  .recurso > .recurso-captura { margin-top: 24px; }
+
+  .etapas { grid-template-columns: 1fr; gap: 24px; }
+
+  /* Botões da abertura com a largura toda: alvo de toque grande. */
+  .abertura-acoes .botao { flex: 1 1 100%; }
+}
+
+
+/* ---------- 10. O d20 EM 3D (landing.js) ----------
+   O landing.js põe um <canvas class="d20-3d"> dentro do lugar do dado
+   (a abertura ou o botão de "Role o dado") e marca o lugar com
+   .com-3d. Aí o desenho some e o 3D aparece, cruzando devagar. Sem a
+   classe (sem 3D), nada muda: o desenho continua lá. */
+.d20-3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;     /* o clique passa para o botão de baixo */
+  animation: acender 900ms ease forwards;
+}
+@keyframes acender { to { opacity: 1; } }
+
+.d20-desenho,
+.d20 svg,
+.d20-numero { transition: opacity 600ms ease; }
+.com-3d > .d20-desenho,
+.com-3d > svg,
+.com-3d > .d20-numero { opacity: 0; }
+
+
+/* ---------- 9. MENOS MOVIMENTO ----------
+   Quem ativou "reduzir movimento" no sistema (Windows: Configurações
+   > Acessibilidade > Efeitos visuais) recebe a página parada: sem
+   luzes derivando, sem brilho pulsando, sem rolagem animada. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .abertura::before, .abertura::after, .arco-gotico .brilho { animation: none; }
+  * { transition: none !important; }
+}
