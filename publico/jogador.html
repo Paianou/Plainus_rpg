@@ -108,7 +108,9 @@
   <script src="ficha.js"></script>
   <script src="visao.js"></script>         <!-- o que o jogador vê e pode fazer -->
   <script src="chat.js"></script>           <!-- o chat (aba Chat) -->
-  <script src="vendor/three.min.js"></script> <!-- o 3D dos dados (Three.js r158) -->
+  <!-- O Three.js (r180), em módulo: o d20 dos dados e, adiante, a mesa
+       em 3D. O global.js pendura THREE no ar para o dados3d.js. -->
+  <script type="module" src="vendor/three/global.js"></script>
   <script src="dados3d.js"></script>       <!-- a animação dos dados -->
   <script src="jogador-mesa.js"></script>  <!-- abas Mesa e Diário, rolador -->
   <script src="jogador-uso.js"></script>   <!-- ataques, magias, recursos, descansos -->

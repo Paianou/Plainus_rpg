@@ -57,6 +57,11 @@ const Mapa = {
   ferramenta: 'mover',      /* 'mover' | 'medir' | 'area' | 'marcar' | 'parede' */
   selecionado: null,        /* id do token selecionado */
   mostrarGrade: true,
+  /* A mesa em 3D (mesa3d.js) ligada ou desligada — escolha de quem
+     olha, guardada no navegador. Nasce desligada: o 2D é o plano B que
+     sempre funciona, e é onde as ferramentas moram enquanto o 3D não
+     as tem (fases 4–5 do MESA3D.md). */
+  em3D: (function () { try { return localStorage.getItem('plainus:mapa-3d') === '1'; } catch (erro) { return false; } })(),
 
   /* Estado do arrasto em andamento. */
   arrasto: null,
@@ -186,6 +191,12 @@ const Mapa = {
     area.appendChild(criarBotao('mini-botao', 'trazer', 'combate', 'Trazer combatentes'));
     area.appendChild(criarBotao('mini-botao', 'grade', 'tabelas', this.mostrarGrade ? 'Ocultar grade' : 'Mostrar grade'));
 
+    /* O botão só existe quando o mesa3d.js já chegou (é um módulo, que
+       roda depois da página) e o navegador tem WebGL. */
+    if (window.Mesa3D && Mesa3D.disponivel()) {
+      area.appendChild(criarBotao('mini-botao', 'ver-3d', 'olho', this.em3D ? 'Ver em 2D' : 'Ver em 3D'));
+    }
+
     if (this.regua) {
       area.appendChild(criarBotao('mini-botao', 'limpar-regua', 'remover', 'Limpar medição'));
     }
@@ -196,8 +207,10 @@ const Mapa = {
     const cena = this.cena();
     const quadro = document.getElementById('quadro');
 
-    /* Tira o SVG antigo, mas preserva a legenda (que é HTML). */
-    const antigo = quadro.querySelector('svg');
+    /* Tira o SVG antigo, mas preserva a legenda (que é HTML).
+       ":scope > svg", e não "svg": os botões do 3D (dentro do quadro)
+       têm ícones SVG, e "svg" pegaria o primeiro deles em vez da planta. */
+    const antigo = quadro.querySelector(':scope > svg');
     if (antigo) antigo.remove();
 
     const NS = 'http://www.w3.org/2000/svg';
@@ -300,6 +313,23 @@ const Mapa = {
 
     quadro.appendChild(svg);
     this.svg = svg;
+
+    /* Com o 3D ligado, o SVG continua existindo (as ferramentas, o
+       arrasto e os cliques moram nele) — só não aparece. O <canvas> do
+       mesa3d.js fica no lugar. Se o navegador derrubar o 3D, volta ao 2D. */
+    if (this.em3D && window.Mesa3D && Mesa3D.disponivel()) {
+      /* setAttribute, e não svg.hidden: um elemento SVG não tem a
+         propriedade "hidden" (só os de HTML têm) — svg.hidden = true
+         criaria um campo solto e o SVG continuaria na tela. O atributo
+         vale, porque o [hidden] do style.css o esconde. */
+      svg.setAttribute('hidden', '');
+      Mesa3D.mostrar(quadro, cena, {
+        grade: this.mostrarGrade,
+        aoPerder: function () { Mapa.em3D = false; Mapa.render(); }
+      });
+    } else if (window.Mesa3D) {
+      Mesa3D.esconder();
+    }
 
     quadro.classList.toggle('medindo', this.ferramenta === 'medir' || this.ferramenta === 'area');
     quadro.classList.toggle('marcando', this.ferramenta === 'marcar');
@@ -423,6 +453,9 @@ const Mapa = {
     legenda.textContent = '';
 
     if (cena.visibilidade) legenda.appendChild(criar('span.mapa-selo', cena.visibilidade));
+    if (this.em3D && window.Mesa3D && Mesa3D.disponivel()) {
+      legenda.appendChild(criar('span.mapa-selo', 'Em 3D: arraste para girar, roda para aproximar, botão direito para deslizar. Mover e desenhar: por enquanto, no 2D.'));
+    }
 
     const inimigos = cena.tokens.filter(function (t) { return t.tipo === 'inimigo'; }).length;
     if (inimigos > 0) {
@@ -1212,6 +1245,12 @@ function ligarPainel() {
         Mapa.render();
         break;
 
+      case 'ver-3d':
+        Mapa.em3D = !Mapa.em3D;
+        try { localStorage.setItem('plainus:mapa-3d', Mapa.em3D ? '1' : '0'); } catch (erro) { /* fica só nesta aba */ }
+        Mapa.render();
+        break;
+
       case 'limpar-regua':
         Mapa.regua = null;
         Mapa.render();
@@ -1277,6 +1316,12 @@ Layout.iniciar(function () {
   Mapa.iniciar();
 
   /* Outra aba mudou a campanha (ver 'plainus:externo' no layout.js). */
+  /* O mesa3d.js é um módulo: chega depois desta tela desenhar. Quando
+     chegar, a barra de ferramentas ganha o botão "Ver em 3D". */
+  document.addEventListener('runlise:mesa3d', function () {
+    if (typeof Estado !== 'undefined' && Estado && Estado.cenas && Estado.cenas.length && !Mapa.arrasto && !Mapa.pintura) Mapa.render();
+  });
+
   Layout.redesenhar = function () { if (!Mapa.arrasto && !Mapa.pintura && !Mapa.areaPrevia && !Mapa.janela) Mapa.render(); };
   ligarPainel();
 

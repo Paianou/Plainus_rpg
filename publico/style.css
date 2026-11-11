@@ -2304,6 +2304,24 @@ a.marca-mestre:hover .nome { color: #fff; }
   touch-action: none;
 }
 
+/* A mesa em 3D (mesa3d.js): o <canvas> no lugar do SVG, e os botões
+   "De cima" e "Enquadrar" no canto. touch-action: none — no celular,
+   arrastar gira a mesa, não rola a página. */
+.quadro-mapa > canvas.mesa-3d {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.quadro-mapa > canvas.mesa-3d:active { cursor: grabbing; }
+.controles-3d {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;        /* embaixo: em cima mora a legenda do mapa */
+  display: flex;
+  gap: 8px;
+}
+
 /* Os tokens. O cursor conta a história: mão aberta, mão fechada. */
 .token-mapa { cursor: grab; }
 .token-mapa:active { cursor: grabbing; }

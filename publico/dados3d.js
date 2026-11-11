@@ -17,7 +17,8 @@
    queda até ela. Se a física decidisse o número, cada tela veria um
    resultado e o servidor não teria como conferir.
 
-   AS PEÇAS DO 3D (Three.js — vendor/three.min.js)
+   AS PEÇAS DO 3D (Three.js — vendor/three/, em módulo; o global.js
+   pendura THREE no ar para este script)
      renderer   desenha num <canvas> com WebGL (a placa de vídeo)
      scene      o "palco": o dado, as luzes, a sombra
      camera     de onde se olha (de frente, eixo Z)
@@ -74,10 +75,14 @@ const Dados3D = {
 
   tem3D: function () {
     if (this._tem3D !== undefined) return this._tem3D;
+    /* O Three.js chega por um módulo (vendor/three/global.js), que roda
+       depois da página ser lida. Antes disso a resposta é "ainda não"
+       — e não fica guardada, para perguntar de novo na próxima. */
+    if (typeof THREE === 'undefined') return false;
     let ok = false;
     try {
       const teste = document.createElement('canvas');
-      ok = typeof THREE !== 'undefined' && !!(teste.getContext('webgl2') || teste.getContext('webgl'));
+      ok = !!(teste.getContext('webgl2') || teste.getContext('webgl'));
     } catch (erro) { ok = false; }
     this._tem3D = ok;
     return ok;
