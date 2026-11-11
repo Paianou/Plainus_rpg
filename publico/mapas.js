@@ -239,8 +239,11 @@ const Mapa = {
        proporção certa, esticar não deforma nada. */
     const imagem = imagemDaCena(cena);
     if (imagem) {
+      /* Com a grade calibrada (modelo.js, quadroDaImagem) a imagem é
+         maior que a grade e começa antes dela; o viewBox corta a margem. */
+      const q = quadroDaImagem(cena);
       svg.appendChild(no('image', {
-        href: imagem, x: 0, y: 0, width: largura, height: altura, preserveAspectRatio: 'none'
+        href: imagem, x: q.x * CELULA, y: q.y * CELULA, width: q.largura * CELULA, height: q.altura * CELULA, preserveAspectRatio: 'none'
       }));
     }
 
@@ -1061,6 +1064,7 @@ const Mapa = {
 
     this.janela = modo;
     this.imagemEscolhida = undefined;
+    this.gradeEscolhida = undefined;      /* undefined = não mexeu; null = tirou; objeto = calibrou */
 
     document.getElementById('tituloDialogoCena').textContent = cena ? 'Editar cena' : 'Nova cena';
     document.getElementById('salvarCena').textContent = cena ? 'Salvar' : 'Criar cena';
@@ -1075,6 +1079,7 @@ const Mapa = {
     document.getElementById('erroCena').textContent = '';
 
     this.mostrarPrevia(cena ? imagemDaCena(cena) : null, 'Imagem atual desta cena');
+    this.mostrarCalibrador(cena ? imagemDaCena(cena) : null, cena ? (gradeValida(cena.grade) || null) : null);
     this.atualizarMedida();
 
     document.getElementById('dialogoCena').showModal();
@@ -1086,6 +1091,58 @@ const Mapa = {
     if (dialogo.open) dialogo.close();
     this.janela = null;
     this.imagemEscolhida = undefined;
+    this.gradeEscolhida = undefined;
+  },
+
+  /* ---- A calibração da grade (grade.js) ----
+     Com imagem, a janela mostra a prévia grande com a grade por cima:
+     "Detectar grade" tenta sozinho; dois cliques marcam uma célula. Com
+     a grade calibrada, colunas e linhas são calculadas (e travadas). */
+  mostrarCalibrador: function (imagem, grade) {
+    const self = this;
+    const bloco = document.getElementById('calibrador');
+    bloco.hidden = !imagem;
+    if (!imagem) { this.travarTamanho(false); return; }
+    const foto = new Image();
+    foto.onload = function () {
+      Grade.Calibrador.ligar(document.getElementById('calibradorTela'), foto, grade, function (nova) {
+        self.gradeEscolhida = nova;           /* null = tirou */
+        self.mostrarResultadoDaGrade(nova);
+      });
+      self.mostrarResultadoDaGrade(grade || null);
+    };
+    foto.src = imagem;
+  },
+
+  mostrarResultadoDaGrade: function (grade) {
+    const info = document.getElementById('calibradorInfo');
+    document.getElementById('tirarCalibracao').hidden = !grade;
+    if (!grade) {
+      info.textContent = 'Sem calibração: a imagem é esticada sobre a grade. Clique em "Detectar grade", ou em dois cantos opostos de uma célula do desenho.';
+      this.travarTamanho(false);
+      return;
+    }
+    const t = tamanhoPelaGrade(grade);
+    document.getElementById('cenaColunas').value = t.colunas;
+    document.getElementById('cenaLinhas').value = t.linhas;
+    this.travarTamanho(true);
+    this.atualizarMedida();
+    const fora = t.colunas < 5 || t.colunas > 60 || t.linhas < 5 || t.linhas > 40;
+    info.textContent = 'Grade calibrada: ' + t.colunas + ' × ' + t.linhas + ' células.' + (fora ? ' Fora do limite (5 a 60 colunas, 5 a 40 linhas): marque uma célula maior ou menor.' : ' Confira as linhas azuis sobre o desenho; para corrigir, clique em dois cantos opostos de uma célula.');
+  },
+
+  travarTamanho: function (travar) {
+    ['cenaColunas', 'cenaLinhas'].forEach(function (id) { document.getElementById(id).readOnly = travar; });
+  },
+
+  detectarGrade: function () {
+    const foto = Grade.Calibrador.imagem;
+    const info = document.getElementById('calibradorInfo');
+    if (!foto) return;
+    const achada = Grade.detectar(foto);
+    if (!achada) { info.textContent = 'Não achei uma grade nessa imagem. Clique em dois cantos opostos de uma célula para marcar à mão.'; return; }
+    Grade.Calibrador.definir({ x0: achada.x0, y0: achada.y0, lado: achada.lado, proporcao: achada.proporcao });
+    if (achada.confianca < 0.35) info.textContent += ' (A detecção não teve certeza: confira as linhas.)';
   },
 
   /* "20 × 12 células = 30 × 18 m" — enquanto você digita o tamanho. */
@@ -1123,6 +1180,9 @@ const Mapa = {
       /* base64 gasta 4 caracteres para cada 3 bytes. */
       const kb = Math.round(r.dados.length * 3 / 4 / 1024);
       self.mostrarPrevia(r.dados, r.largura + ' × ' + r.altura + ' px · ' + kb + ' KB depois de comprimida');
+      /* Imagem nova: a calibração antiga não vale mais. */
+      self.gradeEscolhida = null;
+      self.mostrarCalibrador(r.dados, null);
 
       const campoColunas = document.getElementById('cenaColunas');
       const colunas = Math.max(5, Math.min(60, Number(campoColunas.value) || 20));
@@ -1137,8 +1197,10 @@ const Mapa = {
 
   tirarImagem: function () {
     this.imagemEscolhida = null;
+    this.gradeEscolhida = null;
     document.getElementById('cenaImagem').value = '';
     this.mostrarPrevia(null);
+    this.mostrarCalibrador(null, null);
   },
 
 
@@ -1176,7 +1238,8 @@ const Mapa = {
       id: nova ? null : this.cena().id,
       nome: nome, visibilidade: visibilidade, colunas: colunas, linhas: linhas,
       contorno: nova && document.getElementById('cenaContorno').checked,
-      imagem: this.imagemEscolhida
+      imagem: this.imagemEscolhida,
+      grade: this.gradeEscolhida
     });
     if (r.erro) return falha(r.erro);
 
@@ -1304,6 +1367,8 @@ function ligarPainel() {
   document.getElementById('tirarImagem').addEventListener('click', function () {
     Mapa.tirarImagem();
   });
+  document.getElementById('detectarGrade').addEventListener('click', function () { Mapa.detectarGrade(); });
+  document.getElementById('tirarCalibracao').addEventListener('click', function () { Grade.Calibrador.definir(null); });
 
   ['cenaColunas', 'cenaLinhas'].forEach(function (id) {
     document.getElementById(id).addEventListener('input', function () { Mapa.atualizarMedida(); });

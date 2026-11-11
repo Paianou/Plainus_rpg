@@ -232,6 +232,10 @@ function acharHeroi(estado, id) {
 const regraDeArea = (typeof require === 'function' && typeof module !== 'undefined')
   ? require('./modelo.js')
   : { marcarAreaNaCena: marcarAreaNaCena };
+/* A calibração da grade (modelo.js): a mesma regra aqui e no servidor. */
+const MODELO = (typeof require === 'function' && typeof module !== 'undefined')
+  ? require('./modelo.js')
+  : { gradeValida: gradeValida, tamanhoPelaGrade: tamanhoPelaGrade };
 
 const COLUNAS = [5, 60];
 const LINHAS = [5, 40];
@@ -356,6 +360,8 @@ function cenaValida(c) {
   if (c.imagem !== undefined) {
     if (!imagemDeCenaValida(c.imagem)) return null;
     cena.imagem = c.imagem;
+    const grade = MODELO.gradeValida(c.grade);
+    if (grade) cena.grade = grade;
   }
   const dentro = function (x) { return { col: inteiro(x.col, 0, colunas - 1, 0), lin: inteiro(x.lin, 0, linhas - 1, 0) }; };
   cena.tokens = (Array.isArray(c.tokens) ? c.tokens : []).slice(0, 200).filter(function (t) { return t && idValido(t.id); }).map(function (t) {
@@ -877,9 +883,24 @@ const ACOES = {
   salvarCena: function (estado, dados) {
     const nome = texto(dados.nome, 60);
     const visibilidade = texto(dados.visibilidade, 60);
-    const colunas = inteiro(dados.colunas, 0, 999, 0);
-    const linhas = inteiro(dados.linhas, 0, 999, 0);
+    let colunas = inteiro(dados.colunas, 0, 999, 0);
+    let linhas = inteiro(dados.linhas, 0, 999, 0);
     if (!nome) return { erro: 'Dê um nome à cena.' };
+    /* A grade calibrada (modelo.js, gradeValida): undefined = não mexe,
+       null = tira, objeto = põe. Com ela, colunas e linhas vêm DELA — o
+       que o navegador digitou não conta: a grade é quem sabe quantas
+       células cabem na imagem. */
+    let grade;
+    if (dados.grade === null) grade = null;
+    else if (dados.grade !== undefined) {
+      grade = MODELO.gradeValida(dados.grade);
+      if (!grade) return { erro: 'A calibração da grade não é válida.' };
+      const t = MODELO.tamanhoPelaGrade(grade);
+      colunas = t.colunas; linhas = t.linhas;
+      if (colunas < COLUNAS[0] || colunas > COLUNAS[1] || linhas < LINHAS[0] || linhas > LINHAS[1]) {
+        return { erro: 'Com essa calibração a grade fica com ' + colunas + ' × ' + linhas + ' células; o limite é de 5 a 60 colunas e de 5 a 40 linhas. Marque uma célula maior ou menor.' };
+      }
+    }
     if (colunas < COLUNAS[0] || colunas > COLUNAS[1]) return { erro: 'Colunas: um número inteiro de 5 a 60.' };
     if (linhas < LINHAS[0] || linhas > LINHAS[1]) return { erro: 'Linhas: um número inteiro de 5 a 40.' };
     if (dados.imagem !== undefined && dados.imagem !== null && !imagemDeCenaValida(dados.imagem)) return { erro: 'Essa imagem não é válida.' };
@@ -890,6 +911,7 @@ const ACOES = {
       const cena = { id: novoId('cena'), nome: nome, visibilidade: visibilidade, colunas: colunas, linhas: linhas,
         paredes: dados.contorno ? contorno(colunas, linhas) : [], tokens: [], marcadores: [], areas: [] };
       if (dados.imagem) cena.imagem = dados.imagem;
+      if (grade) cena.grade = grade;
       estado.cenas.push(cena);
       estado.cenaAtual = cena.id;
       return { id: cena.id, nova: true };
@@ -900,8 +922,10 @@ const ACOES = {
     cena.nome = nome;
     cena.visibilidade = visibilidade;
     if (colunas !== cena.colunas || linhas !== cena.linhas) redimensionar(cena, colunas, linhas);
-    if (dados.imagem === null) delete cena.imagem;
+    if (dados.imagem === null) { delete cena.imagem; delete cena.grade; }
     else if (dados.imagem) cena.imagem = dados.imagem;
+    if (grade === null) delete cena.grade;
+    else if (grade) cena.grade = grade;
     return { id: cena.id, nova: false };
   },
 

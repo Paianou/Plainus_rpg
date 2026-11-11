@@ -74,8 +74,12 @@ const Planta = {
        esticar da tela de Mapas. */
     const imagem = imagemDaCena(cena);
     if (imagem) {
+      /* Onde a imagem fica em relação à grade (modelo.js, quadroDaImagem):
+         sem calibração, cobre a grade; com, é maior e começa antes —
+         o que sai da grade fica cortado pelo viewBox. */
+      const q = quadroDaImagem(cena);
       svg.appendChild(no('image', {
-        href: imagem, x: 0, y: 0, width: largura, height: altura, preserveAspectRatio: 'none'
+        href: imagem, x: q.x * CELULA, y: q.y * CELULA, width: q.largura * CELULA, height: q.altura * CELULA, preserveAspectRatio: 'none'
       }));
     }
 

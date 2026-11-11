@@ -18,7 +18,7 @@
    no bloco abaixo, e só saem os dois nomes.
    =================================================================== */
 
-const { estadoVazio, conferirCampanha, sortearCodigo, normalizarCodigo, imagemSegura, imagemDaCena, retratoSeguro, regrasPersonagem, LIMITE_RETRATO, marcarAreaNaCena, casasDaArea, RAIO_AREA } = (function () {
+const { estadoVazio, conferirCampanha, sortearCodigo, normalizarCodigo, imagemSegura, imagemDaCena, retratoSeguro, regrasPersonagem, LIMITE_RETRATO, marcarAreaNaCena, casasDaArea, RAIO_AREA, gradeValida, tamanhoPelaGrade, quadroDaImagem } = (function () {
 
 function estadoVazio() {
   return {
@@ -131,12 +131,55 @@ function soLista(x) {
   return Array.isArray(x) ? x : [];
 }
 
+/* ---------- A GRADE CALIBRADA SOBRE A IMAGEM (MESA3D.md, fase 3) ----------
+   Sem calibração, a imagem de uma cena é ESTICADA para cobrir a grade
+   inteira — e as linhas do mapa só batem com as células se a proporção
+   estiver certa. Com calibração, a grade fica alinhada ao desenho:
+     cena.grade = { x0, y0, lado, proporcao }
+       x0, y0     onde começa a primeira célula, em FRAÇÃO da largura e da
+                  altura da imagem (0 a 1): sobrevive a qualquer
+                  redimensionamento da imagem
+       lado       o lado de uma célula, em fração da largura
+       proporcao  altura ÷ largura da imagem (para converter o lado em
+                  fração da altura sem precisar carregar a imagem)
+   colunas e linhas passam a ser CALCULADOS: quantas células inteiras
+   cabem de (x0, y0) até a borda. A folha pode ter margem fora da grade
+   (o 3D mostra a folha inteira; o 2D recorta o que sai da grade). */
+function gradeValida(g) {
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return null;
+  const n = function (v, minimo, maximo) { const x = Number(v); return Number.isFinite(x) && x >= minimo && x <= maximo ? x : null; };
+  const x0 = n(g.x0, 0, 0.5), y0 = n(g.y0, 0, 0.5), lado = n(g.lado, 0.008, 0.5), proporcao = n(g.proporcao, 0.1, 10);
+  if (x0 === null || y0 === null || lado === null || proporcao === null) return null;
+  return { x0: x0, y0: y0, lado: lado, proporcao: proporcao };
+}
+
+/* Quantas células inteiras a calibração dá. */
+function tamanhoPelaGrade(grade) {
+  return {
+    colunas: Math.floor((1 - grade.x0) / grade.lado + 1e-6),
+    linhas: Math.floor((1 - grade.y0) * grade.proporcao / grade.lado + 1e-6)
+  };
+}
+
+/* Onde a IMAGEM fica, em células, no sistema da grade (a célula (0,0)
+   é a origem). Sem calibração, a imagem é a própria grade. Com, a
+   imagem é maior que a grade e começa antes dela (x e y negativos). */
+function quadroDaImagem(cena) {
+  const grade = gradeValida(cena && cena.grade);
+  if (!grade) return { x: 0, y: 0, largura: cena.colunas, altura: cena.linhas };
+  const largura = 1 / grade.lado;
+  return { x: -grade.x0 * largura, y: -grade.y0 * grade.proporcao * largura, largura: largura, altura: grade.proporcao * largura };
+}
+
 function conferirPorDentro(limpo) {
   LISTAS_DE_OBJETOS.forEach(function (chave) { limpo[chave] = limpo[chave].filter(ehObjeto); });
   LISTAS_DE_TEXTOS.forEach(function (chave) { limpo[chave] = limpo[chave].filter(function (x) { return typeof x === 'string'; }); });
 
   /* Cada parede é [coluna, linha, largura, altura]: quatro números. */
   limpo.cenas.forEach(function (cena) {
+    /* A calibração: ou é válida inteira, ou não existe. */
+    const grade = gradeValida(cena.grade);
+    if (grade) cena.grade = grade; else delete cena.grade;
     cena.paredes = soLista(cena.paredes).filter(function (p) {
       return Array.isArray(p) && p.length === 4 && p.every(function (n) { return typeof n === 'number' && isFinite(n); });
     });
@@ -297,10 +340,10 @@ function normalizarCodigo(texto) {
   return limpo.slice(0, 4) + '-' + limpo.slice(4, 8) + '-' + limpo.slice(8, 12);
 }
 
-return { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO, marcarAreaNaCena: marcarAreaNaCena, casasDaArea: casasDaArea, RAIO_AREA: RAIO_AREA };
+return { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO, marcarAreaNaCena: marcarAreaNaCena, casasDaArea: casasDaArea, RAIO_AREA: RAIO_AREA, gradeValida: gradeValida, tamanhoPelaGrade: tamanhoPelaGrade, quadroDaImagem: quadroDaImagem };
 })();
 
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO, marcarAreaNaCena: marcarAreaNaCena, casasDaArea: casasDaArea, RAIO_AREA: RAIO_AREA };
+  module.exports = { estadoVazio: estadoVazio, conferirCampanha: conferirCampanha, sortearCodigo: sortearCodigo, normalizarCodigo: normalizarCodigo, imagemSegura: imagemSegura, imagemDaCena: imagemDaCena, retratoSeguro: retratoSeguro, regrasPersonagem: regrasPersonagem, LIMITE_RETRATO: LIMITE_RETRATO, marcarAreaNaCena: marcarAreaNaCena, casasDaArea: casasDaArea, RAIO_AREA: RAIO_AREA, gradeValida: gradeValida, tamanhoPelaGrade: tamanhoPelaGrade, quadroDaImagem: quadroDaImagem };
 }

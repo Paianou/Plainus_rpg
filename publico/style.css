@@ -3888,6 +3888,19 @@ a.mini-botao { text-decoration: none; }
 }
 .previa-imagem .ajuda { margin-bottom: 6px; }
 
+/* O calibrador da grade (grade.js), na janela de cena: a prévia grande
+   com a grade azul por cima. O cursor em cruz diz "clique aqui". */
+.calibrador { margin-top: 10px; }
+.calibrador canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--hairline-forte);
+  border-radius: var(--r-p);
+  cursor: crosshair;
+}
+.calibrador-acoes { display: flex; gap: 8px; margin: 8px 0 6px; }
+
 
 /* ----- O formulário de monstro ----- */
 

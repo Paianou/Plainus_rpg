@@ -106,7 +106,7 @@ cor e base, e um dia imagem → figura).
 |---|---|---|---|
 | 1 | `vendor/three/` + `dados3d.js` | Three.js em módulos; o d20 continua igual | **feito** (2026-11-10) |
 | 2 | `mesa3d.js` (1ª versão) + "Ver em 3D" em Mapas | Mesa, folha, grade e paredes em 3D; câmera livre | **feito** (2026-11-11) |
-| 3 | Calibração da grade (`mapas.js`, `modelo.js`, `acoes.js`) | A grade bate com a imagem; detecção automática | |
+| 3 | Calibração da grade (`grade.js`, `mapas.js`, `modelo.js`, `acoes.js`) | A grade bate com a imagem; detecção automática | **feito** (2026-11-11) |
 | 4 | `figuras/` + `catalogo.js` | Os modelos, com a licença conferida | |
 | 5 | Figuras no `mesa3d.js` + `direcao`/`modelo`/`tamanho` nas ações | Figuras em pé, arrastar, girar, em tempo real | |
 | 6 | Jogador em 3D (`jogador-mesa.js`) | A própria figura, na vez dele | |

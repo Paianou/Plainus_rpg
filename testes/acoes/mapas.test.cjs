@@ -11,6 +11,18 @@ const c = ACOES.salvarCena(estado, { nome: 'Cripta', visibilidade: 'Penumbra', c
 const cena = estado.cenas[0];
 ok(c.nova && estado.cenaAtual === c.id && cena.paredes.length === 4, 'cena nova com contorno: 4 paredes, e vira a atual');
 
+/* a grade calibrada sobre a imagem (MESA3D.md, fase 3) */
+const IMG = 'data:image/jpeg;base64,/9j/4AAQ';
+ok(ACOES.salvarCena(estado, { id: c.id, nome: 'Cripta', colunas: 10, linhas: 8, imagem: IMG, grade: { x0: 0.035, y0: 0.04, lado: 0.046, proporcao: 0.6 } }).erro === undefined
+  && cena.colunas === 20 && cena.linhas === 12 && cena.grade && cena.grade.lado === 0.046, 'grade calibrada: colunas e linhas vêm DELA (20 × 12), não do que foi digitado (10 × 8)');
+ok(ACOES.salvarCena(estado, { id: c.id, nome: 'Cripta', colunas: 20, linhas: 12, grade: { x0: 0, y0: 0, lado: 0.3, proporcao: 0.6 } }).erro, 'grade com 3 colunas: recusada (mínimo 5), e nada muda');
+ok(cena.colunas === 20 && cena.grade.lado === 0.046, '…nada mudou mesmo');
+ok(ACOES.salvarCena(estado, { id: c.id, nome: 'Cripta', colunas: 20, linhas: 12, grade: { x0: 'a' } }).erro, 'grade inválida: recusada');
+ACOES.salvarCena(estado, { id: c.id, nome: 'Cripta', colunas: 20, linhas: 12, grade: null });
+ok(cena.grade === undefined && cena.colunas === 20, 'grade: null tira a calibração (o tamanho fica)');
+ACOES.salvarCena(estado, { id: c.id, nome: 'Cripta', colunas: 10, linhas: 8, imagem: null });
+ok(cena.imagem === undefined && cena.colunas === 10, 'tirar a imagem volta ao tamanho digitado');
+
 /* paredes */
 ok(!ACOES.definirParedes(estado, { cenaId: c.id, paredes: [[2, 2, 3, 1], [8, 7, 5, 5], [50, 50, 1, 1], [1, 1, 99, 1]] }).erro, 'definir paredes');
 ok(JSON.stringify(cena.paredes) === JSON.stringify([[2, 2, 3, 1], [8, 7, 2, 1]]), 'parede que passa da borda é cortada; fora da cena ou com largura impossível (99) sai');

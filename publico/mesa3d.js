@@ -243,14 +243,17 @@ const Mesa3D = {
     opcoes = opcoes || {};
     const colunas = Math.max(1, cena.colunas | 0);
     const linhas = Math.max(1, cena.linhas | 0);
-    const mudouTamanho = colunas !== this.colunas || linhas !== this.linhas;
+    const quadro = typeof quadroDaImagem === 'function' ? quadroDaImagem(cena) : { x: 0, y: 0, largura: colunas, altura: linhas };
+    const chaveQuadro = [quadro.x, quadro.y, quadro.largura, quadro.altura].map(function (v) { return v.toFixed(4); }).join(',');
+    const mudouTamanho = colunas !== this.colunas || linhas !== this.linhas || chaveQuadro !== this.chaveQuadro;
     this.colunas = colunas;
     this.linhas = linhas;
+    this.chaveQuadro = chaveQuadro;
     this.cenaId = cena.id;
 
     if (mudouTamanho) {
-      this.montarTampo();
-      this.montarFolha();
+      this.montarTampo(quadro);
+      this.montarFolha(quadro);
       this.montarGrade();
       this.posicionarLuzes();
       this.limitarCamera();
@@ -270,31 +273,37 @@ const Mesa3D = {
 
   /* O tampo de ardósia: um bloco maior que a folha, com a face de cima
      logo abaixo de y = 0 (onde a folha deita). */
-  montarTampo: function () {
+  montarTampo: function (quadro) {
     if (this.tampo) { this.cena3d.remove(this.tampo); this.tampo.geometry.dispose(); }
-    const largura = this.colunas + MARGEM_TAMPO * 2;
-    const fundo = this.linhas + MARGEM_TAMPO * 2;
+    /* O tampo envolve a grade E a folha (a maior das duas), com margem. */
+    const x0 = Math.min(0, quadro.x), z0 = Math.min(0, quadro.y);
+    const x1 = Math.max(this.colunas, quadro.x + quadro.largura), z1 = Math.max(this.linhas, quadro.y + quadro.altura);
+    const largura = (x1 - x0) + MARGEM_TAMPO * 2;
+    const fundo = (z1 - z0) + MARGEM_TAMPO * 2;
     const geometria = new THREE.BoxGeometry(largura, ESPESSURA_TAMPO, fundo);
     if (!this.materialTampo) {
       this.materialTampo = new THREE.MeshStandardMaterial({ color: COR_TAMPO, roughness: 0.92, metalness: 0.05 });
     }
     this.tampo = new THREE.Mesh(geometria, this.materialTampo);
-    this.tampo.position.set(this.colunas / 2, -ESPESSURA_TAMPO / 2 - 0.01, this.linhas / 2);
+    this.tampo.position.set((x0 + x1) / 2, -ESPESSURA_TAMPO / 2 - 0.01, (z0 + z1) / 2);
     this.tampo.receiveShadow = true;
     this.cena3d.add(this.tampo);
   },
 
 
-  /* A folha do mapa: um plano do tamanho exato da grade, deitado. */
-  montarFolha: function () {
+  /* A folha do mapa: a IMAGEM inteira, deitada, no lugar que a
+     calibração diz (modelo.js, quadroDaImagem). Sem calibração, a folha
+     é exatamente a grade; com, ela pode ser maior (a margem do mapa
+     aparece em volta da grade — é a folha de verdade sobre a mesa). */
+  montarFolha: function (quadro) {
     if (this.folha) { this.cena3d.remove(this.folha); this.folha.geometry.dispose(); }
-    const geometria = new THREE.PlaneGeometry(this.colunas, this.linhas);
+    const geometria = new THREE.PlaneGeometry(quadro.largura, quadro.altura);
     if (!this.materialFolha) {
       this.materialFolha = new THREE.MeshStandardMaterial({ color: COR_FOLHA_SEM_IMAGEM, roughness: 0.95, metalness: 0 });
     }
     this.folha = new THREE.Mesh(geometria, this.materialFolha);
     this.folha.rotation.x = -Math.PI / 2;            /* deita o plano */
-    this.folha.position.set(this.colunas / 2, 0, this.linhas / 2);
+    this.folha.position.set(quadro.x + quadro.largura / 2, 0, quadro.y + quadro.altura / 2);
     this.folha.receiveShadow = true;
     this.cena3d.add(this.folha);
   },

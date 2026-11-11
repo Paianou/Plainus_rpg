@@ -166,10 +166,23 @@
               <button class="mini-botao" type="button" id="tirarImagem">Tirar imagem</button>
             </div>
           </div>
+          <!-- A CALIBRAÇÃO DA GRADE (grade.js). Aparece quando há imagem:
+               a prévia grande com a grade azul por cima. "Detectar grade"
+               acha o passo sozinho; dois cliques em cantos opostos de uma
+               célula marcam à mão. Com a grade calibrada, colunas e
+               linhas são calculadas a partir dela (os campos travam). -->
+          <div class="calibrador" id="calibrador" hidden>
+            <canvas id="calibradorTela" width="640" height="400" aria-label="A imagem do mapa, com a grade por cima. Clique em dois cantos opostos de uma célula para calibrar."></canvas>
+            <div class="calibrador-acoes">
+              <button class="mini-botao" type="button" id="detectarGrade">Detectar grade</button>
+              <button class="mini-botao" type="button" id="tirarCalibracao" hidden>Tirar calibração</button>
+            </div>
+            <div class="ajuda" id="calibradorInfo"></div>
+          </div>
           <div class="ajuda">
-            A grade fica por cima da imagem. Ao escolher uma, as linhas se
-            ajustam à proporção dela. Sem servidor, as imagens ocupam o
-            espaço do navegador — cabem algumas, não dezenas.
+            A grade fica por cima da imagem. Calibrada, ela segue as
+            linhas do desenho e as células batem com o mapa; sem calibrar,
+            a imagem é esticada sobre a grade.
           </div>
         </div>
       </div>
@@ -203,6 +216,7 @@
   <script src="imagens.js"></script>
   <script src="bichos.js"></script>
   <script src="planta.js"></script>        <!-- o desenho das áreas, o mesmo do jogador -->
+  <script src="grade.js"></script>         <!-- a calibração da grade sobre a imagem -->
   <script src="regras.js"></script>
   <script src="audio.js"></script>
   <script src="busca.js"></script>
