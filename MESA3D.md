@@ -107,7 +107,7 @@ cor e base, e um dia imagem → figura).
 | 1 | `vendor/three/` + `dados3d.js` | Three.js em módulos; o d20 continua igual | **feito** (2026-11-10) |
 | 2 | `mesa3d.js` (1ª versão) + "Ver em 3D" em Mapas | Mesa, folha, grade e paredes em 3D; câmera livre | **feito** (2026-11-11) |
 | 3 | Calibração da grade (`grade.js`, `mapas.js`, `modelo.js`, `acoes.js`) | A grade bate com a imagem; detecção automática | **feito** (2026-11-11) |
-| 4 | `figuras/` + `catalogo.js` | Os modelos, com a licença conferida | |
+| 4 | `figuras/` + `catalogo.js` | Os modelos, com a licença conferida | **feito** (2026-11-12): 9 figuras KayKit CC0, 230–370 KB cada |
 | 5 | Figuras no `mesa3d.js` + `direcao`/`modelo`/`tamanho` nas ações | Figuras em pé, arrastar, girar, em tempo real | |
 | 6 | Jogador em 3D (`jogador-mesa.js`) | A própria figura, na vez dele | |
 | 7 | Escolha da figura (ficha, bestiário) | O jogador escolhe a sua; o Mestre, as dos monstros | |
@@ -124,3 +124,18 @@ foto de qualquer arquivo para a Oficina.
   domínio `runlise.com`), prévia do link (Open Graph), privacidade,
   contato, 404, ícones do celular, cabeçalhos de segurança, perguntas
   frequentes. Tudo listado na conversa de 2026-11-04.
+
+## Notas da fase 4 (figuras)
+
+- Os pacotes originais (KayKit Adventurers e Skeletons, 270 MB) ficam
+  FORA do repositório; `testes/figuras/montar-figuras.mjs <pasta>` gera
+  os `.glb` de `publico/figuras/` (pose congelada, um equipamento, sem
+  animação) com o `emagrecer-glb.mjs` (Node puro, sem dependências).
+- A frente dos modelos KayKit é +Z. Na mesa (coluna = X, linha = Z), uma
+  figura sem giro olha "para baixo" no mapa 2D.
+- A CSP ganhou `connect-src blob:`: o GLTFLoader lê a textura de dentro
+  do .glb por um blob: da própria página.
+- Faltam monstros que não sejam humanoides (lobo, orc, aranha, ogro…):
+  o Quaternius "Ultimate Monsters" (CC0) está num Google Drive, sem link
+  direto; fica para quando houver download. Até lá, esses tokens usam a
+  figura genérica da categoria.

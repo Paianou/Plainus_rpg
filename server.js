@@ -116,7 +116,8 @@ const ARQUIVOS_DO_SITE = new Set(
     .filter(function (e) { return e.isFile() && EXTENSOES_DO_SITE.test(e.name); })
     .map(function (e) { return e.name; })
 );
-const PASTAS_DO_SITE = ['vendor'];
+/* vendor/ (o Three.js) e figuras/ (as miniaturas da mesa em 3D). */
+const PASTAS_DO_SITE = ['vendor', 'figuras'];
 
 
 const app = express();
@@ -154,7 +155,10 @@ const POLITICA = [
   "style-src 'self' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
   "img-src 'self' data: blob:",
-  "connect-src 'self'",
+  /* blob: — o GLTFLoader (as figuras em 3D) lê a textura de dentro do
+     .glb por um endereço blob: criado pela própria página; sem isto a
+     figura carrega branca. Um blob: só existe para quem o criou. */
+  "connect-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'none'",
   "frame-ancestors 'none'"
